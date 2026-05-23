@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#155B67">
+<title>Diagnóstika Engenharia — Portal de Sistemas</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{--teal:#155B67;--teal-dk:#0D3C44;--turq:#00B4AC;--turq-dk:#008A83;--lime:#8DB72A;--lime-dk:#6a8a1e;--purple:#7D3C98;--amber:#D4A24C;--amber-dk:#A87826;--text:#1A2E31;--text2:#4A6568;--gray:#F0F4F5;--gray2:#E0EAEC;--gray3:#A8BFC2;--gray4:#5A7A7E;--white:#FFFFFF}
+html,body{min-height:100%;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:linear-gradient(135deg,var(--teal-dk) 0%,var(--teal) 50%,var(--turq) 100%);color:var(--text);font-size:15px;line-height:1.5}
+body{min-height:100vh;display:flex;flex-direction:column}
+
+header{padding:32px 24px 40px;text-align:center;color:#fff}
+header img{height:64px;margin-bottom:14px;filter:brightness(0) invert(1)}
+header h1{font-size:26px;font-weight:700;margin-bottom:6px;letter-spacing:.3px}
+header p{font-size:14px;opacity:.8;max-width:560px;margin:0 auto}
+
+main{flex:1;background:var(--white);border-radius:24px 24px 0 0;padding:28px 20px 60px;box-shadow:0 -8px 32px rgba(0,0,0,.15)}
+.container{max-width:1080px;margin:0 auto}
+.title{font-size:12px;font-weight:700;color:var(--gray4);text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;padding-left:4px}
+
+.grid{display:grid;grid-template-columns:1fr;gap:14px;margin-bottom:28px}
+@media(min-width:640px){.grid{grid-template-columns:1fr 1fr}}
+@media(min-width:960px){.grid{grid-template-columns:repeat(3,1fr)}}
+
+.card{display:block;text-decoration:none;color:inherit;background:var(--white);border-radius:16px;padding:22px 20px;box-shadow:0 2px 14px rgba(21,91,103,.1);border:2px solid transparent;transition:transform .15s,box-shadow .2s,border-color .2s;position:relative;overflow:hidden}
+.card:hover:not(.disabled){transform:translateY(-2px);box-shadow:0 8px 28px rgba(21,91,103,.18)}
+.card-icon{width:54px;height:54px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:14px;color:#fff}
+.card h3{font-size:17px;font-weight:700;color:var(--text);margin-bottom:4px}
+.card p{font-size:12.5px;color:var(--text2);line-height:1.5;margin-bottom:10px;min-height:36px}
+.card-cta{font-size:12px;font-weight:700;color:var(--teal);display:inline-flex;align-items:center;gap:4px;letter-spacing:.3px;text-transform:uppercase}
+.card.disabled{opacity:.55;cursor:not-allowed}
+.card.disabled .card-cta{color:var(--gray4)}
+.card-badge{position:absolute;top:14px;right:14px;font-size:9px;font-weight:700;padding:3px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.4px}
+.bd-live{background:rgba(27,138,74,.12);color:#1B8A4A}
+.bd-soon{background:rgba(168,191,194,.2);color:var(--gray4)}
+
+.card.c-pmp .card-icon{background:linear-gradient(135deg,var(--teal),var(--turq))}
+.card.c-pmp{border-color:rgba(21,91,103,.08)}
+.card.c-pmp:hover{border-color:var(--teal)}
+.card.c-laudos .card-icon{background:linear-gradient(135deg,var(--purple),#5B2A78)}
+.card.c-laudos:hover{border-color:var(--purple)}
+.card.c-vistorias .card-icon{background:linear-gradient(135deg,var(--lime),var(--lime-dk))}
+.card.c-vistorias:hover{border-color:var(--lime)}
+.card.c-aprovacoes .card-icon{background:linear-gradient(135deg,var(--amber),var(--amber-dk))}
+.card.c-aprovacoes:hover{border-color:var(--amber)}
+.card.c-dashboard .card-icon{background:linear-gradient(135deg,#34495E,#1A2E31)}
+.card.c-dashboard:hover{border-color:#34495E}
+.card.c-admin .card-icon{background:linear-gradient(135deg,#E67E22,#C75713)}
+.card.c-admin:hover{border-color:#E67E22}
+
+footer{background:var(--teal-dk);color:rgba(255,255,255,.7);text-align:center;padding:22px 16px;font-size:12px}
+footer strong{color:#fff;font-weight:600}
+footer a{color:var(--turq);text-decoration:none}
+footer a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+
+<header>
+  <img src="assets/logo-dark.png" alt="Diagnóstika Engenharia">
+  <h1>Portal de Sistemas</h1>
+  <p>Plataforma integrada de engenharia diagnóstica · Paulínia & Hortolândia/SP</p>
+</header>
+
+<main>
+  <div class="container">
+
+    <div class="title">📚 Sistemas Disponíveis</div>
+    <div class="grid">
+      <a class="card c-pmp" href="https://diagnostika-engenharia.github.io/pmp/">
+        <span class="card-badge bd-live">● No ar</span>
+        <div class="card-icon">🛠️</div>
+        <h3>Manutenção Preventiva</h3>
+        <p>Checklists em campo, calendário anual, fotos com anotações e relatórios em PDF por condomínio.</p>
+        <span class="card-cta">Abrir sistema →</span>
+      </a>
+
+      <a class="card c-laudos disabled">
+        <span class="card-badge bd-soon">Em breve</span>
+        <div class="card-icon">📋</div>
+        <h3>Laudos Técnicos</h3>
+        <p>Geração de laudos com modelo padronizado, fotos categorizadas e ART vinculada.</p>
+        <span class="card-cta">Em desenvolvimento</span>
+      </a>
+
+      <a class="card c-vistorias disabled">
+        <span class="card-badge bd-soon">Em breve</span>
+        <div class="card-icon">🏗️</div>
+        <h3>Vistorias Cautelares</h3>
+        <p>Antes/depois de obras, com fotos lado a lado e termo de aceite digital.</p>
+        <span class="card-cta">Em desenvolvimento</span>
+      </a>
+
+      <a class="card c-aprovacoes disabled">
+        <span class="card-badge bd-soon">Em breve</span>
+        <div class="card-icon">✅</div>
+        <h3>Aprovações de Reforma</h3>
+        <p>Autorizações de obra para moradores conforme NBR 16280, com fluxo de aprovação.</p>
+        <span class="card-cta">Em desenvolvimento</span>
+      </a>
+
+      <a class="card c-dashboard disabled">
+        <span class="card-badge bd-soon">Em breve</span>
+        <div class="card-icon">📊</div>
+        <h3>Dashboard de Clientes</h3>
+        <p>Visão geral dos condomínios, contratos vigentes, faturamento e indicadores.</p>
+        <span class="card-cta">Em desenvolvimento</span>
+      </a>
+
+      <a class="card c-admin disabled">
+        <span class="card-badge bd-soon">Em breve</span>
+        <div class="card-icon">⚙️</div>
+        <h3>Configurações</h3>
+        <p>Cadastro de engenheiros, normas, modelos de checklist e configurações gerais.</p>
+        <span class="card-cta">Em desenvolvimento</span>
+      </a>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  <div><strong>Diagnóstika Engenharia LTDA</strong> · CNPJ 54.027.948/0001-60</div>
+  <div style="margin-top:4px">Eng. Civil Claudemir Scaranello · CREA/SP 50.707.124-26</div>
+  <div style="margin-top:6px"><a href="mailto:contato@diagnostikaengenharia.com.br">contato@diagnostikaengenharia.com.br</a></div>
+</footer>
+
+</body>
+</html>

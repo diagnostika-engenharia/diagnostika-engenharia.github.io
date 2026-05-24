@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#155B67">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Diagnóstika">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/icon.png">
 <title>Diagnóstika Engenharia — Portal de Sistemas</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -61,7 +66,7 @@ footer a:hover{text-decoration:underline}
 <header>
   <img src="assets/logo-dark.png" alt="Diagnóstika Engenharia">
   <h1>Portal de Sistemas</h1>
-  <p>Plataforma integrada de engenharia diagnóstica · Paulínia & Hortolândia/SP</p>
+  <p>Plataforma integrada de engenharia diagnóstica</p>
 </header>
 
 <main>
@@ -127,5 +132,8 @@ footer a:hover{text-decoration:underline}
   <div style="margin-top:6px"><a href="mailto:contato@diagnostikaengenharia.com.br">contato@diagnostikaengenharia.com.br</a></div>
 </footer>
 
+<script>
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
 </body>
 </html>

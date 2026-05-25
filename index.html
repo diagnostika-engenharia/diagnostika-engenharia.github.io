@@ -164,6 +164,29 @@ footer a:hover{text-decoration:underline}
   📲 Instalar App
 </button>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// Redirecionamento de síndicos — não devem navegar para o portal central
+// ═══════════════════════════════════════════════════════════════════════════
+(async()=>{
+  try{
+    const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
+    const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpbW1qZ2R3aGlmc3JyYnJlY2hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzU2NDIsImV4cCI6MjA5NTE1MTY0Mn0.eAmMS95M8BkfX3NCcOtHnhKWXy0jkvXwSGEoqv_Q21Q';
+    const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+    const {data}=await sb.auth.getSession();
+    if(data?.session){
+      // Usuário autenticado: verifica se é síndico
+      const {data:vincs}=await sb.from('user_condos').select('role').eq('user_id',data.session.user.id);
+      if(vincs && vincs.some(v=>v.role==='sindico')){
+        // É síndico → redireciona para o portal do síndico
+        window.location.replace('/sindico/');
+      }
+    }
+  }catch(e){console.warn('Auth check falhou:',e);}
+})();
+</script>
+
 <script>
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 

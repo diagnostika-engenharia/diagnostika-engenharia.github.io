@@ -80,9 +80,39 @@ footer a:hover{text-decoration:underline}
 .install-tab.active{color:var(--teal);border-bottom-color:var(--teal)}
 .install-content{display:none}
 .install-content.active{display:block}
+
+/* Login Gate */
+body.locked > header, body.locked > main, body.locked > footer, body.locked > #install-btn{display:none!important}
+#login-gate{position:fixed;inset:0;background:linear-gradient(135deg,var(--teal-dk) 0%,var(--teal) 50%,var(--turq) 100%);display:none;align-items:center;justify-content:center;z-index:999;padding:20px}
+body.locked #login-gate{display:flex}
+.login-box{background:#fff;border-radius:16px;padding:32px 28px;max-width:380px;width:100%;box-shadow:0 12px 48px rgba(0,0,0,.3);text-align:center}
+.login-box img{height:54px;margin-bottom:14px}
+.login-box h2{font-size:18px;color:var(--teal);margin-bottom:4px;font-weight:700}
+.login-box .sub{font-size:12.5px;color:var(--text2);margin-bottom:22px}
+.login-box input{width:100%;padding:13px 14px;border:1.5px solid var(--gray2);border-radius:8px;font-size:14px;margin-bottom:10px;outline:none;font-family:inherit}
+.login-box input:focus{border-color:var(--teal)}
+.login-box button{width:100%;padding:13px;border:none;background:var(--teal);color:#fff;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;margin-top:6px}
+.login-box button:hover{background:var(--teal-dk)}
+.login-box button:disabled{opacity:.6;cursor:not-allowed}
+.login-err{background:rgba(192,0,0,.08);color:#C00000;border-left:3px solid #C00000;padding:9px 11px;border-radius:0 6px 6px 0;font-size:12.5px;margin-bottom:10px;text-align:left;display:none}
+.login-err.show{display:block}
+.login-foot{font-size:11px;color:var(--text2);margin-top:14px;line-height:1.5}
 </style>
 </head>
-<body>
+<body class="locked">
+
+<div id="login-gate">
+  <form class="login-box" onsubmit="event.preventDefault();fazerLogin();">
+    <img src="assets/logo-dark.png" alt="Diagnóstika" style="filter:none">
+    <h2>🔒 Acesso Restrito</h2>
+    <div class="sub">Portal de Sistemas — Diagnóstika Engenharia</div>
+    <div id="login-err" class="login-err"></div>
+    <input type="email" id="login-email" placeholder="E-mail" autocomplete="username" required>
+    <input type="password" id="login-senha" placeholder="Senha" autocomplete="current-password" required>
+    <button id="login-btn" type="submit">Entrar</button>
+    <div class="login-foot">Acesso autorizado apenas para equipe e síndicos cadastrados.</div>
+  </form>
+</div>
 
 <header>
   <img src="assets/logo-dark.png" alt="Diagnóstika Engenharia">
@@ -157,7 +187,9 @@ footer a:hover{text-decoration:underline}
 
 <footer>
   <div><strong>Diagnóstika Engenharia LTDA</strong> · CNPJ 54.027.948/0001-60</div>
+  <div style="margin-top:8px"><a href="#" onclick="event.preventDefault();sairSistema();" style="color:rgba(255,255,255,.55);font-size:11px;text-decoration:none">🔓 Sair</a></div>
 </footer>
+<script>async function sairSistema(){ await sb.auth.signOut(); location.reload(); }</script>
 
 <button id="install-btn" onclick="instalarApp()" title="Instalar como aplicativo">
   📲 Instalar App
@@ -166,24 +198,46 @@ footer a:hover{text-decoration:underline}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ═══════════════════════════════════════════════════════════════════════════
-// Redirecionamento de síndicos — não devem navegar para o portal central
+// Gate de autenticação — ninguém acessa sem senha
 // ═══════════════════════════════════════════════════════════════════════════
-(async()=>{
+const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
+const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpbW1qZ2R3aGlmc3JyYnJlY2hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzU2NDIsImV4cCI6MjA5NTE1MTY0Mn0.eAmMS95M8BkfX3NCcOtHnhKWXy0jkvXwSGEoqv_Q21Q';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+
+async function verificarSessao(){
   try{
-    const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
-    const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpbW1qZ2R3aGlmc3JyYnJlY2hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzU2NDIsImV4cCI6MjA5NTE1MTY0Mn0.eAmMS95M8BkfX3NCcOtHnhKWXy0jkvXwSGEoqv_Q21Q';
-    const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
     const {data}=await sb.auth.getSession();
-    if(data?.session){
-      // Usuário autenticado: verifica se é síndico
-      const {data:vincs}=await sb.from('user_condos').select('role').eq('user_id',data.session.user.id);
-      if(vincs && vincs.some(v=>v.role==='sindico')){
-        // É síndico → redireciona para o portal do síndico
-        window.location.replace('/sindico/');
-      }
+    if(!data?.session){ document.body.classList.add('locked'); return; }
+    // autenticado — verifica se é síndico
+    const {data:vincs}=await sb.from('user_condos').select('role').eq('user_id',data.session.user.id);
+    if(vincs && vincs.length && vincs.every(v=>v.role==='sindico')){
+      window.location.replace('/sindico/'); return;
     }
-  }catch(e){console.warn('Auth check falhou:',e);}
-})();
+    // equipe interna → libera portal
+    document.body.classList.remove('locked');
+  }catch(e){ console.warn('Auth check falhou:',e); document.body.classList.add('locked'); }
+}
+
+async function fazerLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const senha=document.getElementById('login-senha').value;
+  const btn=document.getElementById('login-btn');
+  const err=document.getElementById('login-err');
+  err.classList.remove('show');
+  if(!email||!senha){ err.textContent='Preencha e-mail e senha'; err.classList.add('show'); return; }
+  btn.disabled=true; btn.textContent='Entrando…';
+  try{
+    const {error}=await sb.auth.signInWithPassword({email,password:senha});
+    if(error) throw error;
+    await verificarSessao();
+  }catch(e){
+    err.textContent=e.message==='Invalid login credentials'?'E-mail ou senha incorretos':('Erro: '+e.message);
+    err.classList.add('show');
+    btn.disabled=false; btn.textContent='Entrar';
+  }
+}
+
+verificarSessao();
 </script>
 
 <script>

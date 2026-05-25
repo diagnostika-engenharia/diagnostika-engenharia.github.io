@@ -59,6 +59,25 @@ footer{background:var(--teal-dk);color:rgba(255,255,255,.7);text-align:center;pa
 footer strong{color:#fff;font-weight:600}
 footer a{color:var(--turq);text-decoration:none}
 footer a:hover{text-decoration:underline}
+
+/* Install PWA */
+#install-btn{position:fixed;bottom:20px;right:20px;background:linear-gradient(135deg,var(--lime),#7ba023);color:#fff;border:none;border-radius:30px;padding:14px 22px;font-size:14px;font-weight:700;cursor:pointer;display:none;align-items:center;gap:8px;box-shadow:0 6px 24px rgba(141,183,42,.5);z-index:50}
+#install-btn.show{display:flex}
+#install-btn:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(141,183,42,.7)}
+@media(max-width:640px){#install-btn{bottom:14px;right:14px;left:14px;justify-content:center}}
+.install-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
+.install-modal{background:#fff;border-radius:14px;max-width:500px;width:100%;padding:24px;max-height:90vh;overflow-y:auto;position:relative}
+.install-modal h2{color:var(--teal);font-size:19px;margin-bottom:6px}
+.install-modal p{color:var(--text2);font-size:13px;margin-bottom:14px}
+.install-modal h3{font-size:13px;color:var(--text);margin:12px 0 6px;display:flex;align-items:center;gap:8px}
+.install-modal ol{padding-left:22px;font-size:13px;color:var(--text2);line-height:1.7}
+.install-modal ol li b{color:var(--text)}
+.install-modal-close{position:absolute;top:10px;right:14px;background:none;border:none;font-size:24px;cursor:pointer;color:var(--gray4);line-height:1}
+.install-tabs{display:flex;gap:4px;margin:14px 0 8px;border-bottom:1px solid var(--gray2)}
+.install-tab{flex:1;padding:9px 6px;border:none;background:transparent;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px}
+.install-tab.active{color:var(--teal);border-bottom-color:var(--teal)}
+.install-content{display:none}
+.install-content.active{display:block}
 </style>
 </head>
 <body>
@@ -131,8 +150,134 @@ footer a:hover{text-decoration:underline}
   <div style="margin-top:6px"><a href="mailto:contato@diagnostikaengenharia.com.br">contato@diagnostikaengenharia.com.br</a></div>
 </footer>
 
+<button id="install-btn" onclick="instalarApp()" title="Instalar como aplicativo">
+  📲 Instalar App
+</button>
+
 <script>
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Instalação do PWA
+// ═══════════════════════════════════════════════════════════════════════════
+let _instalarPrompt=null;
+
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault();
+  _instalarPrompt=e;
+  document.getElementById('install-btn').classList.add('show');
+});
+
+window.addEventListener('appinstalled', ()=>{
+  document.getElementById('install-btn').classList.remove('show');
+  alert('✅ App instalado! Procure o ícone "Diagnóstika" na sua tela inicial.');
+});
+
+// Se já está rodando como PWA, esconde o botão
+if(window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone){
+  document.addEventListener('DOMContentLoaded',()=>{
+    const btn=document.getElementById('install-btn');
+    if(btn) btn.style.display='none';
+  });
+}
+
+// Detecta navegador para mostrar instrução certa
+function detectarNav(){
+  const ua=navigator.userAgent.toLowerCase();
+  if(/iphone|ipad|ipod/.test(ua)) return 'ios';
+  if(/android/.test(ua)) return 'android';
+  if(/edg\//.test(ua)) return 'edge';
+  if(/firefox/.test(ua)) return 'firefox';
+  if(/chrome/.test(ua)) return 'chrome';
+  if(/safari/.test(ua)) return 'safari';
+  return 'outro';
+}
+
+function instalarApp(){
+  // Caminho ideal: API beforeinstallprompt
+  if(_instalarPrompt){
+    _instalarPrompt.prompt();
+    _instalarPrompt.userChoice.then(choice=>{
+      if(choice.outcome==='accepted'){
+        document.getElementById('install-btn').classList.remove('show');
+      }
+      _instalarPrompt=null;
+    });
+    return;
+  }
+  // Sem prompt: mostra instruções manuais
+  mostrarInstrucoesInstalacao();
+}
+
+function mostrarInstrucoesInstalacao(){
+  const nav=detectarNav();
+  const overlay=document.createElement('div');
+  overlay.className='install-modal-overlay';
+  overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
+  overlay.innerHTML=`
+    <div class="install-modal">
+      <button class="install-modal-close" onclick="this.closest('.install-modal-overlay').remove()">×</button>
+      <h2>📲 Instalar como App</h2>
+      <p>O Diagnóstika pode ser instalado como aplicativo nativo no seu dispositivo. Escolha sua plataforma:</p>
+
+      <div class="install-tabs">
+        <button class="install-tab ${nav==='android'||nav==='chrome'||nav==='edge'?'active':''}" data-tab="android">🤖 Android</button>
+        <button class="install-tab ${nav==='ios'?'active':''}" data-tab="ios">🍎 iPhone/iPad</button>
+        <button class="install-tab ${nav==='outro'||nav==='firefox'||nav==='safari'?'active':''}" data-tab="pc">💻 PC</button>
+      </div>
+
+      <div class="install-content ${nav==='android'||nav==='chrome'||nav==='edge'?'active':''}" data-content="android">
+        <h3>📱 Android (Chrome / Edge / Samsung Internet)</h3>
+        <ol>
+          <li>Toque no menu do navegador (<b>⋮</b> três pontinhos no canto superior direito)</li>
+          <li>Procure por <b>"Instalar app"</b>, <b>"Adicionar à tela inicial"</b> ou <b>"Instalar Diagnóstika"</b></li>
+          <li>Confirme tocando em <b>"Instalar"</b></li>
+          <li>Pronto! O ícone <b>Diagnóstika</b> aparece junto com seus outros apps</li>
+        </ol>
+        <p style="margin-top:10px;font-size:11px;color:var(--gray4)">💡 Se não aparecer a opção: navegue um pouco pelo site (clique em alguns links) e tente de novo — alguns navegadores só liberam após uso.</p>
+      </div>
+
+      <div class="install-content ${nav==='ios'?'active':''}" data-content="ios">
+        <h3>🍎 iPhone / iPad (Safari)</h3>
+        <ol>
+          <li>Use o navegador <b>Safari</b> (Chrome no iOS não funciona para instalar)</li>
+          <li>Toque no botão de <b>compartilhar</b> (quadrado com seta apontando para cima ⇪ no rodapé)</li>
+          <li>Role para baixo e toque em <b>"Adicionar à Tela de Início"</b></li>
+          <li>Toque em <b>"Adicionar"</b> no canto superior direito</li>
+          <li>Pronto! Ícone <b>Diagnóstika</b> aparece na tela inicial</li>
+        </ol>
+      </div>
+
+      <div class="install-content ${nav==='outro'||nav==='firefox'||nav==='safari'?'active':''}" data-content="pc">
+        <h3>💻 PC / Notebook</h3>
+        <p><b>Chrome ou Edge:</b></p>
+        <ol>
+          <li>Veja na <b>barra de endereço</b> à direita — deve ter um ícone de <b>monitor com seta ↓</b> ou <b>"+"</b></li>
+          <li>Clique nele → <b>"Instalar Diagnóstika"</b></li>
+          <li>Ou use o menu (<b>⋮</b>) → <b>"Instalar Diagnóstika..."</b></li>
+        </ol>
+        <p style="margin-top:10px"><b>Firefox:</b></p>
+        <p style="font-size:12px">Firefox no desktop não suporta instalação direta de PWA. Use Chrome, Edge ou um navegador baseado em Chromium.</p>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  overlay.querySelectorAll('.install-tab').forEach(b=>{
+    b.onclick=()=>{
+      overlay.querySelectorAll('.install-tab').forEach(x=>x.classList.remove('active'));
+      overlay.querySelectorAll('.install-content').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      overlay.querySelector('[data-content="'+b.dataset.tab+'"]').classList.add('active');
+    };
+  });
+}
+
+// Mostra o botão após 3s mesmo sem evento (pra usuários poderem acessar instruções manuais)
+setTimeout(()=>{
+  if(!_instalarPrompt && !window.matchMedia('(display-mode: standalone)').matches){
+    document.getElementById('install-btn').classList.add('show');
+  }
+},3000);
 </script>
 </body>
 </html>

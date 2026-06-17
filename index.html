@@ -268,7 +268,8 @@ async function fazerLogin(){
     if(error) throw error;
     await verificarSessao();
   }catch(e){
-    err.textContent=e.message==='Invalid login credentials'?'E-mail ou senha incorretos':('Erro: '+e.message);
+    console.error('Falha no login:', e);
+    err.textContent=e.message==='Invalid login credentials'?'E-mail ou senha incorretos.':'Não foi possível entrar. Verifique sua conexão e tente novamente.';
     err.classList.add('show');
     btn.disabled=false; btn.textContent='Entrar';
   }

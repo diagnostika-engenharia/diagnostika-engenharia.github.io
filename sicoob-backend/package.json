@@ -1,0 +1,18 @@
+{
+  "name": "sicoob-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ponte (backend) entre o Sistema Financeiro da Diagnóstika e as APIs do Sicoob (saldo, extrato, conciliação). Protótipo preparado para Sandbox e produção (OAuth2 + mTLS).",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

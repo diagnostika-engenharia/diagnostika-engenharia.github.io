@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#155B67">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Solicitar ART · Diagnóstika Engenharia</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --teal:#155B67;--teal-dk:#0D3C44;--turq:#00B4AC;--lime:#8DB72A;
+  --bg:#F0F4F5;--card:#fff;--text:#1A2E31;--text2:#4A6568;--mut:#A8BFC2;
+  --line:#E0EAEC;--err:#C0392B;--ok:#1B8A4A;
+}
+html,body{min-height:100%;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:linear-gradient(160deg,var(--teal-dk) 0%,var(--teal) 100%);color:var(--text);font-size:16px;line-height:1.45}
+body{min-height:100vh;display:flex;flex-direction:column}
+
+header{padding:18px 18px 14px;text-align:center;color:#fff}
+header img{height:38px;filter:brightness(0) invert(1)}
+header h1{font-size:18px;font-weight:700;margin-top:8px;letter-spacing:.2px}
+header p{font-size:12.5px;opacity:.85;margin-top:2px}
+
+main{flex:1;background:var(--bg);border-radius:22px 22px 0 0;padding:22px 18px 80px;box-shadow:0 -8px 32px rgba(0,0,0,.15)}
+.steps{display:flex;justify-content:space-between;gap:6px;margin:0 0 22px;max-width:480px;margin-left:auto;margin-right:auto}
+.steps .s{flex:1;height:5px;border-radius:3px;background:var(--line)}
+.steps .s.on{background:var(--turq)}
+.steps .s.done{background:var(--lime)}
+
+.card{background:var(--card);border-radius:16px;padding:22px 18px;box-shadow:0 2px 14px rgba(21,91,103,.08);max-width:480px;margin:0 auto}
+.card+.card{margin-top:14px}
+h2{font-size:17px;font-weight:700;color:var(--teal);margin-bottom:4px}
+.sub{font-size:12.5px;color:var(--text2);margin-bottom:18px}
+
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.field label .req{color:var(--err)}
+.field input,.field textarea,.field select{
+  width:100%;padding:14px 14px;font-size:16px;font-family:inherit;color:var(--text);
+  background:#fff;border:1.5px solid var(--line);border-radius:10px;
+  transition:border-color .15s,box-shadow .15s;-webkit-appearance:none;appearance:none
+}
+.field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--turq);box-shadow:0 0 0 3px rgba(0,180,172,.12)}
+.field input.err,.field textarea.err{border-color:var(--err);background:#fff5f4}
+.field .hint{font-size:11.5px;color:var(--mut);margin-top:5px}
+.field .errmsg{font-size:12px;color:var(--err);margin-top:5px;display:none}
+.field.invalid .errmsg{display:block}
+
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+textarea{min-height:110px;resize:vertical}
+
+.btn{display:block;width:100%;padding:16px;font-size:16px;font-weight:700;border:0;border-radius:12px;cursor:pointer;transition:transform .1s,box-shadow .2s;font-family:inherit}
+.btn-primary{background:linear-gradient(135deg,var(--turq),var(--teal));color:#fff;box-shadow:0 4px 14px rgba(0,180,172,.3)}
+.btn-primary:active{transform:scale(.98)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+.btn-ghost{background:transparent;color:var(--teal);border:1.5px solid var(--line);margin-top:10px}
+
+.summary{background:#F7FAFB;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:18px;font-size:13px}
+.summary .row-s{display:flex;justify-content:space-between;gap:10px;padding:4px 0}
+.summary .row-s b{color:var(--teal);font-weight:600;text-align:right;max-width:60%;word-break:break-word}
+.summary .label{color:var(--text2)}
+
+.pix-box{text-align:center;padding:12px 0 4px}
+.pix-amount{font-size:28px;font-weight:800;color:var(--teal);margin:6px 0}
+.pix-amount small{font-size:14px;font-weight:600;color:var(--text2)}
+#qrcanvas{display:block;margin:14px auto;border:1px solid var(--line);border-radius:8px;background:#fff;padding:8px;max-width:260px;width:100%;height:auto;image-rendering:pixelated}
+.pix-copy{background:#fff;border:1.5px dashed var(--turq);border-radius:10px;padding:12px;font-size:11px;font-family:'Courier New',monospace;word-break:break-all;color:var(--text2);margin-bottom:12px;max-height:88px;overflow:auto}
+.pix-help{font-size:12px;color:var(--text2);margin-top:10px;line-height:1.55}
+.pix-help b{color:var(--teal)}
+
+.success{text-align:center;padding:30px 14px}
+.success .ic{width:72px;height:72px;border-radius:50%;background:rgba(27,138,74,.12);color:var(--ok);font-size:38px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+.success h2{color:var(--ok);font-size:20px;margin-bottom:6px}
+.success p{font-size:14px;color:var(--text2);margin-bottom:8px}
+
+.hide{display:none}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;background:var(--teal);color:#fff;padding:12px 20px;border-radius:24px;font-size:13px;font-weight:600;box-shadow:0 6px 22px rgba(0,0,0,.25);opacity:0;transition:opacity .2s,transform .2s;z-index:100;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
+
+footer{padding:14px;text-align:center;font-size:11.5px;color:rgba(255,255,255,.7);background:var(--teal-dk)}
+footer a{color:var(--turq);text-decoration:none}
+</style>
+</head>
+<body>
+<header>
+  <img src="assets/logo-dark.png" alt="Diagnóstika">
+  <h1>Solicitação de ART</h1>
+  <p>Anotação de Responsabilidade Técnica de Reforma</p>
+</header>
+
+<main>
+  <div class="steps" id="steps">
+    <div class="s on"></div>
+    <div class="s"></div>
+    <div class="s"></div>
+    <div class="s"></div>
+  </div>
+
+  <!-- STEP 1: Dados do solicitante -->
+  <div class="card" id="step1">
+    <h2>1. Seus dados</h2>
+    <div class="sub">Quem está solicitando a ART (proprietário da unidade).</div>
+    <div class="field">
+      <label>Nome completo <span class="req">*</span></label>
+      <input id="f-nome" type="text" autocomplete="name" placeholder="Ex.: João da Silva">
+      <div class="errmsg">Informe seu nome completo.</div>
+    </div>
+    <div class="field">
+      <label>CPF <span class="req">*</span></label>
+      <input id="f-cpf" type="tel" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" maxlength="14">
+      <div class="errmsg">CPF inválido. Confira os números.</div>
+    </div>
+    <div class="field">
+      <label>WhatsApp <span class="req">*</span></label>
+      <input id="f-tel" type="tel" inputmode="numeric" autocomplete="tel" placeholder="(00) 00000-0000" maxlength="15">
+      <div class="errmsg">Informe um celular com DDD.</div>
+    </div>
+    <div class="field">
+      <label>E-mail</label>
+      <input id="f-email" type="email" inputmode="email" autocomplete="email" placeholder="opcional, para envio do recibo">
+    </div>
+    <button class="btn btn-primary" onclick="next(1)">Continuar →</button>
+  </div>
+
+  <!-- STEP 2: Endereço da obra -->
+  <div class="card hide" id="step2">
+    <h2>2. Endereço da obra</h2>
+    <div class="sub">Onde a reforma será executada.</div>
+    <div class="field">
+      <label>Condomínio <span class="req">*</span></label>
+      <input id="f-cond" type="text" autocomplete="off" placeholder="Ex.: Residencial Santa Clara">
+      <div class="errmsg">Informe o nome do condomínio.</div>
+    </div>
+    <div class="field">
+      <label>Endereço (rua, número) <span class="req">*</span></label>
+      <input id="f-end" type="text" autocomplete="street-address" placeholder="Ex.: Av. das Palmeiras, 100">
+      <div class="errmsg">Informe o endereço.</div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>Bloco</label>
+        <input id="f-bloco" type="text" autocomplete="off" placeholder="Ex.: 3B">
+      </div>
+      <div class="field">
+        <label>Apto / Unidade <span class="req">*</span></label>
+        <input id="f-apto" type="text" autocomplete="off" placeholder="Ex.: 05">
+        <div class="errmsg">Informe o apartamento.</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Cidade / UF</label>
+      <input id="f-cidade" type="text" autocomplete="address-level2" placeholder="Ex.: Paulínia / SP">
+    </div>
+    <button class="btn btn-primary" onclick="next(2)">Continuar →</button>
+    <button class="btn btn-ghost" onclick="back(2)">← Voltar</button>
+  </div>
+
+  <!-- STEP 3: Descrição -->
+  <div class="card hide" id="step3">
+    <h2>3. Descrição da obra</h2>
+    <div class="sub">Conte com o máximo de detalhes possível: o engenheiro usa esses dados para emitir a ART.</div>
+    <div class="field">
+      <label>Metragem aproximada (m²) <span class="req">*</span></label>
+      <input id="f-m2" type="tel" inputmode="decimal" autocomplete="off" placeholder="Ex.: 65">
+      <div class="errmsg">Informe a metragem em m².</div>
+    </div>
+    <div class="field">
+      <label>O que será feito? <span class="req">*</span></label>
+      <textarea id="f-desc" placeholder="Ex.: Troca de revestimento de piso e parede dos 2 banheiros; substituição de louças e metais; remoção da divisória de drywall do escritório (não estrutural); pintura geral."></textarea>
+      <div class="hint">Inclua tipo de reforma, ambientes envolvidos e se há demolição/parede afetada.</div>
+      <div class="errmsg">Descreva a obra em pelo menos uma linha.</div>
+    </div>
+    <div class="field">
+      <label>Previsão de início</label>
+      <input id="f-inicio" type="date" autocomplete="off">
+    </div>
+    <button class="btn btn-primary" onclick="next(3)">Continuar →</button>
+    <button class="btn btn-ghost" onclick="back(3)">← Voltar</button>
+  </div>
+
+  <!-- STEP 4: Pagamento PIX -->
+  <div class="card hide" id="step4">
+    <h2>4. Pagamento via PIX</h2>
+    <div class="sub">Após o pagamento, a equipe recebe seu pedido e emite a ART em até 2 dias úteis.</div>
+
+    <div class="summary" id="summary"></div>
+
+    <div class="pix-box">
+      <div style="font-size:12px;color:var(--text2);font-weight:600">Valor da ART</div>
+      <div class="pix-amount">R$ <span id="pix-amount">350,00</span></div>
+      <canvas id="qrcanvas" width="260" height="260" aria-label="QR Code PIX"></canvas>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:6px"><b>PIX Copia e Cola</b></div>
+      <div class="pix-copy" id="pix-copy">Gerando…</div>
+      <button class="btn btn-primary" onclick="copyPix()" id="btn-copy">📋 Copiar código PIX</button>
+    </div>
+
+    <div class="pix-help">
+      <b>Como pagar:</b><br>
+      1. Abra o app do seu banco → PIX → <b>Pagar com QR Code</b> ou <b>Pix Copia e Cola</b><br>
+      2. Confirme o valor e o recebedor: <b>DIAGNOSTIKA ENGENHARIA LTDA</b><br>
+      3. Após pagar, clique no botão abaixo para confirmar.
+    </div>
+
+    <button class="btn btn-primary" style="margin-top:18px;background:linear-gradient(135deg,var(--lime),#6a8a1e)" onclick="confirmar()" id="btn-confirm">✅ Já paguei, enviar solicitação</button>
+    <button class="btn btn-ghost" onclick="back(4)">← Voltar</button>
+  </div>
+
+  <!-- STEP 5: Sucesso -->
+  <div class="card hide" id="step5">
+    <div class="success">
+      <div class="ic">✓</div>
+      <h2>Solicitação enviada!</h2>
+      <p>Seu pedido foi registrado. A equipe da Diagnóstika confere o pagamento e emite sua ART em até 2 dias úteis.</p>
+      <p style="margin-top:10px"><b>Protocolo:</b> <span id="proto" style="color:var(--teal)">—</span></p>
+      <p style="margin-top:18px;font-size:12px;color:var(--mut)">Acompanhe pelo WhatsApp informado.</p>
+    </div>
+  </div>
+</main>
+
+<footer>© Diagnóstika Engenharia LTDA · CNPJ 54.027.948/0001-60 · <a href="index.html">portal</a></footer>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script>
+// ===== Config =====
+const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
+const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpbW1qZ2R3aGlmc3JyYnJlY2hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzU2NDIsImV4cCI6MjA5NTE1MTY0Mn0.eAmMS95M8BkfX3NCcOtHnhKWXy0jkvXwSGEoqv_Q21Q';
+const PIX_KEY='54027948000160'; // CNPJ Diagnóstika (chave PIX) — sem pontuação
+const PIX_NAME='DIAGNOSTIKA ENGENHARIA';
+const PIX_CITY='CAMPINAS';
+const VALOR_PADRAO = parseFloat(new URLSearchParams(location.search).get('valor')||'350') || 350;
+
+const FORM={};
+let CUR=1;
+
+// ===== Helpers =====
+function $(id){return document.getElementById(id)}
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2400)}
+function only(s){return (s||'').replace(/\D/g,'')}
+
+// ===== Máscaras =====
+function maskCPF(v){
+  v=only(v).slice(0,11);
+  return v.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2');
+}
+function maskTel(v){
+  v=only(v).slice(0,11);
+  if(v.length<=10) return v.replace(/(\d{2})(\d)/,'($1) $2').replace(/(\d{4})(\d{1,4})$/,'$1-$2');
+  return v.replace(/(\d{2})(\d)/,'($1) $2').replace(/(\d{5})(\d{1,4})$/,'$1-$2');
+}
+$('f-cpf').addEventListener('input',e=>{e.target.value=maskCPF(e.target.value)});
+$('f-tel').addEventListener('input',e=>{e.target.value=maskTel(e.target.value)});
+
+// ===== Validador CPF =====
+function isCPF(cpf){
+  cpf=only(cpf); if(cpf.length!==11||/^(\d)\1+$/.test(cpf))return false;
+  const calc=(t)=>{let s=0;for(let i=0;i<t;i++)s+=parseInt(cpf[i])*(t+1-i);const r=(s*10)%11;return r===10?0:r};
+  return calc(9)===parseInt(cpf[9])&&calc(10)===parseInt(cpf[10]);
+}
+
+// ===== Steps =====
+function setStep(n){
+  CUR=n;
+  for(let i=1;i<=5;i++){$('step'+i).classList.toggle('hide',i!==n)}
+  const ss=$('steps').children;
+  for(let i=0;i<ss.length;i++){
+    ss[i].classList.toggle('on', i+1===Math.min(n,4));
+    ss[i].classList.toggle('done', i+1<n);
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function markErr(id,bad){
+  const el=$(id), f=el.closest('.field');
+  el.classList.toggle('err',!!bad);
+  f.classList.toggle('invalid',!!bad);
+}
+
+function next(step){
+  if(step===1){
+    const nome=$('f-nome').value.trim();
+    const cpf=$('f-cpf').value;
+    const tel=$('f-tel').value;
+    markErr('f-nome', nome.length<3);
+    markErr('f-cpf', !isCPF(cpf));
+    markErr('f-tel', only(tel).length<10);
+    if(nome.length<3||!isCPF(cpf)||only(tel).length<10){toast('Confira os campos destacados');return}
+    FORM.nome=nome; FORM.cpf=only(cpf); FORM.tel=only(tel); FORM.email=$('f-email').value.trim();
+    setStep(2); return;
+  }
+  if(step===2){
+    const cond=$('f-cond').value.trim();
+    const end=$('f-end').value.trim();
+    const apto=$('f-apto').value.trim();
+    markErr('f-cond', cond.length<2);
+    markErr('f-end', end.length<5);
+    markErr('f-apto', apto.length<1);
+    if(cond.length<2||end.length<5||!apto){toast('Confira os campos destacados');return}
+    FORM.condominio=cond; FORM.endereco=end; FORM.bloco=$('f-bloco').value.trim(); FORM.apto=apto; FORM.cidade=$('f-cidade').value.trim();
+    setStep(3); return;
+  }
+  if(step===3){
+    const m2=parseFloat(($('f-m2').value||'').replace(',','.'));
+    const desc=$('f-desc').value.trim();
+    markErr('f-m2', !(m2>0));
+    markErr('f-desc', desc.length<10);
+    if(!(m2>0)||desc.length<10){toast('Confira os campos destacados');return}
+    FORM.metragem=m2; FORM.descricao=desc; FORM.inicio=$('f-inicio').value;
+    renderStep4(); setStep(4); return;
+  }
+}
+function back(step){ setStep(step-1); }
+
+// ===== PIX EMV =====
+function emv(id, val){ const s=String(val); const len=s.length.toString().padStart(2,'0'); return id+len+s; }
+function crc16(payload){
+  let crc=0xFFFF;
+  for(let i=0;i<payload.length;i++){
+    crc^=payload.charCodeAt(i)<<8;
+    for(let j=0;j<8;j++){ crc=(crc&0x8000)?((crc<<1)^0x1021):(crc<<1); crc&=0xFFFF; }
+  }
+  return crc.toString(16).toUpperCase().padStart(4,'0');
+}
+function normASCII(s){
+  return s.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\x20-\x7E]/g,'').toUpperCase();
+}
+function buildPix(amount, txid){
+  const gui = emv('00','br.gov.bcb.pix');
+  const key = emv('01', PIX_KEY);
+  const mai = emv('26', gui+key);
+  const name = normASCII(PIX_NAME).slice(0,25);
+  const city = normASCII(PIX_CITY).slice(0,15);
+  const addData = emv('62', emv('05', txid.slice(0,25)));
+  const amt = amount.toFixed(2);
+  let payload = emv('00','01') + mai + emv('52','0000') + emv('53','986') + emv('54',amt) + emv('58','BR') + emv('59',name) + emv('60',city) + addData + '6304';
+  return payload + crc16(payload);
+}
+
+function renderStep4(){
+  // Summary
+  const s = $('summary');
+  s.innerHTML = [
+    ['Nome', FORM.nome],
+    ['CPF', $('f-cpf').value],
+    ['Telefone', $('f-tel').value],
+    ['Condomínio', FORM.condominio],
+    ['Local', `${FORM.endereco}${FORM.bloco?' · Bl '+FORM.bloco:''} · Apto ${FORM.apto}`],
+    ['Metragem', FORM.metragem.toString().replace('.',',')+' m²'],
+  ].map(([k,v])=>`<div class="row-s"><span class="label">${k}</span><b>${escH(v)}</b></div>`).join('');
+
+  // PIX
+  $('pix-amount').textContent = VALOR_PADRAO.toFixed(2).replace('.',',');
+  const txid = ('ART'+Date.now()).slice(0,25);
+  FORM._txid = txid;
+  FORM._valor = VALOR_PADRAO;
+  const pixStr = buildPix(VALOR_PADRAO, txid);
+  FORM._pix = pixStr;
+  $('pix-copy').textContent = pixStr;
+  drawQR($('qrcanvas'), pixStr);
+}
+
+function drawQR(canvas, text){
+  if(typeof qrcode!=='function'){ console.warn('QR lib não carregada'); return; }
+  const qr = qrcode(0, 'M');
+  qr.addData(text);
+  qr.make();
+  const cells = qr.getModuleCount();
+  const size = 260;
+  const margin = 2; // em células
+  const total = cells + margin*2;
+  const px = Math.floor(size/total);
+  const realSize = px*total;
+  canvas.width = realSize; canvas.height = realSize;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0,0,realSize,realSize);
+  ctx.fillStyle = '#0D3C44';
+  for(let r=0;r<cells;r++){
+    for(let c=0;c<cells;c++){
+      if(qr.isDark(r,c)) ctx.fillRect((c+margin)*px, (r+margin)*px, px, px);
+    }
+  }
+}
+
+function escH(s){return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+async function copyPix(){
+  try{ await navigator.clipboard.writeText(FORM._pix); toast('Código PIX copiado!'); }
+  catch(_){
+    const ta=document.createElement('textarea'); ta.value=FORM._pix; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy'); toast('Código PIX copiado!')}catch(e){toast('Não consegui copiar — selecione manual.')} ta.remove();
+  }
+}
+
+async function confirmar(){
+  const btn=$('btn-confirm'); btn.disabled=true; btn.textContent='Enviando…';
+  const payload = {
+    nome: FORM.nome, cpf: FORM.cpf, telefone: FORM.tel, email: FORM.email||null,
+    condominio: FORM.condominio, endereco: FORM.endereco, bloco: FORM.bloco||null, apto: FORM.apto, cidade: FORM.cidade||null,
+    metragem: FORM.metragem, descricao: FORM.descricao, previsao_inicio: FORM.inicio||null,
+    valor: FORM._valor, pix_txid: FORM._txid, pix_payload: FORM._pix,
+    status: 'aguardando_pagamento',
+    origem: 'form-art'
+  };
+  try{
+    const r = await fetch(SUPABASE_URL+'/rest/v1/solicitacoes_art', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        apikey: SUPABASE_ANON,
+        Authorization: 'Bearer '+SUPABASE_ANON,
+        Prefer:'return=representation'
+      },
+      body: JSON.stringify(payload)
+    });
+    if(!r.ok){
+      const t = await r.text();
+      throw new Error('HTTP '+r.status+': '+t.slice(0,200));
+    }
+    const arr = await r.json();
+    const id = (arr&&arr[0]&&arr[0].id) || FORM._txid;
+    $('proto').textContent = id;
+    setStep(5);
+  }catch(e){
+    console.error(e);
+    toast('Erro ao enviar. Tente de novo ou nos envie por WhatsApp.');
+    btn.disabled=false; btn.textContent='✅ Já paguei, enviar solicitação';
+  }
+}
+
+/*
+SQL para criar a tabela no Supabase (rodar uma vez):
+
+CREATE TABLE IF NOT EXISTS public.solicitacoes_art (
+  id BIGSERIAL PRIMARY KEY,
+  criado_em TIMESTAMPTZ DEFAULT NOW(),
+  nome TEXT NOT NULL,
+  cpf TEXT NOT NULL,
+  telefone TEXT NOT NULL,
+  email TEXT,
+  condominio TEXT NOT NULL,
+  endereco TEXT NOT NULL,
+  bloco TEXT,
+  apto TEXT NOT NULL,
+  cidade TEXT,
+  metragem NUMERIC,
+  descricao TEXT NOT NULL,
+  previsao_inicio DATE,
+  valor NUMERIC,
+  pix_txid TEXT,
+  pix_payload TEXT,
+  status TEXT DEFAULT 'aguardando_pagamento',
+  origem TEXT,
+  observacao_interna TEXT
+);
+ALTER TABLE public.solicitacoes_art ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "anon_insert_art" ON public.solicitacoes_art FOR INSERT TO anon WITH CHECK (true);
+*/
+</script>
+</body>
+</html>

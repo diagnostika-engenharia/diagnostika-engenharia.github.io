@@ -239,7 +239,24 @@
   --ib-input:#ffffff;
 }
 #view-inbox.wrap{padding:0;max-width:none;margin:0}
-.inbox-app{display:grid;grid-template-columns:340px 1fr 360px;height:calc(100vh - 70px);background:var(--ib-bg);overflow:hidden;color:var(--ib-txt)}
+.inbox-app{display:grid;grid-template-columns:var(--ib-col-left,340px) 5px 1fr 5px var(--ib-col-right,360px);height:calc(100vh - 70px);background:var(--ib-bg);overflow:hidden;color:var(--ib-txt)}
+.inbox-app.hide-left{grid-template-columns:0 0 1fr 5px var(--ib-col-right,360px)}
+.inbox-app.hide-right{grid-template-columns:var(--ib-col-left,340px) 5px 1fr 0 0}
+.inbox-app.hide-left.hide-right{grid-template-columns:0 0 1fr 0 0}
+.inbox-app.hide-left .ib-list,.inbox-app.hide-right .ib-ctx{display:none}
+.inbox-app.hide-left .ib-drag-left,.inbox-app.hide-right .ib-drag-right{display:none}
+
+/* drag handles */
+.ib-drag{width:5px;cursor:col-resize;background:transparent;position:relative;z-index:5;flex-shrink:0;transition:background .15s}
+.ib-drag:hover,.ib-drag.active{background:rgba(0,180,172,.35)}
+.ib-drag::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:3px;height:28px;border-radius:2px;background:var(--ib-line);opacity:.5}
+.ib-drag:hover::after,.ib-drag.active::after{opacity:1;background:#00B4AC}
+
+/* toggle buttons */
+.ib-toggle{position:absolute;top:50%;z-index:10;background:var(--ib-panel);border:1px solid var(--ib-line);border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:10px;color:var(--ib-mut);transition:background .15s,color .15s;transform:translateY(-50%)}
+.ib-toggle:hover{background:var(--ib-elev2);color:var(--ib-txt)}
+.ib-toggle-left{left:-11px}
+.ib-toggle-right{right:-11px}
 
 /* coluna esquerda — lista */
 .ib-list{background:var(--ib-panel);border-right:1px solid var(--ib-line);overflow-y:auto;display:flex;flex-direction:column}
@@ -313,19 +330,25 @@
 .ib-ctx .cta:hover{filter:brightness(1.05)}
 </style>
 <div class="wrap" id="view-inbox">
-  <div class="inbox-app">
+  <div class="inbox-app" id="ibApp">
     <!-- coluna 1: lista -->
-    <div class="ib-list">
+    <div class="ib-list" id="ibListPanel">
       <h1>📥 Caixa de entrada</h1>
       <div class="ib-section">Filas</div>
       <div class="ib-filas" id="ibFilas"></div>
       <div class="ib-section">Conversas <span id="ibCvCount" style="float:right;color:var(--turq)"></span></div>
       <div class="ib-convos" id="ibConvos"></div>
     </div>
+    <!-- drag left -->
+    <div class="ib-drag ib-drag-left" id="ibDragLeft" onmousedown="ibStartDrag(event,'left')"></div>
     <!-- coluna 2: thread -->
-    <div class="ib-main" id="ibMain">
+    <div class="ib-main" id="ibMain" style="position:relative">
+      <button class="ib-toggle ib-toggle-left" id="ibToggleLeft" title="Ocultar/mostrar lista" onclick="ibTogglePanel('left')">◀</button>
+      <button class="ib-toggle ib-toggle-right" id="ibToggleRight" title="Ocultar/mostrar contexto" onclick="ibTogglePanel('right')">▶</button>
       <div class="ib-empty">Selecione uma conversa à esquerda</div>
     </div>
+    <!-- drag right -->
+    <div class="ib-drag ib-drag-right" id="ibDragRight" onmousedown="ibStartDrag(event,'right')"></div>
     <!-- coluna 3: contexto -->
     <div class="ib-ctx" id="ibCtx">
       <div class="ib-empty">—</div>
@@ -2104,6 +2127,50 @@ renderAprov();
     renderAprov(); // mostra aviso de "DDL pendente"
   }
 })();
+
+// ====== Inbox: colunas redimensionáveis + ocultáveis ======
+const IB_LAYOUT_KEY='sombra_inbox_layout';
+const _ibSaved=JSON.parse(localStorage.getItem(IB_LAYOUT_KEY)||'{}');
+let _ibLeftW=_ibSaved.left||340, _ibRightW=_ibSaved.right||360;
+let _ibHideLeft=_ibSaved.hideLeft||false, _ibHideRight=_ibSaved.hideRight||false;
+
+function ibApplyLayout(){
+  const app=document.getElementById('ibApp'); if(!app) return;
+  app.style.setProperty('--ib-col-left',_ibLeftW+'px');
+  app.style.setProperty('--ib-col-right',_ibRightW+'px');
+  app.classList.toggle('hide-left',_ibHideLeft);
+  app.classList.toggle('hide-right',_ibHideRight);
+  const tl=document.getElementById('ibToggleLeft');
+  const tr=document.getElementById('ibToggleRight');
+  if(tl) tl.textContent=_ibHideLeft?'▶':'◀';
+  if(tr) tr.textContent=_ibHideRight?'◀':'▶';
+  try{localStorage.setItem(IB_LAYOUT_KEY,JSON.stringify({left:_ibLeftW,right:_ibRightW,hideLeft:_ibHideLeft,hideRight:_ibHideRight}));}catch(_){}
+}
+function ibTogglePanel(side){
+  if(side==='left') _ibHideLeft=!_ibHideLeft;
+  else _ibHideRight=!_ibHideRight;
+  ibApplyLayout();
+}
+function ibStartDrag(e,side){
+  e.preventDefault();
+  const handle=e.currentTarget;
+  handle.classList.add('active');
+  const startX=e.clientX, startW=side==='left'?_ibLeftW:_ibRightW;
+  const onMove=ev=>{
+    const dx=ev.clientX-startX;
+    const newW=Math.max(200,Math.min(600,startW+(side==='left'?dx:-dx)));
+    if(side==='left') _ibLeftW=newW; else _ibRightW=newW;
+    ibApplyLayout();
+  };
+  const onUp=()=>{
+    handle.classList.remove('active');
+    document.removeEventListener('mousemove',onMove);
+    document.removeEventListener('mouseup',onUp);
+  };
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onUp);
+}
+ibApplyLayout();
 </script>
 </body>
 </html>

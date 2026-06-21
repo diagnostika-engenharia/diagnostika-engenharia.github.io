@@ -1,0 +1,2109 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modo Sombra — Assistente Diagnóstika</title>
+<style>
+  :root{
+    --teal:#155B67; --turq:#00B4AC; --lima:#8DB72A;
+    --bg:#0d1316; --card:#19232a; --card2:#243038; --line:#33424a;
+    --txt:#eef3f5; --mut:#9fb4bd; --ok:#3ad07a; --warn:#f0bc52; --err:#ef6a62;
+    --modal-bg:#0f181d;
+  }
+  [data-theme="light"]{
+    --bg:#f3f6f8; --card:#ffffff; --card2:#eef3f5; --line:#d4dde2;
+    --txt:#1a262c; --mut:#5b727d; --ok:#1f9d56; --warn:#b8861d; --err:#c63a32;
+    --modal-bg:#ffffff;
+  }
+  [data-theme="light"] header{background:linear-gradient(120deg,var(--teal),#0D3C44)}
+  [data-theme="light"] textarea,[data-theme="light"] .sug,[data-theme="light"] .live-wrap,[data-theme="light"] .live-mini,[data-theme="light"] .ap-sug,[data-theme="light"] .ap-class{background:#fafcfd}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--txt);font-size:14px;line-height:1.45}
+  header{position:sticky;top:0;z-index:20;background:linear-gradient(120deg,var(--teal),#0D3C44);border-bottom:1px solid var(--line)}
+  .h-inner{max-width:1280px;margin:0 auto;padding:14px 28px;display:flex;align-items:center;gap:14px}
+  .logo{width:42px;height:42px;border-radius:9px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;padding:4px;overflow:hidden}
+  .logo img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+  h1{font-size:18px;margin:0;font-weight:700}
+  .sub{color:#bfe6e3;font-size:12px;margin-top:2px}
+  .tabs{margin-left:auto;display:flex;gap:6px}
+  .tab{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#dff3f1;padding:9px 18px;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer}
+  .tab.on{background:#fff;color:var(--teal);border-color:#fff}
+  .tab b{margin-left:6px;font-size:12px;opacity:.8}
+  .wrap{max-width:1280px;margin:0 auto;padding:22px 28px 80px}
+  /* scoreboard */
+  .score{display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+  .kpi{flex:1 1 0;min-width:120px;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:14px 18px;text-align:center}
+  .kpi b{display:block;font-size:28px;line-height:1.1}
+  .kpi span{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+  .kpi.ok b{color:var(--ok)} .kpi.warn b{color:var(--warn)} .kpi.err b{color:var(--err)} .kpi.acc b{color:var(--turq)}
+  .note{background:rgba(0,180,172,.08);border:1px solid rgba(0,180,172,.3);border-radius:10px;padding:12px 16px;font-size:13px;color:#bfe6e3;margin-bottom:18px}
+  .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+  .chip{background:var(--card2);border:1px solid var(--line);color:var(--mut);padding:7px 14px;border-radius:20px;font-size:13px;cursor:pointer}
+  .chip.on{background:var(--turq);color:#06262b;border-color:var(--turq);font-weight:700}
+  /* desktop grid */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px;align-items:start}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+  .card.done{opacity:.62}
+  .c-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:13px 16px;background:var(--card2)}
+  .c-who{font-weight:700;font-size:15px}
+  .c-meta{font-size:11px;color:var(--mut);margin-top:3px}
+  .tag{font-size:10px;font-weight:800;padding:3px 9px;border-radius:6px;letter-spacing:.03em;white-space:nowrap}
+  .tag.ART{background:rgba(0,180,172,.18);color:var(--turq)}
+  .tag.Comercial{background:rgba(141,183,42,.18);color:var(--lima)}
+  .tag.Administrativo{background:rgba(232,177,58,.16);color:var(--warn)}
+  .tag.Outro{background:rgba(138,160,168,.16);color:var(--mut)}
+  .sec{padding:12px 16px;border-top:1px solid var(--line)}
+  .sec h4{margin:0 0 7px;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)}
+  .demanda{font-size:13px;white-space:pre-wrap;color:#cfdde0}
+  .sug{background:#10181c;border:1px solid var(--line);border-radius:10px;padding:12px;font-size:13.5px;white-space:pre-wrap}
+  .sug .miss{color:var(--warn)}
+  .acts{display:flex;gap:8px;padding:13px 16px;border-top:1px solid var(--line);margin-top:auto}
+  .btn{flex:1;border:none;border-radius:10px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;gap:5px}
+  .btn.ok{background:var(--ok)} .btn.warn{background:var(--warn);color:#3a2c00} .btn.err{background:var(--err)}
+  .btn.sel{outline:3px solid #fff3}
+  .verdict{padding:0 16px 12px;font-size:12px;color:var(--mut)}
+  .verdict b.ok{color:var(--ok)} .verdict b.warn{color:var(--warn)} .verdict b.err{color:var(--err)}
+  textarea{width:100%;margin-top:8px;background:#10181c;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px;font-family:inherit;font-size:12.5px;resize:vertical;min-height:38px;display:none}
+  .reset{display:block;margin:24px auto 0;background:none;border:1px solid var(--line);color:var(--mut);padding:9px 18px;border-radius:8px;font-size:12px;cursor:pointer}
+  .empty{text-align:center;color:var(--mut);padding:50px 20px;font-size:14px;grid-column:1/-1}
+  /* aprovação */
+  .ap-cond{margin-bottom:26px}
+  .ap-cond h3{font-size:15px;margin:0 0 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line);padding-bottom:8px}
+  .ap-cond h3 .cnt{font-size:12px;color:var(--mut);font-weight:500}
+  .ap-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+  .ap-card{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:12px;padding:14px 16px}
+  .ap-card.diag{border-left-color:var(--err)}
+  .ap-card.cliente{border-left-color:var(--warn)}
+  .ap-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px}
+  .ap-nome{font-weight:700;font-size:14px}
+  .ap-tipo{font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px;background:rgba(0,180,172,.15);color:var(--turq);white-space:nowrap}
+  .ap-meta{font-size:11.5px;color:var(--mut);margin:2px 0}
+  .ap-badge{display:inline-block;margin-top:8px;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px}
+  .ap-badge.diag{background:rgba(232,85,77,.18);color:#ff8b84}
+  .ap-badge.cliente{background:rgba(232,177,58,.16);color:var(--warn)}
+  .ap-wa{display:inline-block;margin-top:8px;margin-left:8px;font-size:11px;color:var(--turq);text-decoration:none;border:1px solid var(--line);padding:4px 10px;border-radius:20px}
+  .legend{display:flex;gap:18px;font-size:12px;color:var(--mut);margin-bottom:18px;flex-wrap:wrap}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .dot{width:11px;height:11px;border-radius:3px;display:inline-block}
+  .dot.diag{background:var(--err)} .dot.cliente{background:var(--warn)}
+  /* avaliador de aprovação — compacto */
+  .ap-grid{grid-template-columns:repeat(auto-fill,minmax(370px,1fr))}
+  .ap-card{padding:0;overflow:hidden;position:relative;cursor:pointer}
+  .ap-card:hover{border-color:var(--turq)}
+  .ap-x{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;border:1px solid var(--line);background:rgba(0,0,0,.35);color:var(--mut);font-size:13px;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;padding:0}
+  .ap-x:hover{background:#a02525;border-color:#a02525;color:#fff}
+  .ap-body{padding:11px 14px}
+  .ap-sec{padding:10px 14px;border-top:1px solid var(--line)}
+  .ap-sec h5{margin:0 0 6px;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)}
+  .ap-verdict{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;padding:10px 12px;border-radius:9px;margin-bottom:2px}
+  .ap-verdict.apto{background:rgba(46,193,106,.14);color:#5fe08e}
+  .ap-verdict.pend{background:rgba(232,177,58,.14);color:var(--warn)}
+  .ap-verdict.estr{background:rgba(232,85,77,.14);color:#ff8b84}
+  .ap-verdict.contr{background:rgba(0,180,172,.16);color:var(--turq)}
+  .ap-class{width:100%;padding:9px 12px;background:#0d1417;color:#cfdde0;border:1px solid var(--line);border-radius:9px;font-size:12px;cursor:pointer;font-weight:600}
+  .ap-class:hover{border-color:var(--turq);color:var(--turq)}
+  .chk{display:flex;align-items:flex-start;gap:9px;padding:7px 0;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04)}
+  .chk:last-child{border-bottom:none}
+  .chk .box{flex:0 0 18px;width:18px;height:18px;border-radius:5px;border:2px solid var(--line);margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+  .chk.on .box{background:var(--ok);border-color:var(--ok);color:#06262b}
+  .chk .txt{font-size:12.5px;line-height:1.35}
+  .chk .txt b{font-weight:700}
+  .chk .txt small{display:block;color:var(--mut);font-size:11px}
+  .ap-sug{background:#10181c;border:1px solid var(--line);border-radius:10px;padding:11px;font-size:12.5px;white-space:pre-wrap;color:#cfdde0}
+  .ap-copy{margin-top:8px;background:var(--turq);color:#06262b;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer}
+  .estr-toggle{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mut);margin-top:10px;cursor:pointer}
+  .estr-toggle input{width:16px;height:16px;accent-color:var(--err)}
+  /* histórico ao vivo (Evolution → Supabase) */
+  .live-wrap{margin-top:10px;border:1px solid var(--line);border-radius:10px;background:#0d1417;max-height:260px;overflow-y:auto}
+  .live-head{display:flex;justify-content:space-between;align-items:center;padding:7px 11px;font-size:11px;background:rgba(0,180,172,.06);border-bottom:1px solid var(--line);color:var(--mut);position:sticky;top:0;z-index:1}
+  .live-head .live-status{display:flex;align-items:center;gap:5px}
+  .live-head .dot-live{width:8px;height:8px;border-radius:50%;background:var(--mut);display:inline-block}
+  .live-head.on .dot-live{background:var(--ok);box-shadow:0 0 8px var(--ok);animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .msg{padding:6px 11px;font-size:12.5px;line-height:1.4;border-bottom:1px solid rgba(255,255,255,.04)}
+  .msg:last-child{border-bottom:none}
+  .msg.me{background:rgba(0,180,172,.05)}
+  .msg .who{font-weight:700;color:var(--turq);font-size:11px}
+  .msg.me .who{color:var(--lima)}
+  .msg .when{float:right;color:var(--mut);font-size:10px}
+  .msg .body{margin-top:2px;color:#e8eef0;white-space:pre-wrap;word-wrap:break-word}
+  .live-empty{padding:14px;font-size:12px;color:var(--mut);text-align:center}
+  /* histórico colapsado */
+  .live-mini{border:1px solid var(--line);border-radius:10px;background:#0d1417;padding:10px 12px;font-size:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer}
+  .live-mini:hover{border-color:var(--turq)}
+  .live-mini .lm-text{color:#cfdde0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .live-mini .lm-text b{color:var(--turq)}
+  .live-mini .lm-cta{color:var(--turq);font-weight:700;white-space:nowrap;font-size:11px}
+  .live-mini .lm-cta.live-on{color:var(--ok)}
+  /* modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
+  .modal-bg.on{display:flex}
+  .modal-box{background:var(--modal-bg);border:1px solid var(--line);border-radius:14px;max-width:980px;width:100%;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;transition:max-width .15s,max-height .15s,border-radius .15s}
+  .modal-box.max{max-width:100vw;width:100vw;max-height:100vh;height:100vh;border-radius:0}
+  .modal-bg.max{padding:0}
+  .modal-head{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;background:rgba(0,180,172,.05);gap:8px}
+  .modal-head h3{margin:0;font-size:15px;color:var(--turq);flex:1}
+  .modal-head .mh-btns{display:flex;gap:4px;align-items:center}
+  .modal-head button{background:transparent;border:1px solid transparent;color:var(--mut);font-size:14px;cursor:pointer;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;padding:0}
+  .modal-head button:hover{background:rgba(255,255,255,.06);color:var(--txt);border-color:var(--line)}
+  .modal-head button.close:hover{background:#c63a32;color:#fff;border-color:#c63a32}
+  .theme-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:#dff3f1;padding:8px 12px;border-radius:9px;font-size:14px;cursor:pointer;margin-right:6px}
+  .modal-body{overflow-y:auto;flex:1}
+  .hide{display:none}
+</style>
+</head>
+<body>
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)fecharConversa()">
+  <div class="modal-box" id="modalBox">
+    <div class="modal-head">
+      <h3 id="modalTitle">Conversa</h3>
+      <div class="mh-btns">
+        <button onclick="toggleMaxModal()" title="Maximizar/Restaurar" id="modalMaxBtn">▢</button>
+        <button onclick="fecharConversa()" class="close" title="Fechar">✕</button>
+      </div>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+<header>
+  <div class="h-inner">
+    <div class="logo"><img src="assets/logo-dark.png" alt="Diagnóstika" onerror="this.outerHTML='<span style=\'color:#00B4AC;font-weight:800;font-size:18px\'>D</span>'"></div>
+    <div>
+      <h1>Assistente Virtual Diagnóstika</h1>
+      <div class="sub">Modo Sombra · observa demandas reais do MegaZap · nada é enviado ao cliente</div>
+    </div>
+    <div class="tabs">
+      <span id="n8nStatus" title="Status do servidor n8n" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#aaa;margin-right:8px;cursor:pointer;vertical-align:middle" onclick="checkN8nStatus()"></span>
+      <button class="theme-btn" onclick="editarN8nBase()" title="Configurar URL n8n" style="margin-right:6px">⚙️</button>
+      <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Alternar tema">🌙</button>
+      <button class="tab on" id="tab-inbox" onclick="setTab('inbox')">📥 Inbox <b id="ibcount"></b></button>
+      <button class="tab" id="tab-aprov" onclick="setTab('aprov')">✅ Aprovação <b id="apcount"></b></button>
+    </div>
+  </div>
+</header>
+
+<!-- ========== MODO SOMBRA ========== -->
+<div class="wrap hide" id="view-sombra">
+  <div class="score" id="score"></div>
+  <div class="note">🟢 <b>Como funciona:</b> cada cartão é uma demanda real capturada do WhatsApp (via n8n). O assistente sugere a classificação e a resposta. Clique <b>✅ Usaria</b>, <b>⚠️ Ajustaria</b> ou <b>❌ Errada</b>. O placar acima mede o quanto o assistente já está "afiado". Quando ART passar de ~90% ✅, migramos esse fluxo pro atendimento real.</div>
+  <div class="note" style="background:rgba(141,183,42,.08);border-color:rgba(141,183,42,.3);color:#d6e8b0">🟢 <b>Captura ao vivo via Evolution.</b> Cada cartão agora puxa o histórico real do WhatsApp em tempo real (Evolution API → n8n → Supabase Realtime). Quando o cliente manda mensagem nova, ela aparece automaticamente no cartão e a sugestão da IA pode ser revisada. Confirmado: a API do MegaZap não tem evento de "mensagem recebida" (só atendimento), por isso a captura é via Evolution.</div>
+  <div class="filters" id="filters"></div>
+  <div class="grid" id="list"></div>
+  <button class="reset" onclick="resetAll()">Limpar avaliações</button>
+</div>
+
+<!-- ========== APROVAÇÃO ========== -->
+<div class="wrap hide" id="view-aprov">
+  <div class="note">📋 <b>Pendências dos últimos 10 dias (07/06 → 17/06/2026).</b> Cada caso traz o <b>avaliador de aprovação</b>: a IA classifica a demanda, confere a <b>documentação obrigatória</b> (padrão NBR 16280) e dá o <b>veredito automático</b> — apto a emitir a Autorização de Reforma (ARO) ou pendente. Marque os documentos recebidos e o veredito recalcula. <b style="color:#ff8b84">Vermelho = aguarda Diagnóstika</b> · <b style="color:var(--warn)">Âmbar = aguarda cliente</b>. Nada é enviado — é treino/triagem.</div>
+  <div class="note" style="background:rgba(141,183,42,.08);border-color:rgba(141,183,42,.3);color:#d6e8b0">📐 <b>Padrão de aprovação de reforma (Diagnóstika · NBR 16280:2020).</b> Para liberar uma obra exigimos: <b>1)</b> ART/RRT do responsável técnico vigente · <b>2)</b> Memorial descritivo / plano de reforma assinado · <b>3)</b> Termo de responsabilidade civil (proprietário + prestador) · <b>4)</b> Identificação completa (nome, CPF, bloco/apto, prestador). Com os 4 OK e sem intervenção estrutural pendente de laudo → <b>a Diagnóstika emite a ARO (Autorização de Reforma)</b>. É esse fluxo fixo que vamos automatizar.</div>
+  <div class="score" id="apscore"></div>
+  <div class="legend">
+    <span><i class="dot diag"></i> Aguarda Diagnóstika (nossa ação)</span>
+    <span><i class="dot cliente"></i> Aguarda cliente (retorno dele)</span>
+  </div>
+  <div id="aprovList"></div>
+</div>
+
+<!-- ========== INBOX (Layout Blip/Front · Caminho 3 Híbrido) ========== -->
+<style>
+/* Variáveis por tema (Caminho 3) */
+:root{
+  --ib-bg:#13202a;          /* fundo geral grafite */
+  --ib-panel:#172732;        /* painéis laterais */
+  --ib-thread:#13202a;
+  --ib-elev:rgba(255,255,255,.04);  /* superfícies elevadas sutis */
+  --ib-elev2:rgba(255,255,255,.07);
+  --ib-line:rgba(255,255,255,.06);
+  --ib-line2:rgba(255,255,255,.10);
+  --ib-txt:#e3ecef;
+  --ib-mut:#8aa1ab;
+  --ib-bubble-cli:rgba(255,255,255,.05);
+  --ib-bubble-diag:rgba(0,180,172,.14);
+  --ib-bubble-diag-txt:#cffaf7;
+  --ib-input:rgba(255,255,255,.05);
+}
+[data-theme="light"] {
+  --ib-bg:#f7f8fa;
+  --ib-panel:#ffffff;
+  --ib-thread:#f7f8fa;
+  --ib-elev:#ffffff;
+  --ib-elev2:#eef2f5;
+  --ib-line:#edf1f4;
+  --ib-line2:#dde4e8;
+  --ib-txt:#1c2a31;
+  --ib-mut:#647580;
+  --ib-bubble-cli:#ffffff;
+  --ib-bubble-diag:#155B67;
+  --ib-bubble-diag-txt:#ffffff;
+  --ib-input:#ffffff;
+}
+#view-inbox.wrap{padding:0;max-width:none;margin:0}
+.inbox-app{display:grid;grid-template-columns:340px 1fr 360px;height:calc(100vh - 70px);background:var(--ib-bg);overflow:hidden;color:var(--ib-txt)}
+
+/* coluna esquerda — lista */
+.ib-list{background:var(--ib-panel);border-right:1px solid var(--ib-line);overflow-y:auto;display:flex;flex-direction:column}
+.ib-list h1{font-size:15px;margin:16px 18px 8px;font-weight:700;color:var(--ib-txt);letter-spacing:-.2px}
+.ib-section{font-size:10px;text-transform:uppercase;color:var(--ib-mut);letter-spacing:1.2px;padding:10px 18px 6px;font-weight:700}
+.ib-filas{padding:0 10px}
+.ib-fila{padding:8px 12px;border-radius:7px;display:flex;justify-content:space-between;cursor:pointer;font-size:12.5px;color:var(--ib-txt);align-items:center;margin-bottom:2px;transition:background .12s}
+.ib-fila:hover{background:var(--ib-elev)}
+.ib-fila.on{background:rgba(0,180,172,.12);color:#00B4AC;font-weight:600}
+[data-theme="light"] .ib-fila.on{background:rgba(0,180,172,.12);color:#0d5a55}
+.ib-fila .n{background:var(--ib-elev2);color:var(--ib-mut);font-size:10.5px;padding:1px 8px;border-radius:10px;font-weight:700;min-width:22px;text-align:center}
+.ib-fila.on .n{background:#00B4AC;color:#fff}
+.ib-convos{padding:6px 10px 16px;overflow-y:auto;flex:1}
+.ib-cv{padding:10px 12px;border-radius:8px;cursor:pointer;margin-bottom:3px;font-size:12px;transition:background .12s;position:relative}
+.ib-cv:hover{background:var(--ib-elev)}
+.ib-cv.on{background:var(--ib-elev2);box-shadow:inset 3px 0 0 #00B4AC}
+.ib-cv .nm{font-weight:600;color:var(--ib-txt);display:flex;justify-content:space-between;gap:6px;font-size:13px}
+.ib-cv .nm span{color:var(--ib-mut);font-size:10.5px;font-weight:400}
+.ib-cv .pv{color:var(--ib-mut);font-size:11.5px;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ib-cv .tags{margin-top:5px;display:flex;gap:4px;flex-wrap:wrap}
+.ib-tg{font-size:9.5px;padding:2px 6px;border-radius:4px;font-weight:600;letter-spacing:.2px}
+.ib-tg.art{background:rgba(0,180,172,.16);color:#3dd8d0}
+[data-theme="light"] .ib-tg.art{background:rgba(0,180,172,.14);color:#0d5a55}
+.ib-tg.diag{background:rgba(232,136,136,.16);color:#f0a8a8}
+[data-theme="light"] .ib-tg.diag{background:rgba(198,58,50,.12);color:#b03228}
+.ib-tg.cliente{background:rgba(251,176,64,.16);color:#fbb040}
+[data-theme="light"] .ib-tg.cliente{background:rgba(184,134,29,.12);color:#8c5d10}
+.ib-tg.live{background:rgba(141,183,42,.18);color:#a8d142}
+[data-theme="light"] .ib-tg.live{background:rgba(141,183,42,.18);color:#5a7a18}
+
+/* coluna central — thread */
+.ib-main{display:flex;flex-direction:column;background:var(--ib-thread);overflow:hidden}
+.ib-mhead{padding:14px 22px;border-bottom:1px solid var(--ib-line);display:flex;justify-content:space-between;align-items:center;background:var(--ib-panel)}
+.ib-mhead .info b{font-size:15px;color:var(--ib-txt);letter-spacing:-.2px}
+.ib-mhead .info .sub{color:var(--ib-mut);font-size:11.5px;margin-top:3px}
+.ib-mhead .acts{display:flex;gap:7px}
+.ib-mhead .acts button{background:var(--ib-elev);border:1px solid var(--ib-line);color:var(--ib-txt);border-radius:7px;padding:6px 11px;font-size:11.5px;cursor:pointer;font-weight:500;transition:background .12s}
+.ib-mhead .acts button:hover{background:var(--ib-elev2)}
+.ib-thread{flex:1;overflow-y:auto;padding:18px 26px;display:flex;flex-direction:column;gap:10px}
+.ib-msg{max-width:62%;padding:9px 13px;border-radius:12px;font-size:13px;line-height:1.45}
+.ib-msg.cli{background:var(--ib-bubble-cli);align-self:flex-start;border-bottom-left-radius:4px;color:var(--ib-txt);border:1px solid var(--ib-line)}
+.ib-msg.diag{background:var(--ib-bubble-diag);color:var(--ib-bubble-diag-txt);align-self:flex-end;border-bottom-right-radius:4px}
+.ib-msg .who{font-size:10.5px;color:var(--ib-mut);margin-bottom:3px;font-weight:600;opacity:.9}
+.ib-msg.diag .who{color:var(--ib-bubble-diag-txt);opacity:.75}
+.ib-empty{text-align:center;color:var(--ib-mut);padding:40px;font-size:13px;font-style:italic}
+
+/* sugestão IA */
+.ib-iasug{margin:0 22px 10px;padding:10px 14px;background:linear-gradient(90deg,rgba(122,78,194,.10),rgba(0,180,172,.05));border-left:3px solid #7a4ec2;border-radius:7px;font-size:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;color:var(--ib-txt)}
+.ib-iasug .t{flex:1}
+.ib-iasug button{background:#7a4ec2;color:#fff;border:0;border-radius:6px;padding:6px 12px;font-size:11.5px;cursor:pointer;font-weight:600}
+
+/* composer */
+.ib-composer{padding:14px 20px 16px;border-top:1px solid var(--ib-line);background:var(--ib-panel);display:flex;gap:8px;align-items:center}
+.ib-composer input{flex:1;background:var(--ib-input);border:1px solid var(--ib-line2);color:var(--ib-txt);border-radius:8px;padding:10px 13px;font-size:13px;outline:none;transition:border-color .12s}
+.ib-composer input:focus{border-color:#00B4AC}
+.ib-composer .send{background:#8DB72A;color:#001a00;border:0;border-radius:8px;padding:10px 18px;font-weight:700;cursor:pointer;font-size:12.5px}
+
+/* coluna direita — contexto */
+.ib-ctx{background:var(--ib-panel);border-left:1px solid var(--ib-line);overflow-y:auto;padding:18px 18px}
+.ib-ctx .av{display:flex;gap:11px;align-items:center;padding-bottom:14px;border-bottom:1px solid var(--ib-line);margin-bottom:14px}
+.ib-ctx .av .bub{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;flex-shrink:0}
+.ib-ctx .av b{font-size:14px;display:block;color:var(--ib-txt);font-weight:600}
+.ib-ctx .av .ph{color:var(--ib-mut);font-size:11.5px;margin-top:2px}
+.ib-ctx h5{font-size:10.5px;text-transform:uppercase;color:var(--ib-mut);letter-spacing:1.2px;margin:16px 0 7px;font-weight:700;display:flex;justify-content:space-between;align-items:center}
+.ib-ctx h5 button{background:var(--ib-elev);color:var(--ib-txt);border:1px solid var(--ib-line2);border-radius:5px;padding:3px 10px;font-size:10px;cursor:pointer;font-weight:600;text-transform:none;letter-spacing:0}
+.ib-ctx h5 button:hover{background:var(--ib-elev2)}
+.ib-ctx .ib-row{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;color:var(--ib-txt)}
+.ib-ctx .ib-row span:first-child{color:var(--ib-mut)}
+.ib-ctx .ib-row span:last-child{font-weight:500;text-align:right}
+.ib-ctx .cta{background:#8DB72A;color:#001a00;border:0;border-radius:8px;padding:11px 14px;width:100%;font-weight:700;cursor:pointer;margin-top:8px;font-size:13px}
+.ib-ctx .cta:hover{filter:brightness(1.05)}
+</style>
+<div class="wrap" id="view-inbox">
+  <div class="inbox-app">
+    <!-- coluna 1: lista -->
+    <div class="ib-list">
+      <h1>📥 Caixa de entrada</h1>
+      <div class="ib-section">Filas</div>
+      <div class="ib-filas" id="ibFilas"></div>
+      <div class="ib-section">Conversas <span id="ibCvCount" style="float:right;color:var(--turq)"></span></div>
+      <div class="ib-convos" id="ibConvos"></div>
+    </div>
+    <!-- coluna 2: thread -->
+    <div class="ib-main" id="ibMain">
+      <div class="ib-empty">Selecione uma conversa à esquerda</div>
+    </div>
+    <!-- coluna 3: contexto -->
+    <div class="ib-ctx" id="ibCtx">
+      <div class="ib-empty">—</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ====== Supabase: captura ao vivo do WhatsApp via Evolution ======
+const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
+const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpbW1qZ2R3aGlmc3JyYnJlY2hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzU2NDIsImV4cCI6MjA5NTE1MTY0Mn0.eAmMS95M8BkfX3NCcOtHnhKWXy0jkvXwSGEoqv_Q21Q';
+const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON,{auth:{persistSession:false}}) : null;
+
+const LIVE = {}; // tel -> {msgs:[], loaded:bool, channel:obj}
+let LIVE_OK = null; // null=desconhecido, true=tabela existe, false=ainda não criada
+
+async function probeLive(){
+  if(!sb){ LIVE_OK=false; return false; }
+  try{
+    const r=await fetch(SUPABASE_URL+'/rest/v1/mensagens_wa?select=id&limit=1',{headers:{apikey:SUPABASE_ANON,Authorization:'Bearer '+SUPABASE_ANON}});
+    LIVE_OK = r.ok;
+  }catch(e){ LIVE_OK=false; }
+  return LIVE_OK;
+}
+
+async function loadHistorico(tel){
+  if(!sb||LIVE_OK===false) return;
+  if(LIVE[tel]&&LIVE[tel].loaded) return;
+  LIVE[tel]=LIVE[tel]||{msgs:[],loaded:false,channel:null};
+  const {data,error}=await sb.from('mensagens_wa')
+    .select('id,tel,from_me,push_name,agente_nome,texto,tipo,recebida_em')
+    .eq('tel',tel).order('recebida_em',{ascending:false}).limit(30);
+  if(error){console.warn('mensagens_wa fetch',error.message);return;}
+  LIVE[tel].msgs=(data||[]).reverse();
+  LIVE[tel].loaded=true;
+  // subscribe realtime
+  if(!LIVE[tel].channel){
+    LIVE[tel].channel = sb.channel('msgs-'+tel)
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'mensagens_wa',filter:'tel=eq.'+tel},
+        payload=>{ LIVE[tel].msgs.push(payload.new); renderHistorico(tel); })
+      .subscribe();
+  }
+  renderHistorico(tel);
+}
+function renderHistorico(tel){
+  const els=document.querySelectorAll('[data-live-tel="'+tel+'"]');
+  if(!els.length) return;
+  const d=LIVE[tel]; if(!d) return;
+  // mini summary: última msg + total
+  const minis=[...els].filter(e=>e.classList.contains('live-mini'));
+  if(minis.length){
+    const last=d.msgs[d.msgs.length-1];
+    const total=d.msgs.length;
+    const t=last?(last.texto||'['+(last.tipo||'mídia')+']').replace(/\s+/g,' ').slice(0,90):'';
+    const who=last?(last.from_me?(last.agente_nome||'Diagnóstika'):(last.push_name||'Cliente')):'';
+    const txt=total?`<b>${escH(who)}:</b> ${escH(t)}${t.length>=90?'…':''}`:'Nenhuma mensagem capturada para este contato.';
+    minis.forEach(el=>{
+      el.querySelector('.lm-text').innerHTML=txt;
+      const cta=el.querySelector('.lm-cta');
+      cta.classList.toggle('live-on', !!d.channel);
+      cta.innerHTML= (total ? `${total} msgs · abrir ↗` : 'sem histórico')+slaBadgeHtml(d.msgs);
+    });
+  }
+  // modal aberto deste tel: re-render
+  if(MODAL_TEL===tel) renderModal();
+  const html=!d.msgs.length?'<div class="live-empty">Nenhuma mensagem capturada para este contato ainda.</div>':d.msgs.map(m=>{
+    const who=m.from_me?(m.agente_nome||'Diagnóstika'):(m.push_name||'Cliente');
+    const dt=new Date(m.recebida_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const txt=(m.texto||'['+ (m.tipo||'mídia') +']').replace(/[<>]/g,c=>c==='<'?'&lt;':'&gt;');
+    return `<div class="msg ${m.from_me?'me':''}"><div><span class="who">${escH(who)}</span><span class="when">${escH(dt)}</span></div><div class="body">${txt}</div></div>`;
+  }).join('');
+  els.forEach(el=>{
+    if(el.classList.contains('live-mini')) return;
+    const head=el.querySelector('.live-head'); if(head) head.classList.toggle('on', !!d.channel);
+    const body=el.querySelector('.live-body'); if(body){ body.innerHTML=html; body.scrollTop=body.scrollHeight; }
+  });
+}
+
+let ARQS=[];
+fetch('arquivos_clientes.json').then(r=>r.ok?r.json():[]).then(j=>{ARQS=j||[];}).catch(()=>{});
+function normNome(s){return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();}
+function arquivosDoCard(p){
+  if(!ARQS.length||!p) return [];
+  const ncard=normNome(p.nome||'');
+  if(!ncard) return [];
+  const primeiroNome=ncard.split(' ')[0];
+  const aptoCard=(p.apto||'').match(/\d+/)?.[0];
+  return ARQS.filter(a=>{
+    if(p.cond && a.cond && !normNome(a.cond).includes(normNome(p.cond).split(' ')[0])) return false;
+    const na=normNome(a.nome);
+    const matchNome = na.includes(primeiroNome) || ncard.includes(na.split(' ')[0]);
+    const matchApto = aptoCard && a.apto===aptoCard;
+    return matchNome || matchApto;
+  });
+}
+let MODAL_TEL=null, MODAL_NOME='', MODAL_P=null;
+// TTL/LRU: limita caches que crescem por tel; 30 dias TTL + max 100 entries (LRU por .at)
+function pruneCache(obj, maxEntries=100, ttlMs=30*24*60*60*1000){
+  const now=Date.now();
+  Object.keys(obj).forEach(k=>{ const at=obj[k]?.at||0; if(at && now-at>ttlMs) delete obj[k]; });
+  const keys=Object.keys(obj);
+  if(keys.length>maxEntries){
+    keys.sort((a,b)=>(obj[a]?.at||0)-(obj[b]?.at||0));
+    keys.slice(0,keys.length-maxEntries).forEach(k=>delete obj[k]);
+  }
+  return obj;
+}
+const IA_KEY='sombra_ia_v1';
+let IA_CACHE=pruneCache(JSON.parse(localStorage.getItem(IA_KEY)||'{}'));
+const N8N_BASE = (localStorage.getItem('sombra_n8n_base') || 'https://84.46.248.23.sslip.io').replace(/\/$/,'');
+const IA_URL=N8N_BASE+'/webhook/sombra-ia';
+const CHAT_URL=N8N_BASE+'/webhook/sombra-chat';
+const GMAIL_URL=N8N_BASE+'/webhook/sombra-gmail';
+const DOSSIE_URL=N8N_BASE+'/webhook/sombra-dossie';
+const DOSSIE_KEY='sombra_dossie_v1';
+let DOSSIE_CACHE=pruneCache(JSON.parse(localStorage.getItem(DOSSIE_KEY)||'{}'));
+const DOSSIE_LOADING={};
+const CHAT_KEY='sombra_chat_v1';
+let CHAT_CACHE=(()=>{const o=JSON.parse(localStorage.getItem(CHAT_KEY)||'{}');const ks=Object.keys(o);if(ks.length>100) ks.slice(0,ks.length-100).forEach(k=>delete o[k]);return o;})();
+let IA_LOADING=false, CHAT_LOADING=false;
+let MODAL_MAX=localStorage.getItem('sombra_modal_max')==='1';
+function aplicaMax(){
+  const box=document.getElementById('modalBox'); const bg=document.getElementById('modalBg'); const b=document.getElementById('modalMaxBtn');
+  if(!box) return;
+  box.classList.toggle('max',MODAL_MAX); bg.classList.toggle('max',MODAL_MAX);
+  if(b){ b.textContent=MODAL_MAX?'❐':'▢'; b.title=MODAL_MAX?'Restaurar':'Maximizar'; }
+}
+function toggleMaxModal(){ MODAL_MAX=!MODAL_MAX; localStorage.setItem('sombra_modal_max',MODAL_MAX?'1':'0'); aplicaMax(); }
+async function checkN8nStatus(){
+  const el = document.getElementById('n8nStatus'); if (!el) return;
+  el.style.background = '#fb6'; el.title = 'Verificando…';
+  const ctrl = new AbortController(); const tmo = setTimeout(()=>ctrl.abort(), 5000);
+  try {
+    const r = await fetch(N8N_BASE+'/healthz', { method:'GET', signal:ctrl.signal, mode:'no-cors' });
+    el.style.background = '#6ec07a'; el.title = 'n8n OK ('+N8N_BASE+')';
+  } catch(e) {
+    el.style.background = '#e88'; el.title = 'n8n offline: '+(e.name==='AbortError'?'timeout 5s':e.message);
+  } finally { clearTimeout(tmo); }
+}
+setInterval(checkN8nStatus, 60000); // ping a cada 60s
+setTimeout(checkN8nStatus, 1500);   // primeiro ping após boot
+// Auto-refresh do PEND a cada 5min (fallback se Realtime falhar) — só rebuildPend, sem refetch
+setInterval(()=>{
+  try { rebuildPend(); renderAprov(); } catch(e){ console.warn('auto-refresh:', e.message); }
+}, 5*60*1000);
+// Pruning periódico dos caches (cada 30min) — protege sessões longas
+setInterval(()=>{
+  try {
+    pruneCache(IA_CACHE); try{ localStorage.setItem(IA_KEY, JSON.stringify(IA_CACHE)); }catch(_){}
+    pruneCache(DOSSIE_CACHE); try{ localStorage.setItem(DOSSIE_KEY, JSON.stringify(DOSSIE_CACHE)); }catch(_){}
+    pruneCache(PDF_CACHE, 50); try{ localStorage.setItem(PDF_KEY, JSON.stringify(PDF_CACHE)); }catch(_){}
+  } catch(e){ console.warn('prune periodic:', e.message); }
+}, 30*60*1000);
+function editarN8nBase(){
+  const atual = N8N_BASE;
+  const v = prompt('URL base do n8n (sem /webhook/...):\n\nDefault: https://84.46.248.23.sslip.io\n\nDeixe vazio para resetar ao default.', atual);
+  if (v===null) return;
+  if (!v.trim()) {
+    localStorage.removeItem('sombra_n8n_base');
+    sombraToast('🔄 N8N_BASE resetado. Recarregue a página.', 'info');
+  } else if (/^https?:\/\/[^/]+/.test(v.trim())) {
+    const host = v.trim().match(/^https?:\/\/([^:/]+)/)?.[1] || '';
+    const isPrivate = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)/i.test(host);
+    if (isPrivate && !confirm('⚠ "'+host+'" é um endereço LOCAL/PRIVADO. O painel só vai funcionar quando você estiver na mesma rede. Continuar mesmo assim?')) return;
+    localStorage.setItem('sombra_n8n_base', v.trim().replace(/\/$/,''));
+    sombraToast('✅ N8N_BASE salvo: '+v.trim()+'\n\nRecarregue a página pra aplicar.', 'ok');
+  } else {
+    sombraToast('❌ URL inválida — precisa começar com http:// ou https://', 'err');
+  }
+}
+function toggleTheme(){
+  const cur=document.documentElement.getAttribute('data-theme')||'dark';
+  const next=cur==='dark'?'light':'dark';
+  document.documentElement.setAttribute('data-theme',next);
+  localStorage.setItem('sombra_theme',next);
+  const b=document.getElementById('themeBtn'); if(b) b.textContent=next==='dark'?'🌙':'☀️';
+}
+(function initTheme(){
+  const t=localStorage.getItem('sombra_theme')||'dark';
+  document.documentElement.setAttribute('data-theme',t);
+  setTimeout(()=>{const b=document.getElementById('themeBtn');if(b)b.textContent=t==='dark'?'🌙':'☀️';},0);
+})();
+function abrirConversa(tel,nome){
+  MODAL_TEL=tel; MODAL_NOME=nome||'';
+  const pBase=PEND.find(x=>x.tel===tel)||RAW.find(x=>x.tel===tel)||null;
+  const rRaw=RAW.find(x=>x.tel===tel);
+  MODAL_P=pBase?{...pBase, protocolo:(pBase.protocolo||(rRaw&&rRaw.protocolo)||null)}:null;
+  document.getElementById('modalBg').classList.add('on'); aplicaMax(); renderModal();
+}
+function fecharConversa(){ MODAL_TEL=null; document.getElementById('modalBg').classList.remove('on'); }
+// ESC fecha modal (UX padrão)
+document.addEventListener('keydown', e=>{
+  if (e.key==='Escape' && MODAL_TEL) fecharConversa();
+});
+async function analisarIA(tel){
+  if(IA_LOADING) return; IA_LOADING=true; renderModal();
+  if (typeof renderInboxThread==='function' && IB_TEL===tel) renderInboxThread();
+  const p=MODAL_P||{};
+  const cond=p.cond||'';
+  const nome=p.nome||p.contato||MODAL_NOME||'';
+  // contexto conversacional: últimas 12 mensagens + última msg do cliente em destaque
+  const msgsAll = (LIVE[tel]?.msgs||[]).slice(-12).map(m=>({
+    de: m.from_me ? (m.agente_nome||'Diagnóstika') : (m.push_name||nome||'Cliente'),
+    from_me: !!m.from_me,
+    tipo: m.tipo||'text',
+    texto: m.texto || (TRANS_CACHE[m.id] ? '[áudio] '+TRANS_CACHE[m.id] : '['+(m.tipo||'mídia')+']'),
+    hora: m.recebida_em
+  }));
+  const lastCli = [...(LIVE[tel]?.msgs||[])].reverse().find(m=>!m.from_me);
+  const ultima_msg_cliente = lastCli ? {
+    texto: lastCli.texto || (TRANS_CACHE[lastCli.id] ? '[áudio] '+TRANS_CACHE[lastCli.id] : '['+(lastCli.tipo||'mídia')+']'),
+    quando: lastCli.recebida_em,
+    de: lastCli.push_name || nome
+  } : null;
+  const ctrl=new AbortController(); const tmo=setTimeout(()=>ctrl.abort(),60000);
+  try{
+    const r=await fetch(IA_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tel,nome,cond,anexos:anexosDoCard(),mensagens:msgsAll,ultima_msg_cliente}),signal:ctrl.signal});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const j=await r.json().catch(()=>({erro:'resposta n8n não é JSON'}));
+    // defensive: se n8n responder array, pega [0]; se não objeto, marca erro
+    const safe = Array.isArray(j) ? (j[0]||{}) : (j && typeof j==='object' ? j : {erro:'shape inesperado'});
+    IA_CACHE[tel]={...safe, at:Date.now()};
+    try{ localStorage.setItem(IA_KEY, JSON.stringify(IA_CACHE)); }catch(_){}
+  }catch(e){ IA_CACHE[tel]={erro:e.name==='AbortError'?'timeout 60s':e.message, at:Date.now()}; }
+  finally{ clearTimeout(tmo); IA_LOADING=false; renderModal(); }
+}
+async function perguntarChat(tel){
+  if(CHAT_LOADING) return;
+  const inp=document.getElementById('chatInput'); if(!inp) return;
+  const q=(inp.value||'').trim(); if(!q) return;
+  const p=MODAL_P||{};
+  const cond=p.cond||'', nome=p.nome||p.contato||MODAL_NOME||'';
+  const hist=CHAT_CACHE[tel]||[];
+  hist.push({role:'user',content:q});
+  CHAT_CACHE[tel]=hist; localStorage.setItem(CHAT_KEY,JSON.stringify(CHAT_CACHE));
+  CHAT_LOADING=true; inp.value=''; renderModal();
+  try{
+    if(DOSSIE_LOADING[tel]){
+      let waited=0; while(DOSSIE_LOADING[tel]&&waited<90000){ await new Promise(r=>setTimeout(r,1000)); waited+=1000; }
+    } else if(!DOSSIE_CACHE[tel]||DOSSIE_CACHE[tel].erro){
+      hist.push({role:'assistant',content:'(gerando dossiê do caso primeiro...)'});
+      CHAT_CACHE[tel]=hist; localStorage.setItem(CHAT_KEY,JSON.stringify(CHAT_CACHE)); renderModal();
+      try{ await gerarDossie(tel); }catch(e){}
+      hist.pop();
+    }
+    const dossie=DOSSIE_CACHE[tel]&&!DOSSIE_CACHE[tel].erro?DOSSIE_CACHE[tel]:null;
+    const gmail=Array.isArray(GMAIL_CACHE[tel])?GMAIL_CACHE[tel]:[];
+    const ctrl=new AbortController(); const tmo=setTimeout(()=>ctrl.abort(),60000);
+    try{
+      const r=await fetch(CHAT_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tel,nome,cond,pergunta:q,historico:hist.slice(0,-1),anexos:anexosDoCard(),dossie,gmail}),signal:ctrl.signal});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const j=await r.json().catch(()=>({}));
+      const safe = Array.isArray(j) ? (j[0]||{}) : (j||{});
+      hist.push({role:'assistant',content:safe.resposta||'(sem resposta)'});
+    } finally { clearTimeout(tmo); }
+  }catch(e){ hist.push({role:'assistant',content:'Erro: '+(e.name==='AbortError'?'timeout 60s':e.message)}); }
+  finally{
+    CHAT_CACHE[tel]=hist; try{ localStorage.setItem(CHAT_KEY,JSON.stringify(CHAT_CACHE)); }catch(_){}
+    CHAT_LOADING=false; renderModal();
+  }
+  setTimeout(()=>{const i=document.getElementById('chatInput');if(i)i.focus();},50);
+}
+function limparChat(tel){
+  if(!confirm('Limpar conversa do chat IA deste card?')) return;
+  delete CHAT_CACHE[tel]; localStorage.setItem(CHAT_KEY,JSON.stringify(CHAT_CACHE)); renderModal();
+}
+function chatKeydown(ev){ if(ev.key==='Enter'&&!ev.shiftKey){ev.preventDefault();perguntarChat(MODAL_TEL);} }
+const STT_URL=N8N_BASE+'/webhook/sombra-stt';
+const STT_MSG_URL=N8N_BASE+'/webhook/sombra-stt-msg';
+const MIDIA_URL=N8N_BASE+'/webhook/sombra-midia';
+const MIDIA_CACHE={}; const MIDIA_LOADING={};
+const GMAIL_CACHE={}; const GMAIL_LOADING={};
+async function buscarGmail(tel, nome){
+  if(GMAIL_LOADING[tel]) return;
+  GMAIL_LOADING[tel]=true; renderModal();
+  try{
+    const q = (nome||'').trim() || tel;
+    const dossie=DOSSIE_CACHE[tel];
+    const participantes=(dossie&&Array.isArray(dossie.partes_input)?[]:[])
+      .concat((dossie&&dossie.partes)||[])
+      .map(p=>({nome:p.nome,email:p.email||''}));
+    const ctrl=new AbortController(); const tmo=setTimeout(()=>ctrl.abort(),60000);
+    try{
+      const r = await fetch(GMAIL_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({q, tel, nome, participantes}),signal:ctrl.signal});
+      const j = await r.json().catch(()=>({threads:[]}));
+      GMAIL_CACHE[tel] = j.threads || j.results || [];
+    } finally { clearTimeout(tmo); }
+  }catch(e){
+    GMAIL_CACHE[tel] = {erro: e.name==='AbortError'?'timeout 60s':(e.message||'falha de rede')};
+  }
+  finally{ GMAIL_LOADING[tel]=false; renderModal(); }
+}
+function gmailHtml(tel){
+  const data = GMAIL_CACHE[tel];
+  const loading = GMAIL_LOADING[tel];
+  const nome = MODAL_NOME||'';
+  const btn = `<button onclick="buscarGmail('${tel}', ${JSON.stringify(nome).replace(/"/g,'&quot;')})" ${loading?'disabled':''} style="padding:5px 11px;background:#d44638;color:#fff;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">${loading?'Buscando…':(data?'Re-buscar':'📧 Buscar e-mails')}</button>`;
+  let body = '';
+  if(data && data.erro) body = `<div style="color:#f88;margin-top:6px;font-size:11px">Webhook Gmail não configurado: ${data.erro}</div>`;
+  else if(Array.isArray(data) && data.length){
+    body = '<div style="margin-top:8px;max-height:160px;overflow-y:auto">'+data.slice(0,10).map(t=>{
+      const subj=(t.subject||t.assunto||'(sem assunto)').replace(/[<>]/g,c=>c==='<'?'&lt;':'&gt;');
+      const from=(t.from||t.de||'').replace(/[<>]/g,c=>c==='<'?'&lt;':'&gt;');
+      const snippet=(t.snippet||t.preview||'').replace(/[<>]/g,c=>c==='<'?'&lt;':'&gt;').slice(0,140);
+      const link=t.link||t.url||(t.id?`https://mail.google.com/mail/u/0/#inbox/${t.id}`:'');
+      return `<div style="padding:6px 8px;border-bottom:1px solid var(--line);font-size:11px"><div style="display:flex;justify-content:space-between;gap:6px"><b style="color:#cfdde0">${subj}</b>${link?`<a href="${link}" target="_blank" style="color:var(--turq);text-decoration:none">↗</a>`:''}</div><div style="color:var(--mut);font-size:10px">${from}</div><div style="color:#9aa;font-style:italic;margin-top:2px">${snippet}</div></div>`;
+    }).join('')+'</div>';
+  } else if(Array.isArray(data)) body = '<div style="color:var(--mut);margin-top:6px;font-size:11px">Nenhum e-mail encontrado.</div>';
+  else if(!loading) body = '<div style="color:var(--mut);margin-top:6px;font-size:11px">Clique para buscar threads do Gmail por nome/tel.</div>';
+  return `<div style="padding:10px 14px;background:rgba(212,70,56,.06);border-bottom:1px solid var(--line);font-size:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <b style="color:#ff8a7a">📧 Gmail</b>${btn}
+    </div>${body}
+  </div>`;
+}
+// ═══ T2.2 — CREAnet: extrair dados ART do card e copiar pro form ═══
+function extrairDadosART(p,msgs){
+  const out={nome:'',cpf:'',cond:'',endereco:'',bloco:'',apto:'',metragem:'',obra:'',tel:p?.tel||MODAL_TEL||''};
+  out.nome=p?.nome||p?.contato||MODAL_NOME||'';
+  out.cond=p?.cond||p?.fields?.condominio||'';
+  const blocoApto=p?.fields?.blocoEApartamento||p?.apto||'';
+  if(blocoApto){
+    const m=blocoApto.match(/(?:bl(?:oco)?\.?\s*)?([0-9A-Za-z]+)[\s,\-/]+(?:ap(?:t)?o?\.?\s*)?([0-9A-Za-z]+)/i);
+    if(m){ out.bloco=m[1]; out.apto=m[2]; } else out.apto=blocoApto;
+  }
+  const txtCombo=[p?.fields?.dados||'',...(msgs||[]).map(m=>m?.texto||m?.content||'')].join('\n');
+  const cpf=txtCombo.match(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/);
+  if(cpf) out.cpf=cpf[0].replace(/\D/g,'').replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4');
+  const metr=txtCombo.match(/(\d{1,4}(?:[.,]\d{1,2})?)\s*m\s*(?:²|2|q)/i);
+  if(metr) out.metragem=metr[1].replace(',','.')+' m²';
+  const end=txtCombo.match(/(?:av|avenida|rua|r\.|alameda|al\.|estrada|rod)\.?\s*:?\s*[^\n]{5,180}/i);
+  if(end) out.endereco=end[0].trim().slice(0,180);
+  const tipos=['banheiro','cozinha','sala','quarto','dormitório','varanda','fachada','elétric','hidráulic','piso','parede','teto','reforma'];
+  const baixo=txtCombo.toLowerCase();
+  const found=tipos.filter(t=>baixo.includes(t));
+  if(found.length) out.obra=found.slice(0,4).join(', ');
+  return out;
+}
+function copiarTxt(t,btn){ navigator.clipboard.writeText(t).then(()=>{const o=btn.textContent;btn.textContent='✓';setTimeout(()=>btn.textContent=o,1200);}); }
+window.copiarTxt=copiarTxt;
+function crEAnetHtml(p,ia,msgs){
+  const cat=(ia&&ia.classificacao)||'';
+  if(cat!=='ART') return '';
+  const d=extrairDadosART(p,msgs);
+  const row=(k,v,ph)=>{
+    const val=(v||'').toString();
+    const cor=val?'#cfdde0':'#fb6';
+    const tag=val?'':'<span style="color:#fb6;font-size:9px;margin-left:4px">⚠ faltando</span>';
+    return `<div style="display:flex;gap:6px;align-items:center;padding:4px 0;border-bottom:1px dotted var(--line);font-size:11px">
+      <span style="width:90px;color:var(--mut);font-size:10px">${k}</span>
+      <span style="flex:1;color:${cor}">${val||('<i style=\"color:var(--mut)\">'+ph+'</i>')}</span>
+      ${val?`<button onclick="copiarTxt(${JSON.stringify(val)},this)" style="padding:2px 7px;background:transparent;color:var(--turq);border:1px solid var(--turq);border-radius:4px;font-size:10px;cursor:pointer">copiar</button>`:tag}
+    </div>`;
+  };
+  const all=`Nome: ${d.nome}\nCPF: ${d.cpf}\nTelefone: ${d.tel}\nCondomínio: ${d.cond}\nEndereço: ${d.endereco}\nBloco: ${d.bloco}\nApto: ${d.apto}\nMetragem: ${d.metragem}\nObra: ${d.obra}`;
+  const faltam=['cpf','endereco','metragem','obra'].filter(k=>!d[k]);
+  return `<div style="padding:10px 14px;background:rgba(0,180,172,.05);border-bottom:1px solid var(--line);font-size:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
+      <b style="color:var(--turq)">🏗️ CREAnet — Dados ART</b>
+      <div style="display:flex;gap:6px">
+        <button onclick="copiarTxt(${JSON.stringify(all)},this)" style="padding:5px 11px;background:var(--turq);color:#001;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">📋 Copiar tudo</button>
+        <button onclick="emitirARTrpa(${JSON.stringify(d).replace(/"/g,'&quot;')},this)" title="Dispara Playwright local em http://127.0.0.1:9999/emit-art (precisa do server.mjs rodando)" style="padding:5px 11px;background:var(--lima);color:#001;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">🤖 Emitir ART (RPA)</button>
+        <a href="https://creanet1.creasp.org.br/_UI/Pages/Profissional/Default/Default.aspx" target="_blank" style="padding:5px 11px;background:#155b67;color:#fff;border-radius:7px;font-size:11px;text-decoration:none;font-weight:700">↗ CREAnet</a>
+      </div>
+    </div>
+    ${row('Nome',d.nome,'pedir ao cliente')}
+    ${row('CPF',d.cpf,'não detectado nas msgs')}
+    ${row('Telefone',d.tel,'')}
+    ${row('Condomínio',d.cond,'pedir ao cliente')}
+    ${row('Endereço',d.endereco,'pedir ao cliente')}
+    ${row('Bloco',d.bloco,'')}
+    ${row('Apto',d.apto,'')}
+    ${row('Metragem',d.metragem,'pedir m² ao cliente')}
+    ${row('Tipo obra',d.obra,'pedir descrição')}
+    ${faltam.length?`<div style="margin-top:6px;padding:6px 8px;background:rgba(251,176,64,.08);border-left:3px solid #fb6;border-radius:4px;color:#fb6;font-size:11px">Faltam: ${faltam.join(', ')} — peça ao cliente antes de abrir o CREAnet.</div>`:''}
+  </div>`;
+}
+const FIN_CACHE={}; const FIN_LOADING={};
+function sombraToast(msg, tipo){
+  // tipo: 'ok' | 'err' | 'info'
+  const cor = tipo==='ok'?'#1f7a3d':(tipo==='err'?'#a02a2a':'#155b67');
+  const div = document.createElement('div');
+  div.style.cssText = `position:fixed;bottom:20px;right:20px;background:${cor};color:#fff;padding:12px 18px;border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,.4);font-size:13px;font-weight:600;max-width:380px;z-index:99999;line-height:1.4;white-space:pre-wrap`;
+  div.textContent = msg;
+  document.body.appendChild(div);
+  setTimeout(()=>{ div.style.transition='opacity .3s'; div.style.opacity='0'; setTimeout(()=>div.remove(),300); }, tipo==='err'?6000:3500);
+}
+async function emitirARTrpa(d, btn){
+  const faltam=['cpf','endereco','obra'].filter(k=>!d[k]);
+  if(faltam.length){ if(!confirm('Faltam: '+faltam.join(', ')+'. Disparar mesmo assim? (você poderá completar manualmente na pausa de 60s)')) return; }
+  const t0=btn.textContent; btn.disabled=true; btn.textContent='🤖 disparando…';
+  try{
+    const r=await fetch('http://127.0.0.1:9999/emit-art',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    await r.json().catch(()=>({}));
+    btn.textContent='✅ rodando';
+    sombraToast('🤖 RPA disparado — Chrome vai abrir em segundos.\n\nReveja antes de Finalizar e Enviar.', 'ok');
+    setTimeout(()=>{btn.disabled=false; btn.textContent=t0;}, 5000);
+  }catch(e){
+    btn.disabled=false; btn.textContent=t0;
+    sombraToast('❌ Falha no RPA: '+e.message+'\n\nVerifique se o server.mjs está rodando:\ncd rpa-creanet && start.bat', 'err');
+  }
+}
+async function buscarFinanceiro(tel){
+  if(FIN_LOADING[tel]) return;
+  FIN_LOADING[tel]=true; renderModal();
+  try{
+    const p=MODAL_P||{}; const cond=(p.cond||'').trim(); const nome=(p.nome||p.contato||MODAL_NOME||'').trim();
+    const termo=cond||nome;
+    if(!termo){ FIN_CACHE[tel]={erro:'sem nome/condomínio para buscar'}; return; }
+    const ctrl=new AbortController(); const tmo=setTimeout(()=>ctrl.abort(),60000);
+    try{
+      const [rFin, rNfse]=await Promise.all([
+        fetch(N8N_BASE+'/webhook/sombra-financeiro',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cond,nome,termo}),signal:ctrl.signal}),
+        fetch(SUPABASE_URL+'/rest/v1/fin_nfse_emitidas?select=numero_nfse,valor,competencia,descricao,created_at,nome,condominio_id,conta_receber_id&or=('+encodeURIComponent(`nome.ilike.*${termo}*,condominio_id.ilike.*${termo}*`)+')&order=created_at.desc&limit=10',{headers:{apikey:SUPABASE_ANON,Authorization:'Bearer '+SUPABASE_ANON},signal:ctrl.signal}).catch(()=>null)
+      ]);
+      const j=await rFin.json();
+      const rows=Array.isArray(j.rows)?j.rows:(Array.isArray(j)?j:[]);
+      const nfse= rNfse&&rNfse.ok ? await rNfse.json().catch(()=>[]) : [];
+      FIN_CACHE[tel]={rows, nfse:Array.isArray(nfse)?nfse:[]};
+    } finally { clearTimeout(tmo); }
+  }catch(e){ FIN_CACHE[tel]={erro:e.name==='AbortError'?'timeout 60s':(e.message||'falha')}; }
+  finally{ FIN_LOADING[tel]=false; renderModal(); }
+}
+function finHtml(tel){
+  const raw=FIN_CACHE[tel]; const loading=FIN_LOADING[tel];
+  // suporta tanto array (legado) quanto {rows, nfse}
+  const data = Array.isArray(raw) ? raw : (raw && Array.isArray(raw.rows) ? raw.rows : raw);
+  const nfse = (raw && Array.isArray(raw.nfse)) ? raw.nfse : [];
+  const btn=`<button onclick="buscarFinanceiro('${tel}')" ${loading?'disabled':''} style="padding:5px 11px;background:#1f7a3d;color:#fff;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">${loading?'Buscando…':(raw?'Re-buscar':'💰 Buscar financeiro')}</button>`;
+  let body='';
+  if(loading) body='<div style="color:var(--mut);margin-top:6px;font-size:11px">Consultando Supabase…</div>';
+  else if(data && data.erro) body=`<div style="color:#f88;margin-top:6px;font-size:11px">${data.erro}</div>`;
+  else if(Array.isArray(data) && data.length){
+    const hoje=new Date().toISOString().slice(0,10);
+    const ativos=data.filter(r=>!r.estornado);
+    const pagos=ativos.filter(r=>r.data_recebimento);
+    const abertos=ativos.filter(r=>!r.data_recebimento);
+    const vencidos=abertos.filter(r=>r.data_vencimento && r.data_vencimento<hoje);
+    const fmt=v=>'R$ '+((v||0)/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const sumA=abertos.reduce((s,r)=>s+(r.valor||0),0);
+    const sumV=vencidos.reduce((s,r)=>s+(r.valor||0),0);
+    const sumP=pagos.reduce((s,r)=>s+(r.valor||0),0);
+    const kpi=`<div style="display:flex;gap:8px;margin-top:6px;font-size:11px">
+      <div style="flex:1;padding:6px 8px;background:rgba(31,122,61,.10);border-radius:5px"><div style="color:var(--mut);font-size:10px">Recebido</div><div style="font-weight:700;color:#6ec07a">${fmt(sumP)}</div><div style="color:var(--mut);font-size:10px">${pagos.length} fat.</div></div>
+      <div style="flex:1;padding:6px 8px;background:rgba(251,176,64,.10);border-radius:5px"><div style="color:var(--mut);font-size:10px">Em aberto</div><div style="font-weight:700;color:#fb6">${fmt(sumA)}</div><div style="color:var(--mut);font-size:10px">${abertos.length} fat.</div></div>
+      ${vencidos.length?`<div style="flex:1;padding:6px 8px;background:rgba(232,136,136,.12);border-radius:5px"><div style="color:var(--mut);font-size:10px">⚠ Vencido</div><div style="font-weight:700;color:#e88">${fmt(sumV)}</div><div style="color:var(--mut);font-size:10px">${vencidos.length} fat.</div></div>`:''}
+    </div>`;
+    const linhas=ativos.slice(0,8).map(r=>{
+      const venc=r.data_vencimento||'';
+      const venc_late=venc&&!r.data_recebimento&&venc<hoje;
+      const cor=r.data_recebimento?'#6ec07a':(venc_late?'#e88':'#fb6');
+      const status=r.data_recebimento?('✓ pago '+(r.data_recebimento||'').slice(0,10)):(venc_late?'⚠ vencido '+venc:'aguarda '+venc);
+      const nf=r.nota_fiscal_emitida?' <span style="color:#6ec07a">[NF emitida]</span>':' <span style="color:var(--mut)">[sem NF]</span>';
+      return `<div style="padding:5px 0;border-bottom:1px dotted var(--line);font-size:11px"><div style="display:flex;justify-content:space-between;gap:6px"><b>${(r.categoria||'?').replace(/[<>]/g,'')}</b><span style="color:${cor}">${fmt(r.valor)}</span></div><div style="color:var(--mut);font-size:10px">${status}${nf}</div>${r.descricao?`<div style="color:#9aa;font-size:10px">${(r.descricao||'').replace(/[<>]/g,'').slice(0,120)}</div>`:''}</div>`;
+    }).join('');
+    body=kpi+'<div style="margin-top:8px;max-height:180px;overflow-y:auto">'+linhas+'</div>';
+  } else if(Array.isArray(data)) body='<div style="color:var(--mut);margin-top:6px;font-size:11px">Nenhuma fatura encontrada para este cliente.</div>';
+  if(nfse.length){
+    const fmt2=v=>'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const linhasNf=nfse.slice(0,5).map(n=>`<div style="padding:4px 0;border-bottom:1px dotted var(--line);font-size:11px;display:flex;justify-content:space-between;gap:6px"><span>📄 NF <b>${(n.numero_nfse||'?').replace(/[<>]/g,'')}</b> · ${(n.competencia||'').slice(0,7)}</span><span style="color:#6ec07a">${fmt2(n.valor)}</span></div>${n.descricao?`<div style="color:#9aa;font-size:10px;padding-bottom:4px">${(n.descricao||'').replace(/[<>]/g,'').slice(0,120)}</div>`:''}`).join('');
+    body+=`<details style="margin-top:8px"><summary style="cursor:pointer;color:#6ec07a;font-size:11px;font-weight:700">📄 NFs emitidas (${nfse.length})</summary><div style="margin-top:4px">${linhasNf}</div></details>`;
+  }
+  else body='<div style="color:var(--mut);margin-top:6px;font-size:11px">Clique para ver faturas em aberto, recebidas e status de NF.</div>';
+  return `<div style="padding:10px 14px;background:rgba(31,122,61,.06);border-bottom:1px solid var(--line);font-size:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <b style="color:#6ec07a">💰 Financeiro</b>${btn}
+    </div>${body}
+  </div>`;
+}
+async function gerarDossie(tel){
+  if(DOSSIE_LOADING[tel]) return;
+  const p=MODAL_P||{}; const nome=p.nome||p.contato||MODAL_NOME||''; const cond=p.cond||'';
+  let partsRaw=prompt('Partes envolvidas no caso (uma por linha, formato: Nome | papel | tel | email opcional)\n\nExemplo:\nMirella | síndica | 5519997679206 | mirella@x.com\nJunior | prestador AAM | 5519999999999\nDanila Vaz | advogada | 5519997130679',
+    (DOSSIE_CACHE[tel]?.partes_input)||(nome?(nome+' | contato principal'):''));
+  if(partsRaw===null) return;
+  const pergunta=prompt('O que você quer que o dossiê responda? (deixe vazio p/ padrão "próximos passos")','Preciso me manifestar novamente. Aponte convergências, divergências e sugira minha próxima manifestação técnica.')||'';
+  const participantes=partsRaw.split(/\r?\n/).map(l=>l.trim()).filter(Boolean).map(l=>{
+    const a=l.split('|').map(x=>x.trim());
+    // aceita Nome|papel|tel|email OU Nome|papel|email
+    const p={nome:a[0],papel:a[1]||'',tel:'',email:''};
+    for(let i=2;i<a.length;i++){
+      const v=a[i]||'';
+      if(/^\+?\d[\d\s\-]{7,}$/.test(v)) p.tel=v.replace(/\D/g,'');
+      else if(/@/.test(v)) p.email=v;
+    }
+    return p;
+  });
+  DOSSIE_LOADING[tel]=true; renderModal();
+  const ctrl=new AbortController(); const tmo=setTimeout(()=>ctrl.abort(),90000);
+  try{
+    const r=await fetch(DOSSIE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tel,nome,cond,participantes,pergunta}),signal:ctrl.signal});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const j=await r.json().catch(()=>({}));
+    const d=(Array.isArray(j)?j[0]:j) || {};
+    const payload = (d.dossie && typeof d.dossie==='object') ? d.dossie : (typeof d==='object' ? d : {});
+    DOSSIE_CACHE[tel]={...payload,at:Date.now(),partes_input:partsRaw,pergunta};
+    try{ localStorage.setItem(DOSSIE_KEY,JSON.stringify(DOSSIE_CACHE)); }catch(_){}
+  }catch(e){ DOSSIE_CACHE[tel]={erro:e.name==='AbortError'?'timeout 90s':e.message,at:Date.now()}; }
+  finally{ clearTimeout(tmo); DOSSIE_LOADING[tel]=false; renderModal(); }
+  setTimeout(()=>{const el=document.getElementById('dossieBox');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},80);
+}
+function escH(s){return (s==null?'':(''+s)).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function dossieHtml(tel){
+  const d=DOSSIE_CACHE[tel]; const loading=DOSSIE_LOADING[tel];
+  const btn=`<button onclick="gerarDossie('${tel}')" ${loading?'disabled':''} style="padding:5px 11px;background:#7a4ec2;color:#fff;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">${loading?'Gerando…':(d?'Re-gerar':'📚 Gerar dossiê')}</button>`;
+  let body='';
+  if(loading) body='<div style="color:var(--mut);margin-top:6px;font-size:11px">Consolidando WhatsApp + Gmail e enviando ao GPT-4o (pode levar 30-60s)…</div>';
+  else if(d && d.erro) body=`<div style="color:#f88;margin-top:6px;font-size:11px">Erro: ${escH(d.erro||d.raw||'')}</div>`;
+  else if(d){
+    const cron=(d.cronologia||[]).slice(0,15).map(c=>`<li><b>${escH(c.data||'')}</b> [${escH(c.fonte||'')}] ${escH(c.evento||'')}${c.citacao?` — <i style="color:var(--mut)">"${escH(c.citacao)}"</i>`:''}</li>`).join('');
+    const partes=(d.partes||[]).map(p=>`<div style="padding:6px 8px;border:1px solid var(--line);border-radius:6px;margin-bottom:5px"><b style="color:#cfdde0">${escH(p.nome||'?')}</b> <span style="color:var(--mut);font-size:10px">${escH(p.papel||'')}</span><div style="margin-top:3px">${escH(p.posicao_sintetica||'')}</div>${p.citacoes&&p.citacoes.length?`<div style="margin-top:4px;font-size:10px;color:var(--mut)">${p.citacoes.map(c=>`<div>"${escH(c)}"</div>`).join('')}</div>`:''}</div>`).join('');
+    const conv=(d.pontos_convergentes||[]).map(x=>`<li>${escH(x)}</li>`).join('');
+    const div=(d.pontos_divergentes||[]).map(x=>{
+      const pos=Object.entries(x.posicoes||{}).map(([k,v])=>`<div><b>${escH(k)}:</b> ${escH(v)}</div>`).join('');
+      return `<div style="padding:6px 8px;border-left:3px solid #e88;margin-bottom:5px"><b>${escH(x.tema||'')}</b>${pos?`<div style="margin-top:4px">${pos}</div>`:''}${x.implicacao_tecnica?`<div style="margin-top:4px;color:#fb6;font-size:11px">⚠ ${escH(x.implicacao_tecnica)}</div>`:''}</div>`;
+    }).join('');
+    const lac=(d.lacunas||[]).map(x=>`<li>${escH(x)}</li>`).join('');
+    const norm=(d.normas_aplicaveis||[]).map(x=>`<span style="display:inline-block;background:rgba(141,183,42,.15);color:#8db72a;padding:2px 6px;border-radius:4px;margin:2px;font-size:10px">${escH(x)}</span>`).join('');
+    const perg=(d.proximas_perguntas||[]).map(q=>`<li style="margin-bottom:4px">${escH(q)} <button onclick="navigator.clipboard.writeText(${JSON.stringify(q)}).then(()=>this.textContent='✓')" style="padding:1px 6px;background:transparent;color:var(--turq);border:1px solid var(--turq);border-radius:4px;font-size:10px;cursor:pointer">copiar</button></li>`).join('');
+    const mq=d.meta_qualidade||{};
+    const qIcon=(n,t)=>n>0?`<span style="color:#8db72a">${n} ${t}</span>`:`<span style="color:#fb6">0 ${t}</span>`;
+    const qBar=`<div style="font-size:10px;color:var(--mut);margin-top:4px">📊 ${qIcon(mq.msgs_wa||0,'msgs')} · ${qIcon(mq.emails||0,'emails')} · ${qIcon(mq.audios_transcritos||0,'áudios transcritos')}</div>`;
+    body=`<div id="dossieBox" style="margin-top:10px;font-size:12px">
+      ${qBar}
+      ${d.acao_recomendada?`<div style="padding:10px 12px;background:rgba(0,180,172,.10);border-left:3px solid var(--turq);border-radius:6px;margin:8px 0"><b style="color:var(--turq);font-size:11px">⚡ AÇÃO RECOMENDADA</b><div style="margin-top:4px;font-weight:600">${escH(d.acao_recomendada)}</div></div>`:''}
+      ${d.resumo?`<div style="padding:8px 10px;background:rgba(122,78,194,.08);border-radius:6px;margin-bottom:8px"><b style="color:#b89cff">RESUMO</b><div style="margin-top:4px">${escH(d.resumo)}</div></div>`:''}
+      ${div?`<details open style="margin-bottom:8px"><summary style="cursor:pointer;font-weight:700;color:#e88">⚠ DIVERGÊNCIAS (${(d.pontos_divergentes||[]).length})</summary><div style="margin-top:6px">${div}</div></details>`:''}
+      ${partes?`<details open style="margin-bottom:8px"><summary style="cursor:pointer;font-weight:700;color:#b89cff">👥 PARTES (${(d.partes||[]).length})</summary><div style="margin-top:6px">${partes}</div></details>`:''}
+      ${d.sugestao_manifestacao?`<details open style="margin-bottom:8px"><summary style="cursor:pointer;font-weight:700;color:var(--turq)">✍ SUGESTÃO DE MANIFESTAÇÃO</summary><div style="margin-top:6px;padding:8px 10px;background:rgba(0,180,172,.06);border-radius:6px;white-space:pre-wrap">${escH(d.sugestao_manifestacao)}</div><button onclick="navigator.clipboard.writeText(${JSON.stringify(d.sugestao_manifestacao)}).then(()=>alert('Copiado'))" style="margin-top:6px;padding:4px 9px;background:var(--turq);color:#000;border:0;border-radius:5px;font-size:10px;cursor:pointer;font-weight:700">📋 Copiar</button></details>`:''}
+      ${perg?`<details open style="margin-bottom:8px"><summary style="cursor:pointer;font-weight:700;color:#fb6">❓ PRÓXIMAS PERGUNTAS (${(d.proximas_perguntas||[]).length})</summary><ul style="margin:6px 0 0 18px">${perg}</ul></details>`:''}
+      ${conv?`<details style="margin-bottom:8px"><summary style="cursor:pointer;font-weight:700;color:#8db72a">✓ CONVERGÊNCIAS (${(d.pontos_convergentes||[]).length})</summary><ul style="margin:6px 0 0 18px">${conv}</ul></details>`:''}
+      ${cron?`<details style="margin-bottom:8px"><summary style="cursor:pointer;font-weight:700;color:#b89cff">📅 CRONOLOGIA</summary><ul style="margin:6px 0 0 18px">${cron}</ul></details>`:''}
+      ${lac?`<details style="margin-bottom:8px"><summary style="cursor:pointer;font-weight:700;color:#fb6">❔ LACUNAS</summary><ul style="margin:6px 0 0 18px">${lac}</ul></details>`:''}
+      ${norm?`<div style="margin-bottom:8px"><b style="color:#8db72a;font-size:11px">📘 NORMAS:</b> ${norm}</div>`:''}
+    </div>`;
+  } else body='<div style="color:var(--mut);margin-top:6px;font-size:11px">Consolida WhatsApp + Gmail do caso e gera análise estruturada (convergências, divergências, sugestão de manifestação).</div>';
+  return `<div style="padding:10px 14px;background:rgba(122,78,194,.06);border-bottom:1px solid var(--line);font-size:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <b style="color:#b89cff">📚 Dossiê IA do caso</b>${btn}
+    </div>${body}
+  </div>`;
+}
+async function baixarMidia(id){
+  if(MIDIA_CACHE[id]) return MIDIA_CACHE[id];
+  if(MIDIA_LOADING[id]) return null;
+  MIDIA_LOADING[id]=true; renderModal();
+  try{
+    const r=await fetch(MIDIA_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+    const j=await r.json(); const t=Array.isArray(j)?j[0]:j;
+    if(!t.base64) throw new Error(t.message||'sem base64');
+    const url='data:'+(t.mimeType||'application/octet-stream')+';base64,'+t.base64;
+    MIDIA_CACHE[id]={url,mime:t.mimeType,name:t.fileName};
+    return MIDIA_CACHE[id];
+  }catch(e){ alert('Erro ao baixar: '+e.message); return null; }
+  finally{ delete MIDIA_LOADING[id]; renderModal(); }
+}
+async function ouvirAudio(id){
+  const m=await baixarMidia(id); if(!m) return;
+  renderModal();
+  setTimeout(()=>{ const a=document.getElementById('audio_'+id); if(a) a.play().catch(()=>{}); },50);
+}
+async function abrirArquivo(id){
+  const m=await baixarMidia(id); if(!m) return;
+  const a=document.createElement('a'); a.href=m.url; a.download=m.name||'arquivo'; a.target='_blank'; a.click();
+}
+// ===== Extração de texto de PDF (client-side via pdf.js) =====
+const PDF_KEY='sombra_pdf_v1';
+let PDF_CACHE=pruneCache(JSON.parse(localStorage.getItem(PDF_KEY)||'{}'), 50);
+const PDF_LOADING={};
+let _PDFJS_LOADING=null;
+function carregarPdfJs(){
+  if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if(_PDFJS_LOADING) return _PDFJS_LOADING;
+  _PDFJS_LOADING=new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload=()=>{ window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; res(window.pdfjsLib); };
+    s.onerror=()=>rej(new Error('falha ao carregar pdf.js'));
+    document.head.appendChild(s);
+  });
+  return _PDFJS_LOADING;
+}
+function b64ToBytes(b64){ const bin=atob(b64); const a=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) a[i]=bin.charCodeAt(i); return a; }
+async function extrairPdf(id){
+  if(PDF_CACHE[id]) return PDF_CACHE[id];
+  if(PDF_LOADING[id]) return null;
+  PDF_LOADING[id]=true; renderModal();
+  try{
+    const m=await baixarMidia(id); if(!m) throw new Error('sem mídia');
+    if(!/pdf/i.test(m.mime||'')&&!/\.pdf$/i.test(m.name||'')) throw new Error('não é PDF');
+    const lib=await carregarPdfJs();
+    const b64=(m.url.split(',')[1])||'';
+    const doc=await lib.getDocument({data:b64ToBytes(b64)}).promise;
+    let txt='';
+    for(let i=1;i<=doc.numPages;i++){
+      const pg=await doc.getPage(i); const tc=await pg.getTextContent();
+      txt+=tc.items.map(t=>t.str).join(' ')+'\n';
+      if(txt.length>20000) break;
+    }
+    PDF_CACHE[id]={name:m.name||'arquivo.pdf',texto:txt.trim().slice(0,15000),at:Date.now()};
+    localStorage.setItem(PDF_KEY,JSON.stringify(PDF_CACHE));
+    return PDF_CACHE[id];
+  }catch(e){ alert('Erro ao ler PDF: '+e.message); return null; }
+  finally{ delete PDF_LOADING[id]; renderModal(); }
+}
+let PREP_LOADING=false;
+async function prepararArquivosIA(){
+  if(PREP_LOADING) return; PREP_LOADING=true; renderModal();
+  const d=LIVE[MODAL_TEL]||{msgs:[]};
+  const auds=d.msgs.filter(m=>m.tipo==='audioMessage'&&!TRANS_CACHE[m.id]);
+  const pdfs=d.msgs.filter(m=>{
+    if(m.tipo!=='documentMessage') return false;
+    if(PDF_CACHE[m.id]) return false;
+    const fname=(m.raw&&((m.raw.data||m.raw).message||{}).documentMessage||{}).fileName||'';
+    return /\.pdf$/i.test(fname);
+  });
+  try{
+    for(const m of auds){ try{ await transcreverMsg(m.id); }catch(_){} }
+    for(const m of pdfs){ try{ await extrairPdf(m.id); }catch(_){} }
+  }finally{ PREP_LOADING=false; renderModal(); }
+}
+function anexosDoCard(){
+  const d=LIVE[MODAL_TEL]||{msgs:[]};
+  const out=[];
+  for(const m of d.msgs){
+    if(m.tipo==='documentMessage'){
+      const c=PDF_CACHE[m.id];
+      if(c&&c.texto) out.push({id:m.id,nome:c.name,texto:c.texto});
+    }
+    const t=TRANS_CACHE[m.id]; if(t&&m.tipo==='audioMessage') out.push({id:m.id,nome:'audio.ogg',texto:'[áudio transcrito] '+t});
+  }
+  return out;
+}
+const TRANS_KEY='sombra_trans_v1';
+let TRANS_CACHE=(()=>{const o=JSON.parse(localStorage.getItem(TRANS_KEY)||'{}');const ks=Object.keys(o);if(ks.length>200) ks.slice(0,ks.length-200).forEach(k=>delete o[k]);return o;})();
+const TRANS_LOADING={};
+async function transcreverMsg(id){
+  if(TRANS_LOADING[id]) return;
+  TRANS_LOADING[id]=true; renderModal();
+  try{
+    const r=await fetch(STT_MSG_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+    const j=await r.json();
+    const t=Array.isArray(j)?j[0]:j;
+    TRANS_CACHE[id]=t.texto||t.text||'(sem texto)';
+    localStorage.setItem(TRANS_KEY,JSON.stringify(TRANS_CACHE));
+    const d=LIVE[MODAL_TEL]; if(d){ const m=d.msgs.find(x=>x.id==id); if(m) m.texto=TRANS_CACHE[id]; }
+  }catch(e){ TRANS_CACHE[id]='Erro: '+e.message; }
+  delete TRANS_LOADING[id]; renderModal();
+}
+// Ditado ao vivo: Web Speech API (transcreve enquanto fala, auto-para no silêncio, mic toca de novo continua de onde parou)
+let SR_REC=null, REC_ON=false, REC_BASE='', REC_MANUAL_STOP=false;
+function gravarVoz(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ alert('Seu navegador não suporta ditado ao vivo. Use Chrome ou Edge.'); return; }
+  if(REC_ON){ REC_MANUAL_STOP=true; try{SR_REC.stop();}catch(_){} return; }
+  const inp=document.getElementById('chatInput'); if(!inp) return;
+  REC_BASE=inp.value?inp.value.replace(/\s+$/,'')+' ':'';
+  REC_MANUAL_STOP=false;
+  const r=new SpeechRecognition?new SpeechRecognition():new SR();
+  r.lang='pt-BR'; r.continuous=true; r.interimResults=true; r.maxAlternatives=1;
+  let finalAcc='';
+  r.onresult=ev=>{
+    let interim='';
+    for(let i=ev.resultIndex;i<ev.results.length;i++){
+      const res=ev.results[i];
+      if(res.isFinal) finalAcc+=res[0].transcript;
+      else interim+=res[0].transcript;
+    }
+    inp.value=(REC_BASE+finalAcc+interim).replace(/\s+/g,' ');
+  };
+  r.onspeechend=()=>{ try{r.stop();}catch(_){} };
+  r.onerror=e=>{ if(e.error==='not-allowed'||e.error==='service-not-allowed') alert('Microfone bloqueado: '+e.error); };
+  r.onend=()=>{
+    REC_ON=false; SR_REC=null;
+    REC_BASE=(REC_BASE+finalAcc).replace(/\s+/g,' ');
+    inp.value=REC_BASE; inp.focus();
+    atualizarMicBtn();
+  };
+  SR_REC=r;
+  try{ r.start(); REC_ON=true; atualizarMicBtn(); }
+  catch(e){ alert('Erro ao iniciar: '+e.message); }
+}
+function atualizarMicBtn(){
+  const btn=document.getElementById('chatMic'); if(!btn) return;
+  if(REC_ON){ btn.textContent='⏹ parar'; btn.style.background='#e63946'; btn.style.color='#fff'; btn.disabled=false; }
+  else { btn.textContent='🎤'; btn.style.background=''; btn.style.color=''; btn.disabled=false; }
+}
+let TTS_RATE=parseFloat(localStorage.getItem('sombra_tts_rate')||'1.2');
+function setTtsRate(r){ TTS_RATE=r; localStorage.setItem('sombra_tts_rate',String(r)); if(window.speechSynthesis.speaking) window.speechSynthesis.cancel(); renderModal(); }
+function copiarResposta(idx,btn){
+  const hist=CHAT_CACHE[MODAL_TEL]||[]; const m=hist[idx]; if(!m) return;
+  const txt=m.content||'';
+  const done=()=>{ if(!btn) return; const o=btn.textContent; btn.textContent='✅'; btn.style.color='var(--lima)'; setTimeout(()=>{btn.textContent=o; btn.style.color='var(--mut)';},1200); };
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done).catch(()=>{ const t=document.createElement('textarea'); t.value=txt; document.body.appendChild(t); t.select(); try{document.execCommand('copy');}catch(_){} t.remove(); done(); });
+  else { const t=document.createElement('textarea'); t.value=txt; document.body.appendChild(t); t.select(); try{document.execCommand('copy');}catch(_){} t.remove(); done(); }
+}
+function falarResposta(idx){
+  const hist=CHAT_CACHE[MODAL_TEL]||[]; const m=hist[idx]; if(!m) return;
+  if(window.speechSynthesis.speaking){ window.speechSynthesis.cancel(); return; }
+  const u=new SpeechSynthesisUtterance(m.content); u.lang='pt-BR'; u.rate=TTS_RATE;
+  const v=speechSynthesis.getVoices().find(v=>v.lang.startsWith('pt')); if(v) u.voice=v;
+  window.speechSynthesis.speak(u);
+}
+function usarSugestao(){
+  const ia=IA_CACHE[MODAL_TEL]; if(!ia) return;
+  const sug=ia.sugestao_resposta||ia.suggestao_resposta; if(!sug) return;
+  CHAT_CACHE[MODAL_TEL]=CHAT_CACHE[MODAL_TEL]||[];
+  CHAT_CACHE[MODAL_TEL].push({role:'assistant',content:sug,tag:'sugestao'});
+  localStorage.setItem(CHAT_KEY,JSON.stringify(CHAT_CACHE));
+  renderModal();
+}
+let MSGS_COLLAPSED=localStorage.getItem('sombra_msgs_collapsed')==='1';
+function toggleMsgs(){ MSGS_COLLAPSED=!MSGS_COLLAPSED; localStorage.setItem('sombra_msgs_collapsed',MSGS_COLLAPSED?'1':'0'); renderModal(); }
+// ═══ T1.3 — Macros de resposta por categoria ═══
+const MACROS = {
+  ART: [
+    {l:'💰 Pedir dados ART', t:'Olá! Para emitir a ART preciso de: nome completo, CPF, condomínio, bloco/apto, metragem (m²) e tipo de obra. Pode me enviar?'},
+    {l:'📄 Confirmar emissão', t:'Recebi os dados. Vou emitir a ART e te envio aqui assim que ficar pronta (até 24h úteis). PIX do pagamento: CNPJ 49.064.301/0001-58 (Diagnóstika).'},
+    {l:'✅ ART pronta', t:'ART emitida! Segue em anexo. Qualquer dúvida estou à disposição.'}
+  ],
+  APROVACAO_REFORMA: [
+    {l:'📋 Pedir projeto/memorial', t:'Para análise da reforma preciso de: memorial descritivo da obra, ART do responsável técnico e, se houver, projeto. Pode enviar?'},
+    {l:'⏱️ Prazo de análise', t:'Recebi a documentação. Prazo de análise é de até 5 dias úteis. Te aviso assim que tiver o parecer.'},
+    {l:'✅ Aprovada', t:'Reforma aprovada! Lembrando: horários de obra conforme convenção e responsabilidade do morador por qualquer dano em áreas comuns.'}
+  ],
+  VISTORIA: [
+    {l:'📅 Agendar', t:'Para agendar a vistoria, qual o melhor dia da semana? Atendemos seg-sex 8h-17h.'},
+    {l:'📍 Confirmar local', t:'Confirmando: vistoria em [endereço], [data] às [hora]. Por favor confirme o acesso.'}
+  ],
+  FINANCEIRO: [
+    {l:'💳 Enviar PIX', t:'Segue PIX para pagamento: CNPJ 49.064.301/0001-58 (Diagnóstika Engenharia). Após enviar comprovante, libero o serviço.'},
+    {l:'✅ Pagto confirmado', t:'Pagamento recebido, obrigado! Vou dar andamento.'}
+  ],
+  DUVIDA: [
+    {l:'🤔 Repassar p/ técnico', t:'Vou consultar o técnico responsável e retorno em até 1h útil com a resposta.'}
+  ],
+  OUTRO: [
+    {l:'👋 Saudação', t:'Olá! Aqui é da Diagnóstika Engenharia, em que posso ajudar?'},
+    {l:'🔄 Follow-up', t:'Oi! Passando para acompanhar. Ainda tem interesse no atendimento? Posso ajudar em algo?'}
+  ]
+};
+function macrosBarHtml(ia){
+  const cat = (ia&&ia.classificacao)||'OUTRO';
+  const list = MACROS[cat] || MACROS.OUTRO;
+  if(!list.length) return '';
+  return `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;padding:6px;background:#0d1417;border:1px solid var(--line);border-radius:7px">
+    <div style="width:100%;font-size:10px;color:var(--mut);margin-bottom:2px">⚡ Macros · <span style="color:var(--lima);font-weight:700">${cat}</span></div>
+    ${list.map(m=>`<button onclick="usarMacro(${JSON.stringify(m.t).replace(/"/g,'&quot;')})" title="${m.t.replace(/"/g,'&quot;')}" style="padding:4px 9px;background:rgba(0,180,172,.15);color:var(--turq);border:1px solid rgba(0,180,172,.35);border-radius:6px;font-size:11px;cursor:pointer;font-weight:600">${m.l}</button>`).join('')}
+  </div>`;
+}
+function usarMacro(txt){
+  CHAT_CACHE[MODAL_TEL]=CHAT_CACHE[MODAL_TEL]||[];
+  CHAT_CACHE[MODAL_TEL].push({role:'assistant',content:txt,tag:'sugestao'});
+  localStorage.setItem(CHAT_KEY,JSON.stringify(CHAT_CACHE));
+  renderModal();
+}
+// ═══ T1.4 — SLA visual por tempo parado ═══
+function slaCor(ultimaMsgIso, lastFromMe){
+  if(!ultimaMsgIso) return null;
+  const h = (Date.now() - new Date(ultimaMsgIso).getTime())/3600000;
+  if(lastFromMe) return null;
+  if(h < 1)   return {bg:'#1b5e20', fg:'#fff', txt:'⚡ <1h'};
+  if(h < 4)   return {bg:'#558b2f', fg:'#fff', txt:'🟢 '+Math.floor(h)+'h'};
+  if(h < 24)  return {bg:'#f57c00', fg:'#fff', txt:'🟡 '+Math.floor(h)+'h'};
+  if(h < 72)  return {bg:'#d84315', fg:'#fff', txt:'🟠 '+Math.floor(h/24)+'d'};
+  return {bg:'#b71c1c', fg:'#fff', txt:'🔴 '+Math.floor(h/24)+'d parado'};
+}
+function slaBadgeHtml(msgs){
+  if(!msgs||!msgs.length) return '';
+  const last = msgs[msgs.length-1];
+  const c = slaCor(last.recebida_em, last.from_me);
+  if(!c) return '';
+  return `<span style="background:${c.bg};color:${c.fg};padding:3px 8px;border-radius:6px;font-size:10px;font-weight:700;margin-left:6px">${c.txt}</span>`;
+}
+function renderModal(){
+  if(!MODAL_TEL) return;
+  const d=LIVE[MODAL_TEL]||{msgs:[]};
+  const p=MODAL_P||{};
+  const cond=p.cond||'';
+  document.getElementById('modalTitle').innerHTML= ((MODAL_NOME||MODAL_TEL)+(cond?' · '+cond:'')+' · '+d.msgs.length+' msg').replace(/[<>]/g,c=>c==='<'?'&lt;':'&gt;')+slaBadgeHtml(d.msgs);
+  const body=document.getElementById('modalBody');
+  if(!d.msgs.length){ body.innerHTML='<div class="live-empty" style="padding:30px">Nenhuma mensagem capturada para este contato ainda.</div>'; return; }
+  // 1) Cabeçalho
+  const proto=p.protocolo||p.protocol||'';
+  const cabHtml=`<div style="padding:12px 14px;background:linear-gradient(180deg,rgba(0,180,172,.10),transparent);border-bottom:1px solid var(--line)">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+      <div style="font-weight:800;font-size:15px;color:#e5edee">${(MODAL_NOME||MODAL_TEL).replace(/[<>]/g,c=>c==='<'?'&lt;':'&gt;')}</div>
+      ${proto?`<div style="font-size:10px;color:var(--lima);font-weight:700;background:rgba(141,183,42,.12);border:1px solid rgba(141,183,42,.35);padding:3px 8px;border-radius:6px;white-space:nowrap" title="Protocolo MegaZap">#${proto}</div>`:''}
+    </div>
+    <div style="font-size:11px;color:var(--mut);margin-top:2px">
+      ${cond?'<span style="color:var(--turq);font-weight:600">'+escH(cond)+'</span> · ':''}${escH(p.apto||'')}${p.tipo?' · '+escH(p.tipo):''} · 📞 ${escH(MODAL_TEL||'')}
+    </div>
+  </div>`;
+  // 2) Conversas (WhatsApp) — colapsável
+  const nAud=d.msgs.filter(m=>m.tipo==='audioMessage').length;
+  const nAudPend=d.msgs.filter(m=>m.tipo==='audioMessage'&&!TRANS_CACHE[m.id]).length;
+  const nPdf=d.msgs.filter(m=>{ if(m.tipo!=='documentMessage') return false; const fn=(m.raw&&((m.raw.data||m.raw).message||{}).documentMessage||{}).fileName||''; return /\.pdf$/i.test(fn); }).length;
+  const nPdfPend=d.msgs.filter(m=>{ if(m.tipo!=='documentMessage') return false; if(PDF_CACHE[m.id]) return false; const fn=(m.raw&&((m.raw.data||m.raw).message||{}).documentMessage||{}).fileName||''; return /\.pdf$/i.test(fn); }).length;
+  const totPend=nAudPend+nPdfPend; const totMidias=nAud+nPdf;
+  const prepBtn=totMidias?`<button onclick="prepararArquivosIA()" ${PREP_LOADING?'disabled':''} title="Transcreve áudios e extrai PDFs para a IA poder ler" style="padding:3px 10px;background:${totPend?'var(--lima)':'#0d1417'};color:${totPend?'#001':'var(--lima)'};border:${totPend?'0':'1px solid var(--lima)'};border-radius:6px;font-size:11px;cursor:pointer;font-weight:700">${PREP_LOADING?'⏳ preparando…':(totPend?`🤖 Preparar ${totPend} arquivo(s) p/ IA`:'✅ IA pronta')}</button>`:'';
+  const msgsHeader=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:#0d1417;border-bottom:1px solid var(--line);font-size:12px;gap:6px;flex-wrap:wrap">
+    <b style="color:var(--mut)">💬 Conversa WhatsApp · ${d.msgs.length} msg${totMidias?` · ${totMidias} mídia(s)`:''}</b>
+    <div style="display:flex;gap:6px;align-items:center">
+      ${prepBtn}
+      <button onclick="toggleMsgs()" style="padding:3px 10px;background:transparent;color:var(--turq);border:1px solid var(--line);border-radius:6px;font-size:11px;cursor:pointer">${MSGS_COLLAPSED?'▶ mostrar':'▼ minimizar'}</button>
+    </div>
+  </div>`;
+  const msgsHtml=MSGS_COLLAPSED?msgsHeader:msgsHeader+'<div style="padding:6px 0;border-bottom:1px solid var(--line);max-height:260px;overflow-y:auto">'+d.msgs.map(m=>{
+    const who=m.from_me?(m.agente_nome||'Diagnóstika'):(m.push_name||'Cliente');
+    const dt=new Date(m.recebida_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const isAudio=m.tipo==='audioMessage';
+    const isImg=m.tipo==='imageMessage';
+    const isDoc=m.tipo==='documentMessage';
+    const trans=TRANS_CACHE[m.id]; const tloading=TRANS_LOADING[m.id];
+    const cached=MIDIA_CACHE[m.id]; const mloading=MIDIA_LOADING[m.id];
+    let txt;
+    if(isAudio){
+      const base=trans||(m.texto&&m.texto!=='[audioMessage]'?m.texto:'');
+      const transcrBtn=`<button onclick="transcreverMsg(${m.id})" ${tloading?'disabled':''} style="padding:3px 9px;background:var(--lima);color:#001;border:0;border-radius:6px;font-size:11px;cursor:pointer;font-weight:700">${tloading?'⏳':'📝'} ${tloading?'transcrevendo…':(base?'Re-transcrever':'Transcrever')}</button>`;
+      const playerHtml=cached?`<audio id="audio_${m.id}" controls preload="auto" src="${cached.url}" style="width:100%;max-width:320px;height:32px;margin-top:6px"></audio>`
+        :`<button onclick="ouvirAudio(${m.id})" ${mloading?'disabled':''} style="padding:3px 9px;background:#0d1417;color:#cfdde0;border:1px solid var(--line);border-radius:6px;font-size:11px;cursor:pointer">${mloading?'⏳ carregando…':'🔊 Ouvir'}</button>`;
+      txt=`<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">🎵 ${playerHtml} ${transcrBtn}</div>${base?`<div style="margin-top:6px;font-style:italic;color:#cfdde0">"${base.replace(/[<>]/g,c=>c==='<'?'&lt;':'&gt;')}"</div>`:''}`;
+    } else if(isImg){
+      txt=cached?`<img src="${cached.url}" style="max-width:280px;max-height:280px;border-radius:6px;cursor:pointer" onclick="abrirArquivo(${m.id})">`
+        :`<button onclick="baixarMidia(${m.id})" ${mloading?'disabled':''} style="padding:3px 9px;background:#0d1417;color:#cfdde0;border:1px solid var(--line);border-radius:6px;font-size:11px;cursor:pointer">${mloading?'⏳':'🖼️ Carregar imagem'}</button>`;
+    } else if(isDoc){
+      const fname=(m.raw&&((m.raw.data||m.raw).message||{}).documentMessage||{}).fileName||'arquivo';
+      const isPdf=/\.pdf$/i.test(fname);
+      const pcache=PDF_CACHE[m.id]; const ploading=PDF_LOADING[m.id];
+      const pdfBtn=isPdf?`<button onclick="extrairPdf(${m.id})" ${ploading?'disabled':''} title="${pcache?'PDF já lido pela IA':'Extrair texto pra IA'}" style="margin-left:4px;padding:3px 9px;background:${pcache?'#0d1417':'var(--turq)'};color:${pcache?'var(--turq)':'#001'};border:${pcache?'1px solid var(--turq)':'0'};border-radius:6px;font-size:11px;cursor:pointer;font-weight:700">${ploading?'⏳ lendo…':(pcache?'✅ IA lê este PDF':'🤖 Ler pra IA')}</button>`:'';
+      txt=`📄 ${fname} <button onclick="abrirArquivo(${m.id})" ${mloading?'disabled':''} style="margin-left:6px;padding:3px 9px;background:var(--lima);color:#001;border:0;border-radius:6px;font-size:11px;cursor:pointer;font-weight:700">${mloading?'⏳':'📥 Baixar'}</button>${pdfBtn}${pcache?`<div style="margin-top:6px;font-size:10px;color:var(--mut);font-style:italic">📝 ${pcache.texto.length} caracteres extraídos</div>`:''}`;
+    } else {
+      txt=(m.texto||'['+(m.tipo||'mídia')+']').replace(/[<>]/g,c=>c==='<'?'&lt;':'&gt;');
+    }
+    return `<div class="msg ${m.from_me?'me':''}"><div><span class="who">${escH(who)}</span><span class="when">${escH(dt)}</span></div><div class="body">${txt}</div></div>`;
+  }).join('')+'</div>';
+  // 3) Análise IA + botão
+  const ia=IA_CACHE[MODAL_TEL];
+  const iaHtml=`<div style="padding:10px 14px;background:rgba(0,180,172,.06);border-bottom:1px solid var(--line);font-size:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <b style="color:var(--turq)">🤖 Análise IA (gpt-4.1)</b>
+      <button onclick="analisarIA('${MODAL_TEL}')" ${IA_LOADING?'disabled':''} style="padding:5px 11px;background:var(--turq);color:#001;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">
+        ${IA_LOADING?'Analisando…':(ia?'Reanalisar':'Analisar com IA')}
+      </button>
+    </div>
+    ${ia?(ia.erro?`<div style="color:#f88;margin-top:6px">Erro: ${ia.erro}</div>`:`
+      <div style="margin-top:8px;color:#cfdde0"><b>Classificação:</b> <span style="color:var(--lima)">${ia.classificacao}</span> · confiança ${Math.round((ia.confianca||0)*100)}%</div>
+      ${ia.sinais&&ia.sinais.length?`<div style="margin-top:4px;color:var(--mut);font-size:11px">Sinais: ${ia.sinais.join(' · ')}</div>`:''}
+    `):'<div style="color:var(--mut);margin-top:6px;font-size:11px">Clique para classificar e gerar sugestão de resposta.</div>'}
+  </div>`;
+  // 4) Pastas relacionadas
+  const arqs=arquivosDoCard(MODAL_P);
+  const arqHtml=arqs.length?`<div style="padding:8px 14px;background:rgba(141,183,42,.07);border-bottom:1px solid var(--line);font-size:11px">
+    <b style="color:var(--lima)">📁 ${arqs.length} pasta(s) na rede</b>
+    ${arqs.map(a=>`<div style="margin-top:4px;padding-left:6px;border-left:2px solid var(--lima);color:#cfdde0">
+      <b>${escH(a.nome||'')}</b>${a.apto?' · Bl '+escH(a.bloco||'')+' Ap '+escH(a.apto):''} <span style="color:var(--mut)">· ${escH(a.cond||'')}</span>
+    </div>`).join('')}
+  </div>`:'';
+  // 5) Chat com IA (incl. botão de sugestão)
+  const chatHist=CHAT_CACHE[MODAL_TEL]||[];
+  const sug=ia&&(ia.sugestao_resposta||ia.suggestao_resposta);
+  const sugBtn=sug?`<button onclick="usarSugestao()" title="${sug.replace(/[<>"']/g,'')}" style="padding:6px 10px;background:var(--turq);color:#001;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700;margin-bottom:8px">✨ Usar sugestão da IA no chat</button>`:'';
+  const chatMsgs=chatHist.map((m,i)=>{
+    const me=m.role==='user';
+    const speak=!me?`<div style="display:flex;gap:2px;margin-left:6px;align-items:center">
+      <button onclick="copiarResposta(${i},this)" title="Copiar" style="padding:2px 6px;background:transparent;border:1px solid var(--line);border-radius:5px;cursor:pointer;font-size:10px;color:var(--mut)">📋</button>
+      <button onclick="falarResposta(${i})" title="Ouvir" style="padding:2px 6px;background:transparent;border:1px solid var(--line);border-radius:5px;cursor:pointer;font-size:10px;color:var(--mut)">🔊</button>
+      <select onchange="setTtsRate(parseFloat(this.value))" title="Velocidade" style="background:#0d1417;color:var(--mut);border:1px solid var(--line);border-radius:5px;font-size:10px;padding:2px 2px;cursor:pointer">
+        ${[1,1.25,1.5,1.75,2].map(r=>`<option value="${r}" ${TTS_RATE===r?'selected':''}>${r}x</option>`).join('')}
+      </select>
+    </div>`:'';
+    const tag=m.tag==='sugestao'?'<div style="font-size:9px;color:var(--turq);font-weight:700;margin-bottom:2px">✨ SUGESTÃO IA</div>':'';
+    return `<div style="margin:6px 0;display:flex;align-items:flex-end;${me?'justify-content:flex-end':''}">
+      <div style="max-width:80%;padding:7px 10px;border-radius:10px;font-size:12px;line-height:1.4;${me?'background:var(--turq);color:#001':'background:#0d1417;color:#cfdde0;border:1px solid var(--line)'}">${tag}${(m.content||'').replace(/[<>]/g,c=>c==='<'?'&lt;':'&gt;').replace(/\n/g,'<br>')}</div>${speak}
+    </div>`;
+  }).join('');
+  const chatHtml=`<div style="padding:10px 14px;background:rgba(141,183,42,.05)">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
+      <b style="color:var(--lima);font-size:12px">💬 Chat com IA</b>
+      ${chatHist.length?`<button onclick="limparChat('${MODAL_TEL}')" style="padding:3px 8px;background:transparent;color:var(--mut);border:1px solid var(--line);border-radius:6px;font-size:10px;cursor:pointer">Limpar</button>`:''}
+    </div>
+    ${sugBtn}
+    ${macrosBarHtml(ia)}
+    ${chatHist.length?`<div id="iaChatList" style="min-height:300px;max-height:62vh;overflow-y:auto;padding:4px 2px">${chatMsgs}${CHAT_LOADING?'<div style="color:var(--mut);font-size:11px;padding:6px 4px">IA pensando…</div>':''}</div>`:'<div style="min-height:200px;color:var(--mut);font-size:11px;margin-bottom:6px">Pergunte algo sobre o atendimento ou use a sugestão acima.</div>'}
+    <div style="display:flex;gap:6px;margin-top:6px">
+      <input id="chatInput" onkeydown="chatKeydown(event)" placeholder="Pergunte ou clique no 🎤…" ${CHAT_LOADING?'disabled':''} style="flex:1;padding:8px 10px;background:#0d1417;border:1px solid var(--line);border-radius:7px;color:#e5edee;font-size:12px;font-family:inherit">
+      <button id="chatMic" onclick="gravarVoz()" ${CHAT_LOADING?'disabled':''} title="Ditar (pt-BR)" style="padding:8px 12px;background:#0d1417;color:#cfdde0;border:1px solid var(--line);border-radius:7px;font-size:14px;cursor:pointer">🎤</button>
+      <button onclick="perguntarChat('${MODAL_TEL}')" ${CHAT_LOADING?'disabled':''} style="padding:8px 14px;background:var(--lima);color:#001;border:0;border-radius:7px;font-size:12px;cursor:pointer;font-weight:700">${CHAT_LOADING?'…':'Enviar'}</button>
+    </div>
+  </div>`;
+  const focoChat=document.activeElement&&document.activeElement.id==='chatInput';
+  body.innerHTML=cabHtml+msgsHtml+iaHtml+crEAnetHtml(p,ia,d.msgs)+dossieHtml(MODAL_TEL)+finHtml(MODAL_TEL)+gmailHtml(MODAL_TEL)+arqHtml+chatHtml;
+  // Sempre rola pro chat IA (não pro histórico)
+  requestAnimationFrame(()=>{
+    const list=document.getElementById('iaChatList'); if(list) list.scrollTop=list.scrollHeight;
+    const inp=document.getElementById('chatInput');
+    if(inp){ inp.scrollIntoView({block:'end',behavior:'auto'}); if(focoChat) inp.focus(); }
+  });
+}
+
+// ====== Eventos reais capturados (n8n / MegaZap) — aba Modo Sombra ======
+const RAW = [{"id":"316","startedAt":"2026-06-17T16:15:30.140Z","event":"TICKET_STARTED","contato":"Matheus Silva - cond. Sol Maior","tel":"558195470893","depto":"ART","agente":"Claudemir Scaranello","protocolo":562950823,"fields":{}},{"id":"296","startedAt":"2026-06-17T14:58:53.830Z","event":"TICKET_STARTED","contato":"Marcia","tel":"5519986120982","depto":"ART","agente":"Gustavo Souza - Área Técnica","protocolo":562833031,"fields":{"condominio":"Portal Primavera","dados":"Marcia Regina Cavelagna \n306.787.048-48\nPortal Primavera \nAv: Thereza Ana Cecon Breda, 1951 Vila São Pedro cep: 13.183-250\nAp: 304 BL 06 \n51mts\nBanheiro"}},{"id":"280","startedAt":"2026-06-17T14:00:43.160Z","event":"TICKET_STARTED","contato":"Rogério","tel":"5519994860452","depto":"Administrativo","agente":"Claudemir Scaranello","protocolo":562893769,"fields":{"blocoEApartamento":"inicio","condominio":"Primavera"}},{"id":"265","startedAt":"2026-06-17T13:47:48.245Z","event":"TICKET_STARTED","contato":"Aline Viera cond Parque Valença 1","tel":"5519987557182","depto":"ART","agente":"Claudemir Scaranello","protocolo":562886528,"fields":{}},{"id":"133","startedAt":"2026-06-15T23:49:14.639Z","event":"TICKET_STARTED","contato":"Ana","tel":"5519998481889","depto":"Administrativo","agente":"Claudemir Scaranello","protocolo":561869539,"fields":{}},{"id":"124","startedAt":"2026-06-15T23:43:28.044Z","event":"TICKET_STARTED","contato":"Vicente","tel":"5519981771107","depto":"ART","agente":"Claudemir Scaranello","protocolo":562460460,"fields":{"blocoEApartamento":"12 102","condominio":"Portal Primavera"}},{"id":"41","startedAt":"2026-06-15T19:33:55.700Z","event":"TICKET_STARTED","contato":"Sou Luan Bonomi, morador do apartamento 268 no morada Morumbi","tel":"5519999053959","depto":"Comercial","agente":"Claudemir Scaranello","protocolo":562396267,"fields":{"blocoEApartamento":"Bloco 2 apartamento 268","condominio":"Morada Morumbi"}}];
+
+// ====== Pendências últimos 10 dias (varredura do corpus + capturas vivas) — aba Aprovação ======
+// PEND_BASE = curados manualmente; PEND = base + derivados de LIVE
+const PEND_BASE = [
+  {"data":"15/06/2026","cond":"Monte Carlo","tipo":"Aprovação de reforma","nome":"Hugo","tel":"5519988344501","apto":null,"quem":"diag"},
+  {"data":"15/06/2026","cond":"Monte Carlo","tipo":"Aprovação de reforma","nome":"José Eduardo Nunes","tel":"5519992397693","apto":"Bloco B, apto 31","quem":"diag"},
+  {"data":"15/06/2026","cond":"Monte Carlo","tipo":"Aprovação de reforma","nome":"Luís Marcelo","tel":"5519999132510","apto":"Bloco A, apto 22","quem":"diag"},
+  {"data":"11/06/2026","cond":"Monte Carlo","tipo":"Aprovação de reforma","nome":"Wendel Oliveira","tel":"558596309138","apto":"Bloco B, apto 36","quem":"diag","obs":"ART aprovada; pediu alteração do memorial e a liberação de obra. Perguntou o prazo de avaliação → aguarda nossa resposta."},
+  {"data":"09/06/2026","cond":"Monte Carlo","tipo":"Vistoria","nome":"(contato Monte Carlo)","tel":"5519996459375","apto":"Bloco A, apto 153","quem":"cliente"},
+  {"data":"15/06/2026","cond":"Portal Primavera","tipo":"ART","nome":"Márcia Regina Cavelagna","tel":"5519986120982","apto":"BL 06, apto 304 · 51m² · banheiro","quem":"cliente","obs":"Captura viva (17/06). Dados completos enviados (CPF, endereço, metragem). Aguarda retorno dela após orçamento."},
+  {"data":"28/05/2026","cond":"Portal Primavera","tipo":"ART","nome":"Juliana","tel":"5519992212996","apto":"Bloco 6, apto 402","quem":"cliente","obs":"Fora da janela de 10 dias (28/05) — incluída a seu pedido. Vistoria feita, orçamento R$300 + PIX enviados; ela respondeu só com áudios. Aguarda confirmação dela."},
+  {"data":"15/06/2026","cond":"Portal Primavera","tipo":"ART","nome":"(5519994860452)","tel":"5519994860452","apto":null,"quem":"cliente"},
+  {"data":"09/06/2026","cond":"Portal Primavera","tipo":"Reforma","nome":"Alexandre","tel":"5519989052027","apto":"Bloco 5, apto 202","quem":"diag"},
+  {"data":"09/06/2026","cond":"Portal Primavera","tipo":"Reforma","nome":"(Boa tarde)","tel":"5519983019941","apto":"Bloco 11, apto 301","quem":"diag"},
+  {"data":"09/06/2026","cond":"Portal Primavera","tipo":"Aprovação de reforma","nome":"Fernanda Moraes","tel":"5519998397401","apto":"Bloco 07, apto 704","quem":"cliente"},
+  {"data":"15/06/2026","cond":"Morada Morumbi","tipo":"Aprovação de reforma","nome":"Luan Bonomi","tel":"5519999053959","apto":"Bloco 2, apto 268","quem":"cliente"},
+  {"data":"15/06/2026","cond":"Sol Maior","tipo":"Aprovação de reforma","nome":"Neto","tel":"5519999603982","apto":null,"quem":"cliente"},
+  {"data":"15/06/2026","cond":"Sem condomínio identificado","tipo":"Aprovação de reforma","nome":"Maria Izabel","tel":"5519988193275","apto":null,"quem":"diag"},
+  {"data":"15/06/2026","cond":"Sem condomínio identificado","tipo":"Aprovação de reforma","nome":"Erica (Doni)","tel":"5519992058702","apto":null,"quem":"cliente"},
+  {"data":"15/06/2026","cond":"Sem condomínio identificado","tipo":"Vistoria","nome":"Greicy Kelli de Almeida Godoy","tel":"5519992847991","apto":null,"quem":"cliente"},
+  {"data":"15/06/2026","cond":"Sem condomínio identificado","tipo":"Vistoria","nome":"Mirella Sirol","tel":"5519997679206","apto":null,"quem":"cliente"}
+];
+let PEND = PEND_BASE.slice();
+
+// Deriva card a partir de mensagens vivas (LIVE) — usado pra atendimentos não-curados
+function derivaCardDeLive(tel, liveData){
+  const msgs = liveData?.msgs || [];
+  if (!msgs.length) return null;
+  const txtAll = msgs.map(m=>m.texto||'').join('\n');
+  // detecta condomínio
+  let cond = 'Sem condomínio identificado';
+  const m = txtAll.match(CONDOS_DIAG);
+  if (m) cond = m[0];
+  // detecta tipo
+  let tipo = 'Captura ao vivo';
+  if (/\bart\b|emiss[ãa]o.*art/i.test(txtAll)) tipo = 'ART';
+  else if (/vistoria/i.test(txtAll)) tipo = 'Vistoria';
+  else if (/reforma|aprov/i.test(txtAll)) tipo = 'Aprovação de reforma';
+  // nome: 1ª push_name de mensagem do cliente (from_me=false)
+  const cliMsg = msgs.find(x=>!x.from_me && x.push_name);
+  const nome = cliMsg?.push_name || ('(WhatsApp '+tel+')');
+  // data: última msg
+  const last = msgs[msgs.length-1];
+  const lastTs = last?.recebida_em ? new Date(last.recebida_em).getTime() : 0;
+  const data = lastTs ? new Date(lastTs).toLocaleDateString('pt-BR') : '';
+  // quem: se última msg from_me=false, está aguardando Diagnóstika
+  const quem = (last && !last.from_me) ? 'diag' : 'cliente';
+  return { tel, nome, cond, tipo, data, apto:null, quem, _live:true, _lastMs:lastTs };
+}
+function formatRelativo(ts){
+  if (!ts) return '';
+  const diff = Date.now() - ts;
+  const min = Math.floor(diff/60000);
+  if (min < 1) return 'agora';
+  if (min < 60) return min+'min';
+  const h = Math.floor(min/60);
+  if (h < 24) return h+'h';
+  const d = Math.floor(h/24);
+  return d+'d';
+}
+
+function exportarPendCSV(){
+  const headers = ['Data','Condomínio','Tipo','Nome','Telefone','Apto','Aguarda','Origem'];
+  const linhas = PEND.map(p=>[
+    p.data||'', p.cond||'', p.tipo||'', p.nome||'', p.tel||'', p.apto||'',
+    p.quem==='diag'?'Diagnóstika':'Cliente',
+    p._live?'Captura ao vivo':'Curado'
+  ].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+  const csv = [headers.join(','), ...linhas].join('\n');
+  const blob = new Blob([new Uint8Array([0xEF,0xBB,0xBF]), csv], {type:'text/csv;charset=utf-8'}); // BOM pra Excel BR
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `sombra_pendencias_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  sombraToast('📊 CSV baixado: '+PEND.length+' linha(s)', 'ok');
+}
+async function recarregarLive(btn){
+  if (btn) { btn.disabled=true; btn.textContent='…'; }
+  try{
+    Object.values(LIVE).forEach(d=>{ if(d) d.loaded=false; });
+    await Promise.all(PEND_BASE.map(p=>loadHistorico(p.tel)));
+    await Promise.all(RAW.filter(ev=>ev.tel).map(ev=>loadHistorico(ev.tel)));
+    // auto-descobre tels novos do Supabase (não dependentes do PEND_BASE)
+    try{
+      const since = new Date(Date.now()-10*24*60*60*1000).toISOString();
+      const r = await fetch(SUPABASE_URL+'/rest/v1/mensagens_wa?select=tel&recebida_em=gte.'+encodeURIComponent(since)+'&from_me=is.false&limit=500',{headers:{apikey:SUPABASE_ANON,Authorization:'Bearer '+SUPABASE_ANON}});
+      const arr = await r.json();
+      const novos = [...new Set(arr.map(x=>x.tel).filter(Boolean))].filter(tel=>!LIVE[tel]||!LIVE[tel].loaded);
+      await Promise.all(novos.map(tel=>loadHistorico(tel)));
+    }catch(e){}
+    rebuildPend();
+    renderAprov();
+    if (typeof renderInbox==='function' && document.getElementById('view-inbox') && !document.getElementById('view-inbox').classList.contains('hide')) renderInbox();
+    sombraToast('📡 Capturas recarregadas: '+PEND.filter(p=>p._live).length+' ao vivo', 'ok');
+  }catch(e){ sombraToast('❌ Falha ao recarregar: '+e.message, 'err'); }
+  if (btn) { btn.disabled=false; btn.textContent='↻'; }
+}
+function rebuildPend(){
+  const baseTels = new Set(PEND_BASE.map(p=>p.tel));
+  const extras = [];
+  const cutoff = Date.now() - 10*24*60*60*1000; // 10 dias
+  Object.keys(LIVE||{}).forEach(tel=>{
+    if (baseTels.has(tel)) return;
+    const msgs = LIVE[tel]?.msgs || [];
+    if (!msgs.length) return;
+    const last = msgs[msgs.length-1];
+    const lastTs = last?.recebida_em ? new Date(last.recebida_em).getTime() : 0;
+    if (lastTs && lastTs < cutoff) return; // descarta cards live antigos
+    const card = derivaCardDeLive(tel, LIVE[tel]);
+    if (card) extras.push(card);
+  });
+  // sort extras: mais recentes primeiro (sentido de urgência)
+  extras.sort((a,b)=>(b._lastMs||0)-(a._lastMs||0));
+  PEND = PEND_BASE.concat(extras);
+  return PEND;
+}
+
+// ====== Motor de sugestão (baseado no PLAYBOOK) ======
+const PRECO_ART = "R$ 250 a R$ 350 (conforme o tipo de obra)";
+function parseDados(f){
+  const out={cond:f.condominio||null, apto:f.blocoEApartamento||null, nome:null, cpf:null, area:null, servico:null};
+  const d=f.dados||"";
+  d.split(/\n/).forEach(l=>{
+    l=l.trim();
+    if(/^\d{3}\.\d{3}\.\d{3}-?\d{2}$/.test(l)) out.cpf=l;
+    else if(/mts?$|m²|metros/i.test(l)) out.area=l;
+    else if(/^Ap[:\s]/i.test(l)||/\bBL\b/i.test(l)) out.apto=out.apto||l;
+    else if(/banheiro|cozinha|sala|quarto|piso|parede|hidr|el[ée]tr|reforma/i.test(l)) out.servico=l;
+    else if(/^[A-Za-zÀ-ú]+ [A-Za-zÀ-ú]/.test(l)&&!out.nome&&!/av:|rua|cep|condom/i.test(l)) out.nome=l;
+  });
+  return out;
+}
+function suggest(ev){
+  const f=ev.fields||{}; const p=parseDados(f);
+  const dep=(ev.depto||"").toLowerCase();
+  let tipo, corpo, faltam=[];
+  const need=(label,val)=>{ if(!val){faltam.push(label);return "❓"+label;} return val; };
+  if(dep.includes("art")){
+    tipo="ART — Emissão";
+    const isReforma = /banheiro|cozinha|piso|parede|reforma|obra/i.test(p.servico||"");
+    corpo =
+`Olá! Aqui é da Diagnóstika Engenharia. 👷
+Para a ART${isReforma?" de reforma":""}${p.servico?` (${p.servico})`:""}, o valor fica em ${PRECO_ART}.
+Para emitir, confirmo os dados:
+• Nome: ${need("nome completo",p.nome)}
+• CPF: ${need("CPF",p.cpf)}
+• Condomínio: ${need("condomínio",p.cond)}
+• Bloco/Apto: ${need("bloco e apto",p.apto)}
+• Área (m²): ${need("metragem",p.area)}
+• Tipo de obra: ${need("tipo de obra/serviço",p.servico)}
+Assim que confirmar, envio os dados de pagamento (PIX) e emito a ART. 📄`;
+  } else if(dep.includes("comercial")){
+    tipo="Comercial — Orçamento/Proposta";
+    corpo =
+`Olá! Obrigado pelo contato com a Diagnóstika. 🙌
+Para preparar a proposta certa, me conta:
+• O que você precisa? (ART, laudo, projeto, assessoria condominial)
+• Condomínio: ${need("condomínio",p.cond)}
+• Bloco/Apto: ${need("bloco e apto",p.apto)}
+Com isso já direciono o orçamento. Se for ART de reforma, o valor é ${PRECO_ART}.`;
+  } else if(dep.includes("admin")){
+    tipo="Administrativo — Triagem";
+    corpo =
+`Olá! Recebemos seu contato. 📋
+Para te direcionar ao setor certo, é sobre:
+1️⃣ ART / autorização de reforma
+2️⃣ Financeiro (boleto, nota fiscal)
+3️⃣ Assessoria / laudo técnico
+Responda o número e já encaminho.`;
+  } else {
+    tipo="Geral — Identificar demanda";
+    corpo =
+`Olá! Aqui é da Diagnóstika Engenharia. Como posso ajudar?
+Você precisa de ART, autorização de reforma, laudo ou orçamento?`;
+  }
+  return {tipo,corpo,faltam};
+}
+
+// ====== Estado / persistência ======
+const KEY="sombra_avaliacoes_v1";
+let store=JSON.parse(localStorage.getItem(KEY)||"{}");
+function save(){localStorage.setItem(KEY,JSON.stringify(store));}
+let filtro="todos";
+
+function demandas(){
+  const byProto={};
+  RAW.forEach(e=>{
+    const k=e.protocolo||e.id;
+    if(!byProto[k]||Number(e.id)>Number(byProto[k].id)) byProto[k]=e;
+  });
+  return Object.values(byProto).sort((a,b)=>Number(b.id)-Number(a.id));
+}
+function tipoCurto(ev){
+  const d=(ev.depto||"").toLowerCase();
+  if(d.includes("art")) return "ART";
+  if(d.includes("comercial")) return "Comercial";
+  if(d.includes("admin")) return "Administrativo";
+  return "Outro";
+}
+function fmtData(s){try{const d=new Date(s);return d.toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});}catch(e){return"";}}
+
+function render(){
+  const items=demandas();
+  const tipos=["todos",...new Set(items.map(tipoCurto))];
+  document.getElementById("filters").innerHTML=tipos.map(t=>
+    `<span class="chip ${filtro===t?'on':''}" onclick="setFiltro('${t}')">${t==='todos'?'Todos':t} <b>${t==='todos'?items.length:items.filter(i=>tipoCurto(i)===t).length}</b></span>`).join("");
+  const evs=Object.values(store);
+  const c={ok:0,warn:0,err:0};
+  evs.forEach(v=>c[v.v]!==undefined&&c[v.v]++);
+  const total=c.ok+c.warn+c.err;
+  const acc=total?Math.round(100*c.ok/total):0;
+  document.getElementById("score").innerHTML=`
+    <div class="kpi acc"><b>${acc}%</b><span>Afiado</span></div>
+    <div class="kpi ok"><b>${c.ok}</b><span>Usaria</span></div>
+    <div class="kpi warn"><b>${c.warn}</b><span>Ajustaria</span></div>
+    <div class="kpi err"><b>${c.err}</b><span>Errada</span></div>
+    <div class="kpi"><b>${total}/${items.length}</b><span>Avaliadas</span></div>`;
+  const list=document.getElementById("list");
+  const vis=items.filter(i=>filtro==="todos"||tipoCurto(i)===filtro);
+  if(!vis.length){list.innerHTML='<div class="empty">Nenhuma demanda neste filtro.</div>';return;}
+  list.innerHTML=vis.map(ev=>{
+    const t=tipoCurto(ev);
+    const id=ev.protocolo||ev.id; const cur=store[id];
+    const p=parseDados(ev.fields||{});
+    const cond=ev.fields?.condominio||p.cond||'';
+    const aptoInfo=[p.apto,p.area].filter(Boolean).join(' · ');
+    const contatoLimpo=(ev.contato||'').split(' - ')[0].split(',')[0].slice(0,40);
+    const vtxt=cur?`<span class="${cur.v}" style="font-weight:600">${cur.v==='ok'?'✅':cur.v==='warn'?'⚠️':'❌'}</span>`:'';
+    const safeContato=(ev.contato||'').replace(/'/g,"\\'");
+    return `<div class="card ${cur?'done':''}" style="cursor:pointer" onclick="abrirConversa('${ev.tel||''}','${safeContato}')">
+      <div class="c-head">
+        <div style="flex:1;min-width:0">
+          <div class="c-who" style="display:flex;align-items:center;gap:8px">
+            ${contatoLimpo||'Contato'} ${vtxt}
+          </div>
+          <div class="c-meta">
+            ${cond?`<b style="color:var(--lima)">${cond}</b> · `:''}${aptoInfo?aptoInfo+' · ':''}${fmtData(ev.startedAt)}${ev.protocolo?' · #'+ev.protocolo:''}
+          </div>
+        </div>
+        <span class="tag ${t}">${t}</span>
+      </div>
+      ${ev.tel&&LIVE_OK!==false?`<div class="live-mini" data-live-tel="${ev.tel}" onclick="event.stopPropagation();abrirConversa('${ev.tel}','${safeContato}')" style="margin-top:10px">
+        <div class="lm-text">Carregando histórico…</div>
+        <div class="lm-cta">ver conversa ↗</div>
+      </div>`:''}
+      <div style="display:flex;gap:8px;margin-top:10px;align-items:center" onclick="event.stopPropagation()">
+        <button class="btn ok ${cur?.v==='ok'?'sel':''}" onclick="setV('${id}','ok')" title="Atendimento OK">✅</button>
+        <button class="btn warn ${cur?.v==='warn'?'sel':''}" onclick="setV('${id}','warn')" title="Ajustar">⚠️</button>
+        <button class="btn err ${cur?.v==='err'?'sel':''}" onclick="setV('${id}','err')" title="Errado">❌</button>
+        <div style="flex:1"></div>
+        <button onclick="abrirConversa('${ev.tel||''}','${safeContato}')" style="padding:7px 14px;background:var(--turq);color:#001;border:0;border-radius:7px;font-size:12px;cursor:pointer;font-weight:700">Abrir atendimento ↗</button>
+      </div>
+      ${cur?.nota?`<div style="margin-top:8px;padding:8px 10px;background:#0d1417;border-left:2px solid var(--mut);font-size:11px;color:var(--mut)">${cur.nota.replace(/[<>]/g,c=>c==='<'?'&lt;':'&gt;')}</div>`:''}
+    </div>`;
+  }).join("");
+}
+function dadosTxt(ev){
+  const f=ev.fields||{};
+  if(f.dados) return (f.condominio?'🏢 '+f.condominio+'\n':'')+f.dados;
+  let l=[];
+  if(f.condominio) l.push('🏢 '+f.condominio);
+  if(f.blocoEApartamento) l.push('🚪 '+f.blocoEApartamento);
+  l.push('📞 '+(ev.tel||''));
+  l.push('📂 Depto MegaZap: '+(ev.depto||'—'));
+  return l.join('\n');
+}
+function setFiltro(t){filtro=t;render();}
+function setV(id,v){store[id]={...(store[id]||{}),v};save();render();
+  setTimeout(()=>{const ta=document.getElementById('nota-'+id);if(ta&&v!=='ok'){ta.style.display='block';ta.focus();}},50);}
+function setNota(id,n){store[id]={...(store[id]||{}),nota:n};save();}
+function resetAll(){if(confirm('Apagar todas as avaliações?')){store={};save();render();}}
+
+// ====== Aba Aprovação — avaliador ======
+function waLink(tel){return 'https://wa.me/'+tel.replace(/\D/g,'');}
+
+// Padrão de aprovação de reforma (Diagnóstika · NBR 16280:2020)
+const REQ_APROVACAO=[
+  {id:'art',     nome:'ART/RRT do responsável técnico', det:'vigente e quitada · NBR 16280 / Lei 6.496/77'},
+  {id:'memorial',nome:'Memorial descritivo / plano de reforma', det:'assinado, com intervenções, materiais e prazo · NBR 16280 item 5.2'},
+  {id:'termo',   nome:'Termo de responsabilidade civil', det:'assinado pelo proprietário e pelo prestador · NBR 16280'},
+  {id:'ident',   nome:'Identificação completa', det:'nome, CPF, bloco/apto e prestador identificados · Triagem Diagnóstika'},
+];
+
+// Estado dos documentos por caso (localStorage)
+const AKEY="sombra_aprovacao_v1";
+const HKEY="sombra_aprov_hidden_v1";
+let HIDDEN=JSON.parse(localStorage.getItem(HKEY)||"{}");
+function hsave(){localStorage.setItem(HKEY,JSON.stringify(HIDDEN));}
+function ocultarCard(tel,nome){
+  if(!confirm("Remover este atendimento da lista?\n\n"+nome+"\n\n(você pode restaurar tudo no botão no topo da aba)")) return;
+  HIDDEN[tel]=Date.now(); hsave(); renderAprov();
+}
+function restaurarOcultos(){
+  if(!Object.keys(HIDDEN).length) return alert("Nada oculto.");
+  if(!confirm("Restaurar TODOS os "+Object.keys(HIDDEN).length+" cards ocultos?")) return;
+  HIDDEN={}; hsave(); renderAprov();
+}
+let astore=JSON.parse(localStorage.getItem(AKEY)||"{}");
+function asave(){localStorage.setItem(AKEY,JSON.stringify(astore));}
+function aState(tel){return astore[tel]||(astore[tel]={docs:{},estrutural:false});}
+
+// Pré-marca o que já dá pra inferir da conversa: identificação se há apto, e p/ Márcia/Juliana dados completos
+function inferDocs(p){
+  const s=aState(p.tel);
+  if(s._init) return s;
+  s._init=true;
+  if(p.apto) s.docs.ident=true;                 // tem bloco/apto identificado
+  if(/Márcia|Juliana/.test(p.nome)) s.docs.ident=true; // dados completos enviados
+  asave(); return s;
+}
+
+// Condomínios onde a Diagnóstika é a assessoria técnica — quando morador contrata,
+// nós PRODUZIMOS a documentação (ART + memorial) e auto-aprovamos.
+const CONDOS_DIAG=/(Monte Carlo|Portal Primavera|Primavera|Santa Clara|Morada Morumbi|Jardins do Malta|Sol Maior)/i;
+
+// Heurística de contexto: lê o histórico real (LIVE[tel].msgs) e tenta detectar
+// que o morador está CONTRATANDO a Diagnóstika (não pedindo aprovação de obra de terceiros).
+function detectarContratacao(p){
+  const msgs=(LIVE[p.tel]&&LIVE[p.tel].msgs)||[];
+  if(!msgs.length) return {is:false,score:0,sinais:[]};
+  const txt=msgs.map(m=>m.texto||'').join('\n').toLowerCase();
+  const sinais=[];
+  if(/\bcpf\b|\d{3}\.?\d{3}\.?\d{3}-?\d{2}/.test(txt)) sinais.push('CPF enviado');
+  if(/\b\d{2,4}\s*m(?:ts?|²|2)?\b|metragem|metro quadrado/.test(txt)) sinais.push('metragem informada');
+  if(/\bpix\b|comprovante|pagamento|paguei|transferi/.test(txt)) sinais.push('referência a pagamento');
+  if(/cep\b|\d{5}-?\d{3}/.test(txt)) sinais.push('CEP/endereço completo');
+  if(/quero contratar|gostaria de contratar|preciso da art|emitir.*art|emiss[ãa]o.*art/.test(txt)) sinais.push('pediu emissão de ART');
+  if(/bloco\s*\d|apto?\s*\d|apartamento\s*\d/.test(txt)) sinais.push('bloco/apto identificado');
+  const inCond=CONDOS_DIAG.test(p.cond||'');
+  const is=inCond && sinais.length>=2;
+  return {is,score:sinais.length,sinais,inCond};
+}
+
+// Override manual de classificação por tel
+const CKEY="sombra_class_v1";
+let CLASS=JSON.parse(localStorage.getItem(CKEY)||"{}");
+function csave(){localStorage.setItem(CKEY,JSON.stringify(CLASS));}
+function modoCard(p){
+  if(CLASS[p.tel]) return CLASS[p.tel]; // 'contratacao' | 'aprovacao'
+  const d=detectarContratacao(p);
+  return d.is ? 'contratacao' : 'aprovacao';
+}
+function alternarModo(tel){
+  const p=PEND.find(x=>x.tel===tel); if(!p) return;
+  const atual=modoCard(p);
+  CLASS[tel]= atual==='contratacao' ? 'aprovacao' : 'contratacao';
+  csave(); renderAprov();
+}
+
+function avaliar(p){
+  const s=inferDocs(p);
+  const modo=modoCard(p);
+  if(modo==='contratacao'){
+    return {recebidos:[],faltam:[],nivel:'contr',
+      titulo:'🟢 Contratação Diagnóstika — nós produzimos a documentação e auto-aprovamos'};
+  }
+  const recebidos=REQ_APROVACAO.filter(r=>s.docs[r.id]);
+  const faltam=REQ_APROVACAO.filter(r=>!s.docs[r.id]);
+  let nivel, titulo;
+  if(s.estrutural && faltam.length===0){ nivel='estr'; titulo='⚠️ Requer LAUDO ESTRUTURAL antes de aprovar'; }
+  else if(faltam.length===0){ nivel='apto'; titulo='✅ Apto — emitir Autorização de Reforma (ARO)'; }
+  else { nivel='pend'; titulo=`⏳ Pendente — faltam ${faltam.length} de ${REQ_APROVACAO.length} documentos`; }
+  return {recebidos,faltam,nivel,titulo};
+}
+
+// Sugestão de resposta da IA por caso
+function sugestaoAprov(p){
+  const av=avaliar(p);
+  const nome=(p.nome||'').split(/[ (]/)[0].replace(/^\W+/,'')||'tudo bem';
+  if(av.nivel==='contr')
+    return `Olá, ${nome}! Aqui é da Diagnóstika Engenharia. ✅
+Obrigado pelos dados. Como ${p.cond||'seu condomínio'} é assessorado por nós, vamos *produzir a documentação completa* da reforma do ${p.apto||'seu apartamento'} (ART + memorial descritivo + termo de responsabilidade) e *já emitir a Autorização de Reforma (ARO)* em seguida.
+Confirmo o PIX e envio a ART em até 1 dia útil. 📄`;
+  if(av.nivel==='apto')
+    return `Olá, ${nome}! Aqui é da Diagnóstika Engenharia. ✅
+Recebemos toda a documentação da reforma do ${p.apto||'seu apartamento'} e está conforme a NBR 16280.
+Vamos emitir a *Autorização de Reforma (ARO)* e te enviar em seguida. Pode iniciar a obra após o recebimento do documento. 📄`;
+  if(av.nivel==='estr')
+    return `Olá, ${nome}! Sobre a reforma do ${p.apto||'seu apartamento'}: a documentação básica está OK, mas como há *intervenção estrutural*, precisamos de um *laudo do engenheiro estrutural* (ou parecer da Diagnóstika) antes de liberar. Assim que recebermos, emitimos a Autorização. 🏗️`;
+  const lista=av.faltam.map(r=>'• '+r.nome).join('\n');
+  return `Olá, ${nome}! Aqui é da Diagnóstika Engenharia. 👷
+Para aprovar a reforma do ${p.apto||'seu apartamento'} e emitir a *Autorização de Reforma (ARO)*, ainda precisamos de:
+${lista}
+Pode nos enviar por aqui mesmo? Assim que estiver completo, liberamos a obra. 📄`;
+}
+
+let APROV_FILTRO = localStorage.getItem('sombra_aprov_filtro') || 'todos'; // 'todos' | 'live' | 'curados'
+function setAprovFiltro(f){ APROV_FILTRO=f; localStorage.setItem('sombra_aprov_filtro',f); renderAprov(); }
+function renderAprov(){
+  let VIS=PEND.filter(p=>!HIDDEN[p.tel]);
+  if (APROV_FILTRO==='live') VIS = VIS.filter(p=>p._live);
+  else if (APROV_FILTRO==='curados') VIS = VIS.filter(p=>!p._live);
+  document.getElementById("apcount").textContent=VIS.length;
+  const diag=VIS.filter(p=>p.quem==='diag').length;
+  const cli=VIS.filter(p=>p.quem==='cliente').length;
+  const aptos=VIS.filter(p=>avaliar(p).nivel==='apto').length;
+  const live=VIS.filter(p=>p._live).length;
+  // SLA: cards aguardando Diagnóstika há >24h (pega última msg do LIVE pelo tel)
+  const agora = Date.now();
+  const slaCriticos = VIS.filter(p=>{
+    if (p.quem !== 'diag') return false;
+    const msgs = LIVE[p.tel]?.msgs || [];
+    if (!msgs.length) return false;
+    const last = msgs[msgs.length-1];
+    if (last.from_me) return false; // já respondemos
+    const ts = new Date(last.recebida_em).getTime();
+    return ts && (agora - ts) > 24*60*60*1000;
+  }).length;
+  const oc=Object.keys(HIDDEN).length;
+  document.getElementById("apscore").innerHTML=`
+    <div class="kpi"><b>${VIS.length}</b><span>Pendências (10 dias)</span></div>
+    <div class="kpi err"><b>${diag}</b><span>Aguarda Diagnóstika</span></div>
+    <div class="kpi warn"><b>${cli}</b><span>Aguarda cliente</span></div>
+    <div class="kpi ok"><b>${aptos}</b><span>Aptos a aprovar</span></div>
+    ${slaCriticos?`<div class="kpi" title="Cards que aguardam Diagnóstika há mais de 24h" style="border:1px solid rgba(183,28,28,.5);background:rgba(183,28,28,.12)"><b style="color:#e88">🔴 ${slaCriticos}</b><span>Parado >24h</span></div>`:''}
+    ${live?`<div class="kpi" title="Cards auto-derivados das mensagens do WhatsApp capturadas via MegaZap (últimos 10 dias). Atualizam sozinhos via Realtime do Supabase." style="border:1px solid rgba(141,183,42,.35);background:rgba(141,183,42,.08)"><b style="color:var(--lima)">📡 ${live}</b><span>Captura ao vivo <button onclick="recarregarLive(this)" title="Re-buscar histórico do Supabase" style="margin-left:4px;background:transparent;border:1px solid rgba(141,183,42,.4);color:var(--lima);border-radius:5px;padding:1px 6px;cursor:pointer;font-size:10px">↻</button></span></div>`:''}
+    ${oc?`<div class="kpi"><b>${oc}</b><span>Ocultos <button onclick="restaurarOcultos()" style="margin-left:6px;background:transparent;border:1px solid var(--line);color:var(--turq);border-radius:6px;padding:2px 8px;cursor:pointer">↺ restaurar</button></span></div>`:''}
+    <div class="kpi" style="background:transparent;border:1px dashed var(--line);cursor:pointer" onclick="exportarPendCSV()" title="Baixar lista atual em CSV"><b style="color:var(--mut);font-size:14px">📊</b><span>Exportar CSV</span></div>
+    <div class="kpi" style="background:transparent;border:1px dashed var(--line);padding:6px 9px"><b style="font-size:11px;color:var(--mut)">Filtro</b><span style="display:flex;gap:3px;margin-top:3px">
+      <button onclick="setAprovFiltro('todos')" style="padding:2px 6px;background:${APROV_FILTRO==='todos'?'var(--turq)':'transparent'};color:${APROV_FILTRO==='todos'?'#001':'var(--mut)'};border:1px solid var(--line);border-radius:4px;font-size:10px;cursor:pointer">Todos</button>
+      <button onclick="setAprovFiltro('live')" style="padding:2px 6px;background:${APROV_FILTRO==='live'?'var(--lima)':'transparent'};color:${APROV_FILTRO==='live'?'#001':'var(--mut)'};border:1px solid var(--line);border-radius:4px;font-size:10px;cursor:pointer">📡 Live</button>
+      <button onclick="setAprovFiltro('curados')" style="padding:2px 6px;background:${APROV_FILTRO==='curados'?'var(--turq)':'transparent'};color:${APROV_FILTRO==='curados'?'#001':'var(--mut)'};border:1px solid var(--line);border-radius:4px;font-size:10px;cursor:pointer">Curados</button>
+    </span></div>`;
+  const ordemCond=["Monte Carlo","Portal Primavera","Morada Morumbi","Sol Maior","Sem condomínio identificado"];
+  const grupos={};
+  VIS.forEach(p=>{(grupos[p.cond]=grupos[p.cond]||[]).push(p);});
+  const conds=Object.keys(grupos).sort((a,b)=>{
+    const ia=ordemCond.indexOf(a),ib=ordemCond.indexOf(b);
+    return (ia<0?99:ia)-(ib<0?99:ib);
+  });
+  document.getElementById("aprovList").innerHTML=conds.map(cond=>{
+    const arr=grupos[cond].sort((a,b)=>(a.quem==='diag'?0:1)-(b.quem==='diag'?0:1));
+    const nd=arr.filter(p=>p.quem==='diag').length;
+    return `<div class="ap-cond">
+      <h3>🏢 ${cond} <span class="cnt">${arr.length} pendência${arr.length>1?'s':''}${nd?` · ${nd} com a Diagnóstika`:''}</span></h3>
+      <div class="ap-grid">${arr.map(p=>cardAprov(p)).join("")}</div>
+    </div>`;
+  }).join("");
+}
+
+function cardAprov(p){
+  const s=aState(p.tel); const av=avaliar(p); const sug=sugestaoAprov(p);
+  const modo=modoCard(p); const det=detectarContratacao(p);
+  const isContr=modo==='contratacao';
+  const isReforma=/reforma/i.test(p.tipo) || isContr;
+  const nomeEsc=(p.nome||'').replace(/'/g,"\\'");
+  const classBtn=`<button class="ap-class" onclick="alternarModo('${p.tel}')" title="${det.sinais.length?'Sinais detectados: '+det.sinais.join(', '):'Sem histórico suficiente'}">
+    ${isContr?'🟢 Contratação Diagnóstika':'📋 Aprovação de reforma'} · trocar ↔
+  </button>`;
+  const safeTel=p.tel||''; const safeNome=(p.nome||'').replace(/'/g,"\\'");
+  const docsOk=isReforma&&!isContr?REQ_APROVACAO.filter(r=>s.docs[r.id]).length:0;
+  const docsTot=REQ_APROVACAO.length;
+  return `<div class="ap-card ${p.quem}" onclick="abrirConversa('${safeTel}','${safeNome}')">
+    <button class="ap-x" title="Remover este atendimento" onclick="event.stopPropagation();ocultarCard('${p.tel}','${nomeEsc}')">✕</button>
+    <div class="ap-body">
+      <div class="ap-top">
+        <div class="ap-nome">${escH(p.nome||'')}${p._live?` <span title="Card auto-derivado da captura ao vivo${p._lastMs?' — última msg '+formatRelativo(p._lastMs)+' atrás':''}" style="font-size:10px;color:var(--lima);background:rgba(141,183,42,.15);border:1px solid rgba(141,183,42,.4);border-radius:4px;padding:1px 6px;margin-left:4px;vertical-align:middle">📡 live${p._lastMs?' · '+formatRelativo(p._lastMs):''}</span>`:''}</div>
+        <span class="ap-tipo">${escH(p.tipo||'')}</span>
+      </div>
+      <div class="ap-meta">📅 ${escH(p.data||'')}${p.apto?' · 🚪 '+escH(p.apto):''} · 📞 ${escH(p.tel||'')}</div>
+      ${isReforma?`<div class="ap-verdict ${av.nivel}" style="margin-top:10px;font-size:12px;padding:7px 10px">${av.titulo}${!isContr?` · 📄 ${docsOk}/${docsTot}`:''}</div>`:''}
+      <div style="display:flex;gap:6px;margin-top:10px;align-items:center;flex-wrap:wrap" onclick="event.stopPropagation()">
+        <span class="ap-badge ${p.quem}" style="margin:0">${p.quem==='diag'?'🔴 Diag.':'🟠 Cliente'}</span>
+        <a class="ap-wa" href="${waLink(p.tel)}" target="_blank" style="margin:0">WA ↗</a>
+        <div style="flex:1"></div>
+        <button onclick="abrirConversa('${safeTel}','${safeNome}')" style="padding:6px 12px;background:var(--turq);color:#001;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">Abrir ↗</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function sugGenerico(p){
+  const nome=(p.nome||'').split(/[ (]/)[0].replace(/^\W+/,'')||'tudo bem';
+  if(/^ART$/i.test(p.tipo))
+    return `Olá, ${nome}! Aqui é da Diagnóstika Engenharia. 👷
+Para emitir a ART do ${p.apto||'seu apartamento'}, o valor fica em R$ 250 a R$ 350 (conforme o tipo de obra).
+Confirmo: nome completo, CPF, condomínio, bloco/apto, metragem e tipo de obra. Assim que confirmar, envio o PIX e emito a ART. 📄`;
+  return `Olá, ${nome}! Aqui é da Diagnóstika Engenharia.
+Sobre a vistoria solicitada${p.apto?' ('+p.apto+')':''}: vamos agendar uma visita técnica. Qual o melhor dia e período para você? 📅`;
+}
+
+function toggleDoc(tel,id){const s=aState(tel);s.docs[id]=!s.docs[id];asave();renderAprov();}
+function toggleEstr(tel){const s=aState(tel);s.estrutural=!s.estrutural;asave();renderAprov();}
+function copiarSug(tel){
+  const el=document.getElementById('sug-'+tel);
+  navigator.clipboard.writeText(el.textContent).then(()=>{
+    const b=event.target;const o=b.textContent;b.textContent='✅ Copiado';setTimeout(()=>b.textContent=o,1500);
+  });
+}
+
+// ====== INBOX (Blip/Front layout) ======
+let IB_FILA = localStorage.getItem('sombra_ib_fila') || 'aguarda_diag';
+let IB_TEL = null; // conversa selecionada
+let IB_CHAT_OPEN = false;
+function ibToggleChat(){ IB_CHAT_OPEN=!IB_CHAT_OPEN; renderInboxThread(); if(IB_CHAT_OPEN) setTimeout(()=>{const i=document.getElementById('ibChatInput');i&&i.focus();},80);}
+async function ibPerguntar(){
+  const inp = document.getElementById('ibChatInput');
+  const q = inp?.value?.trim(); if (!q) return;
+  ibContexto();
+  inp.value='';
+  await perguntarChat(IB_TEL); // usa CHAT_CACHE existente; perguntarChat lê do input chatInput, então preciso adaptar
+}
+async function ibPerguntarDireto(q){
+  if (!q || !IB_TEL) return;
+  ibContexto();
+  CHAT_CACHE[IB_TEL] = CHAT_CACHE[IB_TEL] || [];
+  CHAT_CACHE[IB_TEL].push({role:'user',content:q});
+  renderInboxThread();
+  try{
+    const ctrl=new AbortController(); const tmo=setTimeout(()=>ctrl.abort(),60000);
+    const p = PEND.find(x=>x.tel===IB_TEL)||{};
+    const r = await fetch(CHAT_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tel:IB_TEL,nome:p.nome||'',cond:p.cond||'',pergunta:q,historico:(CHAT_CACHE[IB_TEL]||[]).slice(0,-1),anexos:anexosDoCard(),dossie:DOSSIE_CACHE[IB_TEL]||null,gmail:GMAIL_CACHE[IB_TEL]||[]}),signal:ctrl.signal});
+    clearTimeout(tmo);
+    const j = await r.json().catch(()=>({}));
+    const safe = Array.isArray(j)?j[0]:j;
+    CHAT_CACHE[IB_TEL].push({role:'assistant',content:safe?.resposta||safe?.resposta_sugerida||safe?.sugestao_resposta||safe?.suggestao_resposta||'(sem resposta)'});
+    try{ localStorage.setItem(CHAT_KEY,JSON.stringify(CHAT_CACHE)); }catch(_){}
+  }catch(e){
+    CHAT_CACHE[IB_TEL].push({role:'assistant',content:'Erro: '+(e.name==='AbortError'?'timeout':e.message)});
+  }
+  renderInboxThread();
+  setTimeout(()=>{const b=document.getElementById('ibChatBox'); if(b) b.scrollTop=b.scrollHeight;},50);
+}
+
+function ibFilas(){
+  const VIS = PEND.filter(p=>!HIDDEN[p.tel]);
+  const ag = (now=Date.now())=>VIS.filter(p=>{
+    if(p.quem!=='diag') return false;
+    const m=LIVE[p.tel]?.msgs||[]; const last=m[m.length-1];
+    return last && !last.from_me;
+  });
+  const aguardaDiag = ag().length;
+  const aguardaCli = VIS.filter(p=>p.quem==='cliente').length;
+  const slaCritico = VIS.filter(p=>{
+    if(p.quem!=='diag') return false;
+    const m=LIVE[p.tel]?.msgs||[]; const last=m[m.length-1];
+    if(!last||last.from_me) return false;
+    return (Date.now()-new Date(last.recebida_em).getTime())>24*60*60*1000;
+  }).length;
+  const liveCount = VIS.filter(p=>p._live).length;
+  return [
+    {id:'aguarda_diag', label:'Aguardando humano', n:aguardaDiag},
+    {id:'aguarda_cli', label:'Aguardando cliente', n:aguardaCli},
+    {id:'sla', label:'⚠ SLA crítico (>24h)', n:slaCritico, warn:true},
+    {id:'live', label:'📡 Captura ao vivo', n:liveCount},
+    {id:'todos', label:'Todos', n:VIS.length},
+  ];
+}
+
+function ibFiltrar(){
+  const VIS = PEND.filter(p=>!HIDDEN[p.tel]);
+  if (IB_FILA==='todos') return VIS;
+  if (IB_FILA==='live') return VIS.filter(p=>p._live);
+  if (IB_FILA==='aguarda_cli') return VIS.filter(p=>p.quem==='cliente');
+  if (IB_FILA==='aguarda_diag') return VIS.filter(p=>{
+    if(p.quem!=='diag') return false;
+    const m=LIVE[p.tel]?.msgs||[]; const last=m[m.length-1];
+    return last && !last.from_me;
+  });
+  if (IB_FILA==='sla') return VIS.filter(p=>{
+    if(p.quem!=='diag') return false;
+    const m=LIVE[p.tel]?.msgs||[]; const last=m[m.length-1];
+    if(!last||last.from_me) return false;
+    return (Date.now()-new Date(last.recebida_em).getTime())>24*60*60*1000;
+  });
+  return VIS;
+}
+
+function ibSelFila(id){ IB_FILA=id; localStorage.setItem('sombra_ib_fila',id); renderInbox(); }
+function ibSelConvo(tel){ IB_TEL=tel; renderInbox(); }
+
+function ibConvoLastMsg(tel){
+  const m = LIVE[tel]?.msgs || [];
+  const last = m[m.length-1];
+  if (!last) return {who:'',txt:'(sem mensagens)',hora:'',rel:''};
+  const isAud = last.tipo==='audioMessage';
+  const isPdf = last.tipo==='documentMessage';
+  const isImg = last.tipo==='imageMessage';
+  let txt = last.texto || (isAud?'🎙 áudio':isPdf?'📄 documento':isImg?'🖼 imagem':'[mídia]');
+  txt = txt.replace(/\s+/g,' ').slice(0,55);
+  const t = last.recebida_em ? new Date(last.recebida_em) : null;
+  const hora = t ? t.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
+  const rel = t ? formatRelativo(t.getTime()) : '';
+  return {who: last.from_me?'Diag':(last.push_name||'Cliente'), txt, hora, rel};
+}
+
+function renderInbox(){
+  const filas = ibFilas();
+  document.getElementById('ibFilas').innerHTML = filas.map(f=>
+    `<div class="ib-fila ${f.id===IB_FILA?'on':''}" onclick="ibSelFila('${f.id}')">
+      <span>${escH(f.label)}</span>
+      <span class="n" ${f.warn?'style="background:#e88;color:#001"':''}>${f.n}</span>
+    </div>`
+  ).join('');
+
+  const convos = ibFiltrar().sort((a,b)=>{
+    const ta=LIVE[a.tel]?.msgs?.slice(-1)[0]?.recebida_em||0;
+    const tb=LIVE[b.tel]?.msgs?.slice(-1)[0]?.recebida_em||0;
+    return new Date(tb).getTime()-new Date(ta).getTime();
+  });
+  document.getElementById('ibCvCount').textContent = convos.length;
+  document.getElementById('ibConvos').innerHTML = convos.length ? convos.map(p=>{
+    const last = ibConvoLastMsg(p.tel);
+    const cond = p.cond && p.cond!=='Sem condomínio identificado' ? ' · '+escH(p.cond) : '';
+    return `<div class="ib-cv ${IB_TEL===p.tel?'on':''}" onclick="ibSelConvo('${p.tel}')">
+      <div class="nm">${escH(p.nome||p.tel)}${cond} <span>${escH(last.hora)}</span></div>
+      <div class="pv"><b style="color:var(--mut)">${escH(last.who)}:</b> ${escH(last.txt)}</div>
+      <div class="tags">
+        ${p.tipo?`<span class="ib-tg art">${escH(p.tipo)}</span>`:''}
+        ${p._live?'<span class="ib-tg live">📡 live</span>':''}
+        ${p.quem==='diag'?'<span class="ib-tg diag">Aguarda Diag</span>':'<span class="ib-tg cliente">Aguarda Cliente</span>'}
+      </div>
+    </div>`;
+  }).join('') : '<div class="ib-empty">Nenhuma conversa nesta fila</div>';
+
+  // contador na aba
+  const ib = document.getElementById('ibcount');
+  if (ib) ib.textContent = convos.length;
+
+  // thread + ctx
+  renderInboxThread();
+}
+
+async function ibAnalisar(tel){
+  // wrapper: garante MODAL_TEL/P pra analisarIA() usar como contexto, depois re-render Inbox
+  const p = PEND.find(x=>x.tel===tel) || {tel};
+  MODAL_TEL = tel; MODAL_P = p; MODAL_NOME = p.nome || '';
+  renderInboxThread(); // mostra loading
+  await analisarIA(tel);
+  renderInboxThread();
+}
+function ibAvatarCor(tel){
+  // hash simples do tel pra hue 0-360
+  const s = (tel||'').toString();
+  let h = 0;
+  for (let i=0;i<s.length;i++) h = (h*31 + s.charCodeAt(i)) >>> 0;
+  const hue = h % 360;
+  return `linear-gradient(135deg, hsl(${hue} 55% 45%), hsl(${(hue+30)%360} 60% 35%))`;
+}
+function ibContexto(){
+  // garante MODAL_TEL/P pra que as funções existentes pegem contexto certo
+  const p = PEND.find(x=>x.tel===IB_TEL) || {tel:IB_TEL};
+  MODAL_TEL = IB_TEL; MODAL_P = p; MODAL_NOME = p.nome || '';
+}
+async function ibBuscarFin(){ ibContexto(); renderInboxThread(); await buscarFinanceiro(IB_TEL); renderInboxThread(); }
+async function ibBuscarGmail(){
+  ibContexto();
+  const p = MODAL_P||{};
+  renderInboxThread();
+  await buscarGmail(IB_TEL, p.nome||p.contato||'');
+  renderInboxThread();
+}
+async function ibBuscarDossie(){ ibContexto(); renderInboxThread(); await gerarDossie(IB_TEL); renderInboxThread(); }
+async function ibTransAud(id){ ibContexto(); try{ await transcreverMsg(id); }catch(e){} renderInboxThread(); }
+async function ibBaixar(id){ ibContexto(); try{ await baixarMidia(id); }catch(e){} renderInboxThread(); }
+async function ibExtPdf(id){ ibContexto(); renderInboxThread(); try{ await extrairPdf(id); }catch(e){} renderInboxThread(); }
+function ibUsarMacro(txt){
+  navigator.clipboard.writeText(txt).then(()=>{
+    const inp = document.getElementById('ibComposerInput'); if (inp) { inp.value = txt; inp.focus(); }
+    sombraToast('📋 Macro copiada','ok');
+  });
+}
+function ibCopiarInput(){
+  const inp = document.getElementById('ibComposerInput'); const v = inp?.value?.trim();
+  if (!v) { sombraToast('Digite algo primeiro','info'); return; }
+  navigator.clipboard.writeText(v).then(()=>sombraToast('📋 Resposta copiada','ok'));
+}
+function ibEmitirART(){
+  ibContexto();
+  const p = MODAL_P||{};
+  const msgs = LIVE[IB_TEL]?.msgs||[];
+  const d = extrairDadosART ? extrairDadosART(p, msgs) : {};
+  // dispara a função existente emitirARTrpa, mas precisa de um botão pra animar
+  const fakeBtn = {disabled:false, textContent:'', _t:'🤖 Emitir ART (RPA)'};
+  Object.defineProperty(fakeBtn,'textContent',{get:function(){return this._t},set:function(v){this._t=v}});
+  emitirARTrpa(d, fakeBtn);
+}
+function ibCopiarResp(){
+  const ia = IA_CACHE[IB_TEL] || {};
+  const resp = ia.resposta_sugerida || ia.sugestao_resposta || ia.suggestao_resposta;
+  if (!resp) return;
+  navigator.clipboard.writeText(resp).then(()=>sombraToast('📋 Resposta copiada','ok'));
+}
+function renderInboxThread(){
+  const mainEl = document.getElementById('ibMain');
+  const ctxEl = document.getElementById('ibCtx');
+  if (!IB_TEL) {
+    mainEl.innerHTML = '<div class="ib-empty">Selecione uma conversa à esquerda</div>';
+    ctxEl.innerHTML = '<div class="ib-empty">—</div>';
+    return;
+  }
+  const p = PEND.find(x=>x.tel===IB_TEL) || {tel:IB_TEL,nome:'?',cond:'',apto:null};
+  const msgs = LIVE[IB_TEL]?.msgs || [];
+  const nome = p.nome || p.contato || IB_TEL;
+  const cond = p.cond || '';
+  const tipo = p.tipo || '';
+  const ia = IA_CACHE[IB_TEL] || {};
+  const fin = FIN_CACHE[IB_TEL];
+
+  // IA: sugestão inline ou botão "Analisar"
+  let sugestao = '';
+  if (IA_LOADING) {
+    sugestao = `<div class="ib-iasug"><div class="t"><i style="color:#b89cff;font-weight:700">✨ IA analisando…</i></div></div>`;
+  } else if (ia && ia.erro) {
+    sugestao = `<div class="ib-iasug" style="border-left-color:#e88"><div class="t"><i style="color:#e88;font-weight:700">⚠ IA:</i> ${escH(ia.erro)}</div><button onclick="ibAnalisar('${IB_TEL}')">↻ Tentar</button></div>`;
+  } else if (ia && (ia.resposta_sugerida || ia.sugestao_resposta || ia.suggestao_resposta)) {
+    const resp = ia.resposta_sugerida || ia.sugestao_resposta || ia.suggestao_resposta;
+    sugestao = `<div class="ib-iasug"><div class="t"><i style="color:#b89cff;font-weight:700">✨ IA${ia.classificacao?' ['+escH(ia.classificacao)+']':''}:</i> "${escH(resp).slice(0,260)}"</div><button onclick="ibCopiarResp()">📋 Copiar</button></div>`;
+  } else {
+    sugestao = `<div class="ib-iasug"><div class="t"><i style="color:#b89cff;font-weight:700">✨ IA:</i> ainda não analisada</div><button onclick="ibAnalisar('${IB_TEL}')">🤖 Analisar</button></div>`;
+  }
+
+  mainEl.innerHTML = `
+    <div class="ib-mhead">
+      <div class="info">
+        <b>${escH(nome)}${cond?' · '+escH(cond):''}${p.apto?' · '+escH(p.apto):''}</b>
+        <div class="sub">${escH(tipo||'(sem classificação)')} · 📞 ${escH(IB_TEL)} · ${msgs.length} msg</div>
+      </div>
+      <div class="acts">
+        <button onclick="ibToggleChat()" title="Abre painel pra você perguntar à IA sobre este caso (resumo, próximos passos, redigir e-mail, etc)" style="background:${IB_CHAT_OPEN?'#7a4ec2':'rgba(122,78,194,.18)'};color:${IB_CHAT_OPEN?'#fff':'#b89cff'};border:1px solid #7a4ec2;font-weight:700">💬 ${IB_CHAT_OPEN?'Fechar chat':'Perguntar à IA'}${(CHAT_CACHE[IB_TEL]||[]).length?' ('+(CHAT_CACHE[IB_TEL]||[]).length+')':''}</button>
+        <button onclick="abrirConversa('${IB_TEL}','${(nome||'').replace(/'/g,"\\\\'")}')">Modal completo ↗</button>
+        <button onclick="alert('Marcar como resolvido — TODO')">✓ Resolver</button>
+      </div>
+    </div>
+    <div class="ib-thread" id="ibThread">
+      ${msgs.length ? msgs.map(m=>{
+        const who = m.from_me ? (m.agente_nome||'Diagnóstika') : (m.push_name||'Cliente');
+        const dt = new Date(m.recebida_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+        let body = '';
+        if (m.tipo==='audioMessage') {
+          const t = TRANS_CACHE[m.id];
+          const trans = t ? `<div style="margin-top:4px;font-style:italic;opacity:.9">📝 "${escH(t).slice(0,180)}"</div>` : '';
+          body = `🎙 áudio ${trans}<button onclick="ibTransAud(${m.id})" style="margin-top:5px;padding:2px 7px;background:var(--lima);color:#001;border:0;border-radius:4px;font-size:10px;cursor:pointer">${t?'Re-':''}Transcrever</button>`;
+        } else if (m.tipo==='imageMessage') {
+          const c = MIDIA_CACHE[m.id];
+          body = c ? `<img src="${escH(c.url)}" style="max-width:220px;max-height:200px;border-radius:6px;cursor:pointer" onclick="abrirArquivo(${m.id})">` : `🖼 imagem <button onclick="ibBaixar(${m.id})" style="padding:2px 7px;background:transparent;color:var(--turq);border:1px solid var(--turq);border-radius:4px;font-size:10px;cursor:pointer">Carregar</button>`;
+        } else if (m.tipo==='documentMessage') {
+          const fname = (m.raw && ((m.raw.data||m.raw).message||{}).documentMessage||{}).fileName || 'arquivo';
+          const isPdf = /\.pdf$/i.test(fname);
+          const pdfData = PDF_CACHE[m.id];
+          const pdfBtn = isPdf ? `<button onclick="ibExtPdf(${m.id})" style="margin-left:4px;padding:2px 7px;background:${pdfData?'transparent':'var(--turq)'};color:${pdfData?'var(--turq)':'#001'};border:${pdfData?'1px solid var(--turq)':'0'};border-radius:4px;font-size:10px;cursor:pointer">${pdfData?'✅ IA lê':'🤖 Ler pra IA'}</button>` : '';
+          body = `📄 ${escH(fname)} <button onclick="abrirArquivo(${m.id})" style="padding:2px 7px;background:var(--lima);color:#001;border:0;border-radius:4px;font-size:10px;cursor:pointer">📥</button>${pdfBtn}`;
+        } else {
+          body = escH(m.texto || '['+(m.tipo||'mídia')+']');
+        }
+        return `<div class="ib-msg ${m.from_me?'diag':'cli'}">
+          <div class="who">${escH(who)} · ${escH(dt)}</div>
+          ${body}
+        </div>`;
+      }).join('') : '<div class="ib-empty">(sem histórico)</div>'}
+    </div>
+    ${sugestao}
+    ${IB_CHAT_OPEN ? (()=>{
+      const hist = CHAT_CACHE[IB_TEL]||[];
+      const msgs = hist.map(m=>`<div style="margin:6px 0;display:flex;${m.role==='user'?'justify-content:flex-end':''}">
+        <div style="max-width:75%;padding:7px 11px;border-radius:9px;font-size:12.5px;line-height:1.4;background:${m.role==='user'?'rgba(122,78,194,.18)':'var(--ib-bubble-cli)'};color:${m.role==='user'?'#cab4ff':'var(--ib-txt)'};border:${m.role==='user'?'none':'1px solid var(--ib-line)'}">
+          <div style="font-size:9.5px;font-weight:700;opacity:.75;margin-bottom:2px">${m.role==='user'?'Você':'🤖 IA'}</div>
+          ${escH(m.content)}
+        </div></div>`).join('');
+      return `<div style="margin:0 22px 10px;padding:12px;background:linear-gradient(180deg,rgba(122,78,194,.06),transparent);border:1px solid rgba(122,78,194,.25);border-radius:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <b style="color:#b89cff;font-size:12px">💬 Chat IA sobre este caso</b>
+          <div style="display:flex;gap:6px">
+            ${hist.length?`<button onclick="if(confirm('Limpar conversa do chat?')){CHAT_CACHE[IB_TEL]=[];try{localStorage.setItem(CHAT_KEY,JSON.stringify(CHAT_CACHE))}catch(_){};renderInboxThread()}" style="background:transparent;color:var(--ib-mut);border:1px solid var(--ib-line);border-radius:5px;padding:3px 8px;font-size:10.5px;cursor:pointer">Limpar</button>`:''}
+            <button onclick="ibToggleChat()" style="background:transparent;color:var(--ib-mut);border:1px solid var(--ib-line);border-radius:5px;padding:3px 8px;font-size:10.5px;cursor:pointer">✕ Fechar</button>
+          </div>
+        </div>
+        <div id="ibChatBox" style="max-height:240px;overflow-y:auto;margin-bottom:8px">${msgs||'<div style="color:var(--ib-mut);font-size:11px;font-style:italic">Faça uma pergunta sobre o caso. Ex: "Qual o orçamento?" "Resuma a situação." "O que está pendente?"</div>'}</div>
+        <div style="display:flex;gap:7px">
+          <input id="ibChatInput" placeholder="Pergunte algo sobre este atendimento..." style="flex:1;background:var(--ib-input);border:1px solid var(--ib-line2);color:var(--ib-txt);border-radius:7px;padding:8px 11px;font-size:12.5px;outline:none" onkeydown="if(event.key==='Enter'){event.preventDefault();ibPerguntarDireto(this.value);this.value=''}">
+          <button onclick="(()=>{const i=document.getElementById('ibChatInput');const v=i.value;i.value='';ibPerguntarDireto(v)})()" style="background:#7a4ec2;color:#fff;border:0;border-radius:7px;padding:8px 14px;font-weight:700;cursor:pointer;font-size:12px">Perguntar</button>
+        </div>
+      </div>`;
+    })() : ''}
+    ${(()=>{try{const cat=(ia&&ia.classificacao)||'OUTRO';const list=MACROS[cat]||MACROS.OUTRO||[];if(!list.length) return '';return `<div style="display:flex;flex-wrap:wrap;gap:4px;padding:6px 18px;background:rgba(141,183,42,.05);border-top:1px solid var(--line)">
+      <div style="width:100%;font-size:10px;color:var(--mut);margin-bottom:2px">⚡ Macros · <span style="color:var(--lima);font-weight:700">${escH(cat)}</span> · click copia</div>
+      ${list.map(m=>`<button onclick="ibUsarMacro(${JSON.stringify(m.t).replace(/"/g,'&quot;')})" title="${escH(m.t)}" style="padding:3px 8px;background:rgba(0,180,172,.15);color:var(--turq);border:1px solid rgba(0,180,172,.35);border-radius:5px;font-size:10.5px;cursor:pointer;font-weight:600">${escH(m.l)}</button>`).join('')}
+    </div>`;}catch(e){return '<div style="padding:6px 18px;color:#e88;font-size:11px">macros err: '+escH(e.message)+'</div>';}})()}
+    <div class="ib-composer">
+      <input id="ibComposerInput" placeholder="Modo treino — texto não é enviado, apenas copiado">
+      <button class="send" onclick="ibCopiarInput()">📋 Copiar</button>
+    </div>
+  `;
+  // scroll bottom
+  const th = document.getElementById('ibThread');
+  if (th) th.scrollTop = th.scrollHeight;
+
+  // ctx
+  const dados = extrairDadosART ? extrairDadosART(p, msgs) : {};
+  const finRows = Array.isArray(fin)?fin:(fin&&Array.isArray(fin.rows)?fin.rows:[]);
+  const nfs = fin&&Array.isArray(fin.nfse)?fin.nfse:[];
+  const aberto = finRows.filter(r=>!r.estornado && !r.data_recebimento).reduce((s,r)=>s+(r.valor||0),0);
+  const recebido = finRows.filter(r=>!r.estornado && r.data_recebimento).reduce((s,r)=>s+(r.valor||0),0);
+  const fmt = v=>'R$ '+((v||0)/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const inic = (nome||'?').split(' ').slice(0,2).map(s=>s[0]).join('').toUpperCase().slice(0,2);
+
+  ctxEl.innerHTML = `
+    <div class="av">
+      <div class="bub" style="background:${ibAvatarCor(IB_TEL)}">${escH(inic)}</div>
+      <div><b>${escH(nome)}</b><div class="ph">📞 ${escH(IB_TEL)}</div></div>
+    </div>
+    <h5>Cliente</h5>
+    ${cond?`<div class="ib-row"><span>Condomínio</span><span>${escH(cond)}</span></div>`:''}
+    ${p.apto?`<div class="ib-row"><span>Bloco/Apto</span><span>${escH(p.apto)}</span></div>`:''}
+    ${dados.cpf?`<div class="ib-row"><span>CPF</span><span>${escH(dados.cpf)}</span></div>`:''}
+    ${dados.metragem?`<div class="ib-row"><span>Metragem</span><span>${escH(dados.metragem)}</span></div>`:''}
+    ${dados.obra?`<div class="ib-row"><span>Obra</span><span>${escH(dados.obra)}</span></div>`:''}
+    <h5>Financeiro ${fin?'':'<button onclick="ibBuscarFin()" style="float:right;background:#1f7a3d;color:#fff;border:0;border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer">Buscar</button>'}</h5>
+    ${FIN_LOADING[IB_TEL]?'<div style="color:var(--mut);font-size:11px">Buscando…</div>':''}
+    ${fin&&fin.erro?`<div style="color:#e88;font-size:11px">${escH(fin.erro)}</div>`:''}
+    ${fin&&!fin.erro?`
+      ${recebido?`<div class="ib-row"><span>Recebido</span><span style="color:var(--lima)">${fmt(recebido)}</span></div>`:''}
+      ${aberto?`<div class="ib-row"><span>Em aberto</span><span style="color:var(--warn)">${fmt(aberto)}</span></div>`:''}
+      ${nfs.length?`<div class="ib-row"><span>NFs emitidas</span><span>${nfs.length}</span></div>`:''}
+      ${(finRows.length||nfs.length)?'':'<div style="color:var(--mut);font-size:11px">Sem registros</div>'}
+    `:''}
+
+    <h5>📧 Gmail ${GMAIL_CACHE[IB_TEL]?'':'<button onclick="ibBuscarGmail()" style="float:right;background:#d44638;color:#fff;border:0;border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer">Buscar</button>'}</h5>
+    ${GMAIL_LOADING[IB_TEL]?'<div style="color:var(--mut);font-size:11px">Buscando…</div>':''}
+    ${(()=>{const g=GMAIL_CACHE[IB_TEL];if(!g) return '';if(g.erro) return `<div style="color:#e88;font-size:11px">${escH(g.erro)}</div>`;const arr=Array.isArray(g)?g:[];if(!arr.length) return '<div style="color:var(--mut);font-size:11px">Nenhum e-mail</div>';return arr.slice(0,3).map(t=>`<div style="font-size:11px;padding:4px 0;border-bottom:1px dotted var(--line)"><b>${escH((t.subject||t.titulo||'(sem assunto)').slice(0,40))}</b><div style="color:var(--mut);font-size:10px">${escH((t.from||t.de||'').slice(0,30))}</div></div>`).join('');})()}
+
+    <h5>📚 Dossiê IA ${DOSSIE_CACHE[IB_TEL]?'':'<button onclick="ibBuscarDossie()" style="float:right;background:#7a4ec2;color:#fff;border:0;border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer">Gerar</button>'}</h5>
+    ${DOSSIE_LOADING[IB_TEL]?'<div style="color:var(--mut);font-size:11px">Gerando…</div>':''}
+    ${(()=>{const d=DOSSIE_CACHE[IB_TEL];if(!d) return '';if(d.erro) return `<div style="color:#e88;font-size:11px">${escH(d.erro)}</div>`;return `<div style="font-size:11px;color:#cfdde0;line-height:1.4">${escH((d.resumo||d.sumario||'(sem resumo)').slice(0,200))}</div>`;})()}
+
+    ${ia.classificacao?`<h5>IA — Classificação</h5>
+      <div class="ib-row"><span>Tipo</span><span>${escH(ia.classificacao)}</span></div>
+      ${ia.urgencia?`<div class="ib-row"><span>Urgência</span><span>${escH(ia.urgencia)}</span></div>`:''}
+    `:''}
+
+    <h5>Próxima ação</h5>
+    ${tipo==='ART' || ia.classificacao==='ART' ? `<button class="cta" onclick="ibEmitirART()">🤖 Emitir ART (RPA)</button><div style="font-size:10px;color:var(--mut);margin-top:4px;text-align:center">requer server.mjs em 127.0.0.1:9999</div>` : ''}
+    <button class="cta" style="background:transparent;border:1px solid var(--turq);color:var(--turq);margin-top:6px" onclick="abrirConversa('${IB_TEL}','${(nome||'').replace(/'/g,"\\\\'")}')">📺 Abrir modal completo</button>
+  `;
+}
+
+function setTab(t){
+  const vs=document.getElementById("view-sombra"); if(vs) vs.classList.add("hide");
+  document.getElementById("view-aprov").classList.toggle("hide",t!=="aprov");
+  const vi=document.getElementById("view-inbox"); if(vi) vi.classList.toggle("hide",t!=="inbox");
+  document.getElementById("tab-aprov").classList.toggle("on",t==="aprov");
+  const ti=document.getElementById("tab-inbox"); if(ti) ti.classList.toggle("on",t==="inbox");
+  if(t==="inbox") renderInbox();
+}
+
+render();
+renderAprov();
+
+// boot live capture
+(async()=>{
+  await probeLive();
+  if(LIVE_OK){
+    renderAprov(); // re-render para trocar aviso pelo bloco live
+    render();      // re-render shadow tab também
+    await Promise.all(PEND.map(p=>loadHistorico(p.tel)));
+    await Promise.all(RAW.filter(ev=>ev.tel).map(ev=>loadHistorico(ev.tel)));
+    // descobre tels recentes que não estão em PEND_BASE/RAW (ex: Lorena, novos contatos)
+    try{
+      const since = new Date(Date.now()-10*24*60*60*1000).toISOString();
+      const r = await fetch(SUPABASE_URL+'/rest/v1/mensagens_wa?select=tel&recebida_em=gte.'+encodeURIComponent(since)+'&from_me=is.false&limit=500',{headers:{apikey:SUPABASE_ANON,Authorization:'Bearer '+SUPABASE_ANON}});
+      const arr = await r.json();
+      const novos = [...new Set(arr.map(x=>x.tel).filter(Boolean))].filter(tel=>!LIVE[tel]||!LIVE[tel].loaded);
+      console.log('Auto-descoberta:', novos.length, 'tels novos no Supabase');
+      await Promise.all(novos.map(tel=>loadHistorico(tel)));
+    }catch(e){ console.warn('auto-descoberta tels:', e.message); }
+    // após carregar histórico, mescla LIVE no PEND (cards auto-derivados)
+    rebuildPend();
+    renderAprov(); render(); // re-render para aplicar detecção + cards live
+    Object.keys(LIVE).forEach(tel=>renderHistorico(tel)); // repopula minis após re-render
+  }else{
+    renderAprov(); // mostra aviso de "DDL pendente"
+  }
+})();
+</script>
+</body>
+</html>

@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://fimmjgdwhifsrrbreche.supabase.co https://84.46.248.23.sslip.io; img-src 'self' data: blob: https://fimmjgdwhifsrrbreche.supabase.co; frame-src 'none'; object-src 'none'; base-uri 'self';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Modo Sombra — Assistente Diagnóstika</title>
 <style>
@@ -71,7 +72,7 @@
   .ap-cond{margin-bottom:26px}
   .ap-cond h3{font-size:15px;margin:0 0 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line);padding-bottom:8px}
   .ap-cond h3 .cnt{font-size:12px;color:var(--mut);font-weight:500}
-  .ap-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+  .ap-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(370px,1fr));gap:14px}
   .ap-card{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:12px;padding:14px 16px}
   .ap-card.diag{border-left-color:var(--err)}
   .ap-card.cliente{border-left-color:var(--warn)}
@@ -88,7 +89,6 @@
   .dot{width:11px;height:11px;border-radius:3px;display:inline-block}
   .dot.diag{background:var(--err)} .dot.cliente{background:var(--warn)}
   /* avaliador de aprovação — compacto */
-  .ap-grid{grid-template-columns:repeat(auto-fill,minmax(370px,1fr))}
   .ap-card{padding:0;overflow:hidden;position:relative;cursor:pointer}
   .ap-card:hover{border-color:var(--turq)}
   .ap-x{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;border:1px solid var(--line);background:rgba(0,0,0,.35);color:var(--mut);font-size:13px;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;padding:0}
@@ -151,6 +151,16 @@
   .theme-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:#dff3f1;padding:8px 12px;border-radius:9px;font-size:14px;cursor:pointer;margin-right:6px}
   .modal-body{overflow-y:auto;flex:1}
   .hide{display:none}
+  @media(max-width:600px){
+    .modal-bg{padding:0}
+    .modal-box{max-width:100vw;width:100vw;max-height:100vh;height:100vh;border-radius:0}
+    .modal-head{padding:10px 12px}
+    .modal-head h3{font-size:13px}
+    .kpi{min-width:90px;padding:10px 8px;font-size:11px}
+    .msg{max-width:90%!important}
+    .ib-grid{grid-template-columns:1fr!important}
+    .ib-drag,.ib-toggle{display:none!important}
+  }
 </style>
 </head>
 <body>
@@ -334,6 +344,7 @@
     <!-- coluna 1: lista -->
     <div class="ib-list" id="ibListPanel">
       <h1>📥 Caixa de entrada</h1>
+      <div style="padding:6px 12px 2px"><input id="ibSearch" oninput="IB_SEARCH=this.value;renderInbox()" placeholder="🔍 Buscar nome, tel, condomínio..." style="width:100%;padding:7px 10px;background:var(--card2);border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:12px;font-family:inherit;outline:none"></div>
       <div class="ib-section">Filas</div>
       <div class="ib-filas" id="ibFilas"></div>
       <div class="ib-section">Conversas <span id="ibCvCount" style="float:right;color:var(--turq)"></span></div>
@@ -418,7 +429,7 @@ function renderHistorico(tel){
   const html=!d.msgs.length?'<div class="live-empty">Nenhuma mensagem capturada para este contato ainda.</div>':d.msgs.map(m=>{
     const who=m.from_me?(m.agente_nome||'Diagnóstika'):(m.push_name||'Cliente');
     const dt=new Date(m.recebida_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-    const txt=(m.texto||'['+ (m.tipo||'mídia') +']').replace(/[<>]/g,c=>c==='<'?'&lt;':'&gt;');
+    const txt=escH(m.texto||'['+ (m.tipo||'mídia') +']');
     return `<div class="msg ${m.from_me?'me':''}"><div><span class="who">${escH(who)}</span><span class="when">${escH(dt)}</span></div><div class="body">${txt}</div></div>`;
   }).join('');
   els.forEach(el=>{
@@ -483,7 +494,7 @@ async function checkN8nStatus(){
   el.style.background = '#fb6'; el.title = 'Verificando…';
   const ctrl = new AbortController(); const tmo = setTimeout(()=>ctrl.abort(), 5000);
   try {
-    const r = await fetch(N8N_BASE+'/healthz', { method:'GET', signal:ctrl.signal, mode:'no-cors' });
+    await fetch(N8N_BASE+'/healthz', { method:'GET', signal:ctrl.signal });
     el.style.background = '#6ec07a'; el.title = 'n8n OK ('+N8N_BASE+')';
   } catch(e) {
     el.style.background = '#e88'; el.title = 'n8n offline: '+(e.name==='AbortError'?'timeout 5s':e.message);
@@ -501,6 +512,8 @@ setInterval(()=>{
     pruneCache(IA_CACHE); try{ localStorage.setItem(IA_KEY, JSON.stringify(IA_CACHE)); }catch(_){}
     pruneCache(DOSSIE_CACHE); try{ localStorage.setItem(DOSSIE_KEY, JSON.stringify(DOSSIE_CACHE)); }catch(_){}
     pruneCache(PDF_CACHE, 50); try{ localStorage.setItem(PDF_KEY, JSON.stringify(PDF_CACHE)); }catch(_){}
+    const cks=Object.keys(CHAT_CACHE); if(cks.length>100){ cks.slice(0,cks.length-100).forEach(k=>delete CHAT_CACHE[k]); try{ localStorage.setItem(CHAT_KEY, JSON.stringify(CHAT_CACHE)); }catch(_){} }
+    const tks=Object.keys(TRANS_CACHE); if(tks.length>200){ tks.slice(0,tks.length-200).forEach(k=>delete TRANS_CACHE[k]); try{ localStorage.setItem(TRANS_KEY, JSON.stringify(TRANS_CACHE)); }catch(_){} }
   } catch(e){ console.warn('prune periodic:', e.message); }
 }, 30*60*1000);
 function editarN8nBase(){
@@ -564,9 +577,16 @@ async function analisarIA(tel){
     quando: lastCli.recebida_em,
     de: lastCli.push_name || nome
   } : null;
+  // contexto enriquecido: dossiê, gmail, transcrições e PDFs já extraídos
+  const dossie=DOSSIE_CACHE[tel]&&!DOSSIE_CACHE[tel].erro?DOSSIE_CACHE[tel]:null;
+  const gmail=Array.isArray(GMAIL_CACHE[tel])?GMAIL_CACHE[tel]:[];
+  const transcricoes={};
+  (LIVE[tel]?.msgs||[]).forEach(m=>{ if(TRANS_CACHE[m.id]) transcricoes[m.id]=TRANS_CACHE[m.id]; });
+  const pdfs={};
+  (LIVE[tel]?.msgs||[]).forEach(m=>{ if(PDF_CACHE[m.id]) pdfs[m.id]=PDF_CACHE[m.id]; });
   const ctrl=new AbortController(); const tmo=setTimeout(()=>ctrl.abort(),60000);
   try{
-    const r=await fetch(IA_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tel,nome,cond,anexos:anexosDoCard(),mensagens:msgsAll,ultima_msg_cliente}),signal:ctrl.signal});
+    const r=await fetch(IA_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tel,nome,cond,anexos:anexosDoCard(),mensagens:msgsAll,ultima_msg_cliente,dossie,gmail,transcricoes,pdfs}),signal:ctrl.signal});
     if(!r.ok) throw new Error('HTTP '+r.status);
     const j=await r.json().catch(()=>({erro:'resposta n8n não é JSON'}));
     // defensive: se n8n responder array, pega [0]; se não objeto, marca erro
@@ -651,9 +671,9 @@ function gmailHtml(tel){
   if(data && data.erro) body = `<div style="color:#f88;margin-top:6px;font-size:11px">Webhook Gmail não configurado: ${data.erro}</div>`;
   else if(Array.isArray(data) && data.length){
     body = '<div style="margin-top:8px;max-height:160px;overflow-y:auto">'+data.slice(0,10).map(t=>{
-      const subj=(t.subject||t.assunto||'(sem assunto)').replace(/[<>]/g,c=>c==='<'?'&lt;':'&gt;');
-      const from=(t.from||t.de||'').replace(/[<>]/g,c=>c==='<'?'&lt;':'&gt;');
-      const snippet=(t.snippet||t.preview||'').replace(/[<>]/g,c=>c==='<'?'&lt;':'&gt;').slice(0,140);
+      const subj=escH(t.subject||t.assunto||'(sem assunto)');
+      const from=escH(t.from||t.de||'');
+      const snippet=escH((t.snippet||t.preview||'').slice(0,140));
       const link=t.link||t.url||(t.id?`https://mail.google.com/mail/u/0/#inbox/${t.id}`:'');
       return `<div style="padding:6px 8px;border-bottom:1px solid var(--line);font-size:11px"><div style="display:flex;justify-content:space-between;gap:6px"><b style="color:#cfdde0">${subj}</b>${link?`<a href="${link}" target="_blank" style="color:var(--turq);text-decoration:none">↗</a>`:''}</div><div style="color:var(--mut);font-size:10px">${from}</div><div style="color:#9aa;font-style:italic;margin-top:2px">${snippet}</div></div>`;
     }).join('')+'</div>';
@@ -804,13 +824,13 @@ function finHtml(tel){
       const cor=r.data_recebimento?'#6ec07a':(venc_late?'#e88':'#fb6');
       const status=r.data_recebimento?('✓ pago '+(r.data_recebimento||'').slice(0,10)):(venc_late?'⚠ vencido '+venc:'aguarda '+venc);
       const nf=r.nota_fiscal_emitida?' <span style="color:#6ec07a">[NF emitida]</span>':' <span style="color:var(--mut)">[sem NF]</span>';
-      return `<div style="padding:5px 0;border-bottom:1px dotted var(--line);font-size:11px"><div style="display:flex;justify-content:space-between;gap:6px"><b>${(r.categoria||'?').replace(/[<>]/g,'')}</b><span style="color:${cor}">${fmt(r.valor)}</span></div><div style="color:var(--mut);font-size:10px">${status}${nf}</div>${r.descricao?`<div style="color:#9aa;font-size:10px">${(r.descricao||'').replace(/[<>]/g,'').slice(0,120)}</div>`:''}</div>`;
+      return `<div style="padding:5px 0;border-bottom:1px dotted var(--line);font-size:11px"><div style="display:flex;justify-content:space-between;gap:6px"><b>${escH(r.categoria||'?')}</b><span style="color:${cor}">${fmt(r.valor)}</span></div><div style="color:var(--mut);font-size:10px">${status}${nf}</div>${r.descricao?`<div style="color:#9aa;font-size:10px">${escH((r.descricao||'').slice(0,120))}</div>`:''}</div>`;
     }).join('');
     body=kpi+'<div style="margin-top:8px;max-height:180px;overflow-y:auto">'+linhas+'</div>';
   } else if(Array.isArray(data)) body='<div style="color:var(--mut);margin-top:6px;font-size:11px">Nenhuma fatura encontrada para este cliente.</div>';
   if(nfse.length){
     const fmt2=v=>'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-    const linhasNf=nfse.slice(0,5).map(n=>`<div style="padding:4px 0;border-bottom:1px dotted var(--line);font-size:11px;display:flex;justify-content:space-between;gap:6px"><span>📄 NF <b>${(n.numero_nfse||'?').replace(/[<>]/g,'')}</b> · ${(n.competencia||'').slice(0,7)}</span><span style="color:#6ec07a">${fmt2(n.valor)}</span></div>${n.descricao?`<div style="color:#9aa;font-size:10px;padding-bottom:4px">${(n.descricao||'').replace(/[<>]/g,'').slice(0,120)}</div>`:''}`).join('');
+    const linhasNf=nfse.slice(0,5).map(n=>`<div style="padding:4px 0;border-bottom:1px dotted var(--line);font-size:11px;display:flex;justify-content:space-between;gap:6px"><span>📄 NF <b>${escH(n.numero_nfse||'?')}</b> · ${escH((n.competencia||'').slice(0,7))}</span><span style="color:#6ec07a">${fmt2(n.valor)}</span></div>${n.descricao?`<div style="color:#9aa;font-size:10px;padding-bottom:4px">${escH((n.descricao||'').slice(0,120))}</div>`:''}`).join('');
     body+=`<details style="margin-top:8px"><summary style="cursor:pointer;color:#6ec07a;font-size:11px;font-weight:700">📄 NFs emitidas (${nfse.length})</summary><div style="margin-top:4px">${linhasNf}</div></details>`;
   }
   else body='<div style="color:var(--mut);margin-top:6px;font-size:11px">Clique para ver faturas em aberto, recebidas e status de NF.</div>';
@@ -1009,7 +1029,7 @@ function gravarVoz(){
   const inp=document.getElementById('chatInput'); if(!inp) return;
   REC_BASE=inp.value?inp.value.replace(/\s+$/,'')+' ':'';
   REC_MANUAL_STOP=false;
-  const r=new SpeechRecognition?new SpeechRecognition():new SR();
+  const r=new SR();
   r.lang='pt-BR'; r.continuous=true; r.interimResults=true; r.maxAlternatives=1;
   let finalAcc='';
   r.onresult=ev=>{
@@ -1062,30 +1082,56 @@ function usarSugestao(){
   localStorage.setItem(CHAT_KEY,JSON.stringify(CHAT_CACHE));
   renderModal();
 }
+function copiarSugestao(btn){
+  const ia=IA_CACHE[MODAL_TEL]; if(!ia) return;
+  const sug=ia.sugestao_resposta||ia.suggestao_resposta; if(!sug) return;
+  navigator.clipboard.writeText(sug).then(()=>{ const o=btn.textContent; btn.textContent='✅ Copiado'; setTimeout(()=>btn.textContent=o,1200); });
+}
+function regenerarIA(){
+  if(!MODAL_TEL) return;
+  delete IA_CACHE[MODAL_TEL];
+  try{ localStorage.setItem(IA_KEY, JSON.stringify(IA_CACHE)); }catch(_){}
+  analisarIA(MODAL_TEL);
+}
 let MSGS_COLLAPSED=localStorage.getItem('sombra_msgs_collapsed')==='1';
 function toggleMsgs(){ MSGS_COLLAPSED=!MSGS_COLLAPSED; localStorage.setItem('sombra_msgs_collapsed',MSGS_COLLAPSED?'1':'0'); renderModal(); }
 // ═══ T1.3 — Macros de resposta por categoria ═══
 const MACROS = {
   ART: [
     {l:'💰 Pedir dados ART', t:'Olá! Para emitir a ART preciso de: nome completo, CPF, condomínio, bloco/apto, metragem (m²) e tipo de obra. Pode me enviar?'},
+    {l:'❓ Qual tipo de obra?', t:'Para emitir a ART correta, preciso saber: qual o tipo de obra? (reforma de banheiro, troca de piso, instalação elétrica, hidráulica, etc.)'},
+    {l:'📏 Pedir metragem', t:'Preciso da metragem da área de intervenção (m²). Se não souber exato, a área do cômodo onde será feita a obra.'},
     {l:'📄 Confirmar emissão', t:'Recebi os dados. Vou emitir a ART e te envio aqui assim que ficar pronta (até 24h úteis). PIX do pagamento: CNPJ 49.064.301/0001-58 (Diagnóstika).'},
-    {l:'✅ ART pronta', t:'ART emitida! Segue em anexo. Qualquer dúvida estou à disposição.'}
+    {l:'✅ ART pronta', t:'ART emitida! Segue em anexo. Qualquer dúvida estou à disposição.'},
+    {l:'⚠️ ART ≠ autorização', t:'Importante: a ART é a responsabilidade técnica do engenheiro perante o CREA. Para executar a obra no condomínio, é necessário também a autorização de reforma do síndico (ARO). Posso orientar sobre isso.'}
   ],
   APROVACAO_REFORMA: [
     {l:'📋 Pedir projeto/memorial', t:'Para análise da reforma preciso de: memorial descritivo da obra, ART do responsável técnico e, se houver, projeto. Pode enviar?'},
+    {l:'📎 Falta memorial', t:'Para dar andamento à aprovação, falta o memorial descritivo da reforma assinado pelo responsável técnico. É exigência da NBR 16280:2020.'},
+    {l:'📎 Falta ART/RRT', t:'Falta a ART ou RRT do engenheiro/arquiteto responsável pela obra. Sem ela, não podemos emitir a autorização de reforma conforme NBR 16280.'},
     {l:'⏱️ Prazo de análise', t:'Recebi a documentação. Prazo de análise é de até 5 dias úteis. Te aviso assim que tiver o parecer.'},
-    {l:'✅ Aprovada', t:'Reforma aprovada! Lembrando: horários de obra conforme convenção e responsabilidade do morador por qualquer dano em áreas comuns.'}
+    {l:'🏗️ Obra estrutural', t:'A intervenção descrita pode afetar elementos estruturais do edifício. Nesse caso, antes da autorização, é necessário laudo técnico comprovando a viabilidade. Posso orientar.'},
+    {l:'✅ Aprovada', t:'Reforma aprovada! Lembrando: horários de obra conforme convenção e responsabilidade do morador por qualquer dano em áreas comuns.'},
+    {l:'🚫 Reprovada', t:'Após análise, a documentação apresentada não atende aos requisitos da NBR 16280:2020 para autorização da reforma. Os pontos pendentes são: [detalhar]. Estou à disposição para orientar.'}
   ],
   VISTORIA: [
     {l:'📅 Agendar', t:'Para agendar a vistoria, qual o melhor dia da semana? Atendemos seg-sex 8h-17h.'},
-    {l:'📍 Confirmar local', t:'Confirmando: vistoria em [endereço], [data] às [hora]. Por favor confirme o acesso.'}
+    {l:'📍 Confirmar local', t:'Confirmando: vistoria em [endereço], [data] às [hora]. Por favor confirme o acesso.'},
+    {l:'📝 Relatório entregue', t:'Relatório técnico da vistoria concluído e enviado em anexo. Qualquer dúvida sobre as recomendações, estou à disposição.'},
+    {l:'⚠️ Urgência', t:'Com base na solicitação, recomendo vistoria emergencial. Conseguimos encaixar em até 48h. Confirma?'}
   ],
   FINANCEIRO: [
     {l:'💳 Enviar PIX', t:'Segue PIX para pagamento: CNPJ 49.064.301/0001-58 (Diagnóstika Engenharia). Após enviar comprovante, libero o serviço.'},
-    {l:'✅ Pagto confirmado', t:'Pagamento recebido, obrigado! Vou dar andamento.'}
+    {l:'✅ Pagto confirmado', t:'Pagamento recebido, obrigado! Vou dar andamento.'},
+    {l:'📄 NF emitida', t:'Nota fiscal emitida e enviada por e-mail. Caso não receba, me avise que reenvio.'},
+    {l:'⚠️ Cobrança', t:'Identificamos que o pagamento referente ao serviço ainda está em aberto. Pode verificar? Segue PIX: CNPJ 49.064.301/0001-58.'}
   ],
   DUVIDA: [
     {l:'🤔 Repassar p/ técnico', t:'Vou consultar o técnico responsável e retorno em até 1h útil com a resposta.'}
+  ],
+  SINDICO: [
+    {l:'📊 Resumo mensal', t:'Bom dia, síndico(a)! Segue o resumo do mês: [X] ARTs emitidas, [Y] reformas autorizadas, [Z] vistorias realizadas. Alguma demanda pendente?'},
+    {l:'📋 Orientar morador', t:'Orientação ao morador: para realizar qualquer reforma que envolva alteração de layout, instalações ou estrutura, é obrigatório seguir o procedimento da NBR 16280. O primeiro passo é contratar um engenheiro/arquiteto que emita a ART. A Diagnóstika pode ajudar nisso.'}
   ],
   OUTRO: [
     {l:'👋 Saudação', t:'Olá! Aqui é da Diagnóstika Engenharia, em que posso ajudar?'},
@@ -1130,14 +1176,14 @@ function renderModal(){
   const d=LIVE[MODAL_TEL]||{msgs:[]};
   const p=MODAL_P||{};
   const cond=p.cond||'';
-  document.getElementById('modalTitle').innerHTML= ((MODAL_NOME||MODAL_TEL)+(cond?' · '+cond:'')+' · '+d.msgs.length+' msg').replace(/[<>]/g,c=>c==='<'?'&lt;':'&gt;')+slaBadgeHtml(d.msgs);
+  document.getElementById('modalTitle').innerHTML= escH((MODAL_NOME||MODAL_TEL)+(cond?' · '+cond:'')+' · '+d.msgs.length+' msg')+slaBadgeHtml(d.msgs);
   const body=document.getElementById('modalBody');
   if(!d.msgs.length){ body.innerHTML='<div class="live-empty" style="padding:30px">Nenhuma mensagem capturada para este contato ainda.</div>'; return; }
   // 1) Cabeçalho
   const proto=p.protocolo||p.protocol||'';
   const cabHtml=`<div style="padding:12px 14px;background:linear-gradient(180deg,rgba(0,180,172,.10),transparent);border-bottom:1px solid var(--line)">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-      <div style="font-weight:800;font-size:15px;color:#e5edee">${(MODAL_NOME||MODAL_TEL).replace(/[<>]/g,c=>c==='<'?'&lt;':'&gt;')}</div>
+      <div style="font-weight:800;font-size:15px;color:#e5edee">${escH(MODAL_NOME||MODAL_TEL)}</div>
       ${proto?`<div style="font-size:10px;color:var(--lima);font-weight:700;background:rgba(141,183,42,.12);border:1px solid rgba(141,183,42,.35);padding:3px 8px;border-radius:6px;white-space:nowrap" title="Protocolo MegaZap">#${proto}</div>`:''}
     </div>
     <div style="font-size:11px;color:var(--mut);margin-top:2px">
@@ -1172,7 +1218,7 @@ function renderModal(){
       const transcrBtn=`<button onclick="transcreverMsg(${m.id})" ${tloading?'disabled':''} style="padding:3px 9px;background:var(--lima);color:#001;border:0;border-radius:6px;font-size:11px;cursor:pointer;font-weight:700">${tloading?'⏳':'📝'} ${tloading?'transcrevendo…':(base?'Re-transcrever':'Transcrever')}</button>`;
       const playerHtml=cached?`<audio id="audio_${m.id}" controls preload="auto" src="${cached.url}" style="width:100%;max-width:320px;height:32px;margin-top:6px"></audio>`
         :`<button onclick="ouvirAudio(${m.id})" ${mloading?'disabled':''} style="padding:3px 9px;background:#0d1417;color:#cfdde0;border:1px solid var(--line);border-radius:6px;font-size:11px;cursor:pointer">${mloading?'⏳ carregando…':'🔊 Ouvir'}</button>`;
-      txt=`<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">🎵 ${playerHtml} ${transcrBtn}</div>${base?`<div style="margin-top:6px;font-style:italic;color:#cfdde0">"${base.replace(/[<>]/g,c=>c==='<'?'&lt;':'&gt;')}"</div>`:''}`;
+      txt=`<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">🎵 ${playerHtml} ${transcrBtn}</div>${base?`<div style="margin-top:6px;font-style:italic;color:#cfdde0">"${escH(base)}"</div>`:''}`;
     } else if(isImg){
       txt=cached?`<img src="${cached.url}" style="max-width:280px;max-height:280px;border-radius:6px;cursor:pointer" onclick="abrirArquivo(${m.id})">`
         :`<button onclick="baixarMidia(${m.id})" ${mloading?'disabled':''} style="padding:3px 9px;background:#0d1417;color:#cfdde0;border:1px solid var(--line);border-radius:6px;font-size:11px;cursor:pointer">${mloading?'⏳':'🖼️ Carregar imagem'}</button>`;
@@ -1183,7 +1229,7 @@ function renderModal(){
       const pdfBtn=isPdf?`<button onclick="extrairPdf(${m.id})" ${ploading?'disabled':''} title="${pcache?'PDF já lido pela IA':'Extrair texto pra IA'}" style="margin-left:4px;padding:3px 9px;background:${pcache?'#0d1417':'var(--turq)'};color:${pcache?'var(--turq)':'#001'};border:${pcache?'1px solid var(--turq)':'0'};border-radius:6px;font-size:11px;cursor:pointer;font-weight:700">${ploading?'⏳ lendo…':(pcache?'✅ IA lê este PDF':'🤖 Ler pra IA')}</button>`:'';
       txt=`📄 ${fname} <button onclick="abrirArquivo(${m.id})" ${mloading?'disabled':''} style="margin-left:6px;padding:3px 9px;background:var(--lima);color:#001;border:0;border-radius:6px;font-size:11px;cursor:pointer;font-weight:700">${mloading?'⏳':'📥 Baixar'}</button>${pdfBtn}${pcache?`<div style="margin-top:6px;font-size:10px;color:var(--mut);font-style:italic">📝 ${pcache.texto.length} caracteres extraídos</div>`:''}`;
     } else {
-      txt=(m.texto||'['+(m.tipo||'mídia')+']').replace(/[<>]/g,c=>c==='<'?'&lt;':'&gt;');
+      txt=escH(m.texto||'['+(m.tipo||'mídia')+']');
     }
     return `<div class="msg ${m.from_me?'me':''}"><div><span class="who">${escH(who)}</span><span class="when">${escH(dt)}</span></div><div class="body">${txt}</div></div>`;
   }).join('')+'</div>';
@@ -1212,7 +1258,12 @@ function renderModal(){
   // 5) Chat com IA (incl. botão de sugestão)
   const chatHist=CHAT_CACHE[MODAL_TEL]||[];
   const sug=ia&&(ia.sugestao_resposta||ia.suggestao_resposta);
-  const sugBtn=sug?`<button onclick="usarSugestao()" title="${sug.replace(/[<>"']/g,'')}" style="padding:6px 10px;background:var(--turq);color:#001;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700;margin-bottom:8px">✨ Usar sugestão da IA no chat</button>`:'';
+  const sugBtn=sug?`<div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;flex-wrap:wrap">
+    <button onclick="usarSugestao()" style="padding:6px 10px;background:var(--turq);color:#001;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">✨ Usar sugestão</button>
+    <button onclick="copiarSugestao(this)" style="padding:6px 10px;background:#0d1417;color:var(--mut);border:1px solid var(--line);border-radius:7px;font-size:11px;cursor:pointer">📋 Copiar</button>
+    <button onclick="regenerarIA()" ${IA_LOADING?'disabled':''} style="padding:6px 10px;background:#0d1417;color:var(--mut);border:1px solid var(--line);border-radius:7px;font-size:11px;cursor:pointer">🔄 ${IA_LOADING?'Gerando…':'Regenerar'}</button>
+    <div style="font-size:10px;color:var(--mut);flex-basis:100%;margin-top:2px;padding:6px 8px;background:#0d1417;border:1px solid var(--line);border-radius:7px;line-height:1.4">${escH(sug).replace(/\\n/g,'<br>')}</div>
+  </div>`:'';
   const chatMsgs=chatHist.map((m,i)=>{
     const me=m.role==='user';
     const speak=!me?`<div style="display:flex;gap:2px;margin-left:6px;align-items:center">
@@ -1224,7 +1275,7 @@ function renderModal(){
     </div>`:'';
     const tag=m.tag==='sugestao'?'<div style="font-size:9px;color:var(--turq);font-weight:700;margin-bottom:2px">✨ SUGESTÃO IA</div>':'';
     return `<div style="margin:6px 0;display:flex;align-items:flex-end;${me?'justify-content:flex-end':''}">
-      <div style="max-width:80%;padding:7px 10px;border-radius:10px;font-size:12px;line-height:1.4;${me?'background:var(--turq);color:#001':'background:#0d1417;color:#cfdde0;border:1px solid var(--line)'}">${tag}${(m.content||'').replace(/[<>]/g,c=>c==='<'?'&lt;':'&gt;').replace(/\n/g,'<br>')}</div>${speak}
+      <div style="max-width:80%;padding:7px 10px;border-radius:10px;font-size:12px;line-height:1.4;${me?'background:var(--turq);color:#001':'background:#0d1417;color:#cfdde0;border:1px solid var(--line)'}">${tag}${escH(m.content||'').replace(/\n/g,'<br>')}</div>${speak}
     </div>`;
   }).join('');
   const chatHtml=`<div style="padding:10px 14px;background:rgba(141,183,42,.05)">
@@ -1241,13 +1292,14 @@ function renderModal(){
       <button onclick="perguntarChat('${MODAL_TEL}')" ${CHAT_LOADING?'disabled':''} style="padding:8px 14px;background:var(--lima);color:#001;border:0;border-radius:7px;font-size:12px;cursor:pointer;font-weight:700">${CHAT_LOADING?'…':'Enviar'}</button>
     </div>
   </div>`;
+  const prevInp=document.getElementById('chatInput');
+  const savedVal=prevInp?prevInp.value:'';
   const focoChat=document.activeElement&&document.activeElement.id==='chatInput';
   body.innerHTML=cabHtml+msgsHtml+iaHtml+crEAnetHtml(p,ia,d.msgs)+dossieHtml(MODAL_TEL)+finHtml(MODAL_TEL)+gmailHtml(MODAL_TEL)+arqHtml+chatHtml;
-  // Sempre rola pro chat IA (não pro histórico)
   requestAnimationFrame(()=>{
     const list=document.getElementById('iaChatList'); if(list) list.scrollTop=list.scrollHeight;
     const inp=document.getElementById('chatInput');
-    if(inp){ inp.scrollIntoView({block:'end',behavior:'auto'}); if(focoChat) inp.focus(); }
+    if(inp){ if(savedVal) inp.value=savedVal; inp.scrollIntoView({block:'end',behavior:'auto'}); if(focoChat) inp.focus(); }
   });
 }
 
@@ -1506,19 +1558,9 @@ function render(){
         <div style="flex:1"></div>
         <button onclick="abrirConversa('${ev.tel||''}','${safeContato}')" style="padding:7px 14px;background:var(--turq);color:#001;border:0;border-radius:7px;font-size:12px;cursor:pointer;font-weight:700">Abrir atendimento ↗</button>
       </div>
-      ${cur?.nota?`<div style="margin-top:8px;padding:8px 10px;background:#0d1417;border-left:2px solid var(--mut);font-size:11px;color:var(--mut)">${cur.nota.replace(/[<>]/g,c=>c==='<'?'&lt;':'&gt;')}</div>`:''}
+      ${cur?.nota?`<div style="margin-top:8px;padding:8px 10px;background:#0d1417;border-left:2px solid var(--mut);font-size:11px;color:var(--mut)">${escH(cur.nota)}</div>`:''}
     </div>`;
   }).join("");
-}
-function dadosTxt(ev){
-  const f=ev.fields||{};
-  if(f.dados) return (f.condominio?'🏢 '+f.condominio+'\n':'')+f.dados;
-  let l=[];
-  if(f.condominio) l.push('🏢 '+f.condominio);
-  if(f.blocoEApartamento) l.push('🚪 '+f.blocoEApartamento);
-  l.push('📞 '+(ev.tel||''));
-  l.push('📂 Depto MegaZap: '+(ev.depto||'—'));
-  return l.join('\n');
 }
 function setFiltro(t){filtro=t;render();}
 function setV(id,v){store[id]={...(store[id]||{}),v};save();render();
@@ -1725,37 +1767,29 @@ function cardAprov(p){
   </div>`;
 }
 
-function sugGenerico(p){
-  const nome=(p.nome||'').split(/[ (]/)[0].replace(/^\W+/,'')||'tudo bem';
-  if(/^ART$/i.test(p.tipo))
-    return `Olá, ${nome}! Aqui é da Diagnóstika Engenharia. 👷
-Para emitir a ART do ${p.apto||'seu apartamento'}, o valor fica em R$ 250 a R$ 350 (conforme o tipo de obra).
-Confirmo: nome completo, CPF, condomínio, bloco/apto, metragem e tipo de obra. Assim que confirmar, envio o PIX e emito a ART. 📄`;
-  return `Olá, ${nome}! Aqui é da Diagnóstika Engenharia.
-Sobre a vistoria solicitada${p.apto?' ('+p.apto+')':''}: vamos agendar uma visita técnica. Qual o melhor dia e período para você? 📅`;
-}
-
 function toggleDoc(tel,id){const s=aState(tel);s.docs[id]=!s.docs[id];asave();renderAprov();}
 function toggleEstr(tel){const s=aState(tel);s.estrutural=!s.estrutural;asave();renderAprov();}
-function copiarSug(tel){
-  const el=document.getElementById('sug-'+tel);
-  navigator.clipboard.writeText(el.textContent).then(()=>{
-    const b=event.target;const o=b.textContent;b.textContent='✅ Copiado';setTimeout(()=>b.textContent=o,1500);
-  });
-}
-
 // ====== INBOX (Blip/Front layout) ======
 let IB_FILA = localStorage.getItem('sombra_ib_fila') || 'aguarda_diag';
-let IB_TEL = null; // conversa selecionada
+let IB_TEL = null;
 let IB_CHAT_OPEN = false;
-function ibToggleChat(){ IB_CHAT_OPEN=!IB_CHAT_OPEN; renderInboxThread(); if(IB_CHAT_OPEN) setTimeout(()=>{const i=document.getElementById('ibChatInput');i&&i.focus();},80);}
-async function ibPerguntar(){
-  const inp = document.getElementById('ibChatInput');
-  const q = inp?.value?.trim(); if (!q) return;
-  ibContexto();
-  inp.value='';
-  await perguntarChat(IB_TEL); // usa CHAT_CACHE existente; perguntarChat lê do input chatInput, então preciso adaptar
+let IB_SEARCH = '';
+const IB_RESOLVED_KEY = 'sombra_ib_resolved';
+let IB_RESOLVED = JSON.parse(localStorage.getItem(IB_RESOLVED_KEY)||'{}');
+function ibResolver(tel){
+  if(!tel) return;
+  IB_RESOLVED[tel] = Date.now();
+  localStorage.setItem(IB_RESOLVED_KEY, JSON.stringify(IB_RESOLVED));
+  IB_TEL = null;
+  sombraToast('✅ Conversa marcada como resolvida','ok');
+  renderInbox();
 }
+function ibReabrir(tel){
+  delete IB_RESOLVED[tel];
+  localStorage.setItem(IB_RESOLVED_KEY, JSON.stringify(IB_RESOLVED));
+  renderInbox();
+}
+function ibToggleChat(){ IB_CHAT_OPEN=!IB_CHAT_OPEN; renderInboxThread(); if(IB_CHAT_OPEN) setTimeout(()=>{const i=document.getElementById('ibChatInput');i&&i.focus();},80);}
 async function ibPerguntarDireto(q){
   if (!q || !IB_TEL) return;
   ibContexto();
@@ -1780,46 +1814,51 @@ async function ibPerguntarDireto(q){
 
 function ibFilas(){
   const VIS = PEND.filter(p=>!HIDDEN[p.tel]);
-  const ag = (now=Date.now())=>VIS.filter(p=>{
+  const ABERTOS = VIS.filter(p=>!IB_RESOLVED[p.tel]);
+  const ag = ()=>ABERTOS.filter(p=>{
     if(p.quem!=='diag') return false;
     const m=LIVE[p.tel]?.msgs||[]; const last=m[m.length-1];
     return last && !last.from_me;
   });
   const aguardaDiag = ag().length;
-  const aguardaCli = VIS.filter(p=>p.quem==='cliente').length;
-  const slaCritico = VIS.filter(p=>{
+  const aguardaCli = ABERTOS.filter(p=>p.quem==='cliente').length;
+  const slaCritico = ABERTOS.filter(p=>{
     if(p.quem!=='diag') return false;
     const m=LIVE[p.tel]?.msgs||[]; const last=m[m.length-1];
     if(!last||last.from_me) return false;
     return (Date.now()-new Date(last.recebida_em).getTime())>24*60*60*1000;
   }).length;
-  const liveCount = VIS.filter(p=>p._live).length;
+  const liveCount = ABERTOS.filter(p=>p._live).length;
+  const resolvedCount = VIS.filter(p=>!!IB_RESOLVED[p.tel]).length;
   return [
     {id:'aguarda_diag', label:'Aguardando humano', n:aguardaDiag},
     {id:'aguarda_cli', label:'Aguardando cliente', n:aguardaCli},
     {id:'sla', label:'⚠ SLA crítico (>24h)', n:slaCritico, warn:true},
     {id:'live', label:'📡 Captura ao vivo', n:liveCount},
-    {id:'todos', label:'Todos', n:VIS.length},
+    {id:'todos', label:'Todos abertos', n:ABERTOS.length},
+    {id:'resolvidos', label:'✅ Resolvidos', n:resolvedCount},
   ];
 }
 
 function ibFiltrar(){
   const VIS = PEND.filter(p=>!HIDDEN[p.tel]);
-  if (IB_FILA==='todos') return VIS;
-  if (IB_FILA==='live') return VIS.filter(p=>p._live);
-  if (IB_FILA==='aguarda_cli') return VIS.filter(p=>p.quem==='cliente');
-  if (IB_FILA==='aguarda_diag') return VIS.filter(p=>{
+  if (IB_FILA==='resolvidos') return VIS.filter(p=>!!IB_RESOLVED[p.tel]);
+  const ABERTOS = VIS.filter(p=>!IB_RESOLVED[p.tel]);
+  if (IB_FILA==='todos') return ABERTOS;
+  if (IB_FILA==='live') return ABERTOS.filter(p=>p._live);
+  if (IB_FILA==='aguarda_cli') return ABERTOS.filter(p=>p.quem==='cliente');
+  if (IB_FILA==='aguarda_diag') return ABERTOS.filter(p=>{
     if(p.quem!=='diag') return false;
     const m=LIVE[p.tel]?.msgs||[]; const last=m[m.length-1];
     return last && !last.from_me;
   });
-  if (IB_FILA==='sla') return VIS.filter(p=>{
+  if (IB_FILA==='sla') return ABERTOS.filter(p=>{
     if(p.quem!=='diag') return false;
     const m=LIVE[p.tel]?.msgs||[]; const last=m[m.length-1];
     if(!last||last.from_me) return false;
     return (Date.now()-new Date(last.recebida_em).getTime())>24*60*60*1000;
   });
-  return VIS;
+  return ABERTOS;
 }
 
 function ibSelFila(id){ IB_FILA=id; localStorage.setItem('sombra_ib_fila',id); renderInbox(); }
@@ -1849,11 +1888,15 @@ function renderInbox(){
     </div>`
   ).join('');
 
-  const convos = ibFiltrar().sort((a,b)=>{
+  let convos = ibFiltrar().sort((a,b)=>{
     const ta=LIVE[a.tel]?.msgs?.slice(-1)[0]?.recebida_em||0;
     const tb=LIVE[b.tel]?.msgs?.slice(-1)[0]?.recebida_em||0;
     return new Date(tb).getTime()-new Date(ta).getTime();
   });
+  if(IB_SEARCH){
+    const q=IB_SEARCH.toLowerCase();
+    convos=convos.filter(p=>(p.nome||'').toLowerCase().includes(q)||(p.tel||'').includes(q)||(p.cond||'').toLowerCase().includes(q)||(p.tipo||'').toLowerCase().includes(q));
+  }
   document.getElementById('ibCvCount').textContent = convos.length;
   document.getElementById('ibConvos').innerHTML = convos.length ? convos.map(p=>{
     const last = ibConvoLastMsg(p.tel);
@@ -1952,6 +1995,12 @@ function renderInboxThread(){
   const tipo = p.tipo || '';
   const ia = IA_CACHE[IB_TEL] || {};
   const fin = FIN_CACHE[IB_TEL];
+  const lastCliMsg = [...msgs].reverse().find(m=>!m.from_me);
+  const slaMs = lastCliMsg ? Date.now()-new Date(lastCliMsg.recebida_em).getTime() : 0;
+  const slaH = Math.floor(slaMs/3600000);
+  const slaMin = Math.floor((slaMs%3600000)/60000);
+  const slaStr = lastCliMsg&&!msgs[msgs.length-1]?.from_me ? (slaH>0?slaH+'h '+slaMin+'min':slaMin+'min')+' aguardando' : '';
+  const slaCor = slaH>=24?'#e88':(slaH>=4?'#fb6':'#6ec07a');
 
   // IA: sugestão inline ou botão "Analisar"
   let sugestao = '';
@@ -1970,12 +2019,12 @@ function renderInboxThread(){
     <div class="ib-mhead">
       <div class="info">
         <b>${escH(nome)}${cond?' · '+escH(cond):''}${p.apto?' · '+escH(p.apto):''}</b>
-        <div class="sub">${escH(tipo||'(sem classificação)')} · 📞 ${escH(IB_TEL)} · ${msgs.length} msg</div>
+        <div class="sub">${escH(tipo||'(sem classificação)')} · 📞 ${escH(IB_TEL)} · ${msgs.length} msg${slaStr?` · <span style="color:${slaCor};font-weight:700">⏱ ${slaStr}</span>`:''}</div>
       </div>
       <div class="acts">
         <button onclick="ibToggleChat()" title="Abre painel pra você perguntar à IA sobre este caso (resumo, próximos passos, redigir e-mail, etc)" style="background:${IB_CHAT_OPEN?'#7a4ec2':'rgba(122,78,194,.18)'};color:${IB_CHAT_OPEN?'#fff':'#b89cff'};border:1px solid #7a4ec2;font-weight:700">💬 ${IB_CHAT_OPEN?'Fechar chat':'Perguntar à IA'}${(CHAT_CACHE[IB_TEL]||[]).length?' ('+(CHAT_CACHE[IB_TEL]||[]).length+')':''}</button>
         <button onclick="abrirConversa('${IB_TEL}','${(nome||'').replace(/'/g,"\\\\'")}')">Modal completo ↗</button>
-        <button onclick="alert('Marcar como resolvido — TODO')">✓ Resolver</button>
+        ${IB_RESOLVED[IB_TEL]?`<button onclick="ibReabrir('${IB_TEL}')" style="background:rgba(110,192,122,.15);color:#6ec07a;border:1px solid #6ec07a">↩ Reabrir</button>`:`<button onclick="ibResolver('${IB_TEL}')">✓ Resolver</button>`}
       </div>
     </div>
     <div class="ib-thread" id="ibThread">

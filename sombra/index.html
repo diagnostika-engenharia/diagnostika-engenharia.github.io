@@ -686,6 +686,24 @@ function gmailHtml(tel){
     </div>${body}
   </div>`;
 }
+// ═══ Extração robusta de Bloco/Apto de texto livre (WhatsApp) ═══
+function extrairBlocoAptoTexto(txt){
+  if(!txt) return {bloco:'',apto:''};
+  // 1) "Bloco B apto 36", "BL 06, apto 304", "Torre A apt 28"
+  let m=txt.match(/(?:bl(?:oco|och)?|torre)\.?\s*:?\s*([0-9A-Za-z]+)[\s,;\-/]+(?:ap(?:artamento|t)?o?\.?\s*:?\s*)([0-9A-Za-z]+)/i);
+  if(m) return {bloco:m[1],apto:m[2]};
+  // 2) invertido: "Apartamento 31 Bloco B", "apto 153, bloco A"
+  m=txt.match(/(?:ap(?:artamento|t)?o?\.?\s*:?\s*)([0-9A-Za-z]+)[\s,;\-/]+(?:bl(?:oco|och)?|torre)\.?\s*:?\s*([0-9A-Za-z]+)/i);
+  if(m) return {bloco:m[2],apto:m[1]};
+  // 3) separados em linhas diferentes — busca cada um individualmente
+  const apM=txt.match(/(?:n[uú]mero\s*(?:do\s*)?)?(?:ap(?:artamento|t)?o?|unidade|und)\.?\s*:?\s*(\d{1,4})\s*([A-Za-z])?/i);
+  const blM=txt.match(/(?:bl(?:oco|och)?|torre)\.?\s*:?\s*([0-9A-Za-z]+)/i);
+  // Evita falso positivo de "bloco" dentro de frases genéricas ("informe o bloco e o seu apartamento")
+  const blVal=blM && !/informe|qual|diga|preencha/i.test(blM.input.slice(Math.max(0,blM.index-20),blM.index)) ? blM[1] : '';
+  const apVal=apM ? apM[1]+(apM[2]||'') : '';
+  if(apVal||blVal) return {bloco:blVal,apto:apVal};
+  return {bloco:'',apto:''};
+}
 // ═══ T2.2 — CREAnet: extrair dados ART do card e copiar pro form ═══
 function extrairDadosART(p,msgs){
   const out={nome:'',cpf:'',cond:'',endereco:'',bloco:'',apto:'',metragem:'',obra:'',tel:p?.tel||MODAL_TEL||''};
@@ -698,12 +716,9 @@ function extrairDadosART(p,msgs){
   }
   const txtCombo=[p?.fields?.dados||'',...(msgs||[]).map(m=>m?.texto||m?.content||'')].join('\n');
   if(!out.bloco&&!out.apto){
-    const ba=txtCombo.match(/(?:bl(?:oco)?|torre)\.?\s*:?\s*([0-9A-Za-z]+)[\s,\-/]+(?:ap(?:t)?o?\.?\s*:?\s*)([0-9A-Za-z]+)/i);
-    if(ba){ out.bloco=ba[1]; out.apto=ba[2]; }
-    else{
-      const ap=txtCombo.match(/(?:n[uú]mero\s*(?:do\s*)?)?ap(?:artamento|t)?o?\.?\s*:?\s*(\d{1,4})/i); if(ap) out.apto=ap[1];
-      const bl=txtCombo.match(/(?:bl(?:oco)?|torre)\.?\s*:?\s*([0-9A-Za-z]+)/i); if(bl) out.bloco=bl[1];
-    }
+    const ex=extrairBlocoAptoTexto(txtCombo);
+    if(ex.bloco) out.bloco=ex.bloco;
+    if(ex.apto) out.apto=ex.apto;
   }
   const cpf=txtCombo.match(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/);
   if(cpf) out.cpf=cpf[0].replace(/\D/g,'').replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4');
@@ -711,10 +726,27 @@ function extrairDadosART(p,msgs){
   if(metr) out.metragem=metr[1].replace(',','.')+' m²';
   const end=txtCombo.match(/(?:av|avenida|rua|r\.|alameda|al\.|estrada|rod)\.?\s*:?\s*[^\n]{5,180}/i);
   if(end) out.endereco=end[0].trim().slice(0,180);
-  const tipos=['banheiro','cozinha','sala','quarto','dormitório','varanda','fachada','elétric','hidráulic','piso','parede','teto','reforma'];
-  const baixo=txtCombo.toLowerCase();
-  const found=tipos.filter(t=>baixo.includes(t));
-  if(found.length) out.obra=found.slice(0,4).join(', ');
+  // Descrição detalhada: busca itens de reforma listados pelo morador
+  const linhas=txtCombo.split('\n').map(l=>l.trim()).filter(Boolean);
+  const itensObra=[];
+  let capturando=false;
+  for(const l of linhas){
+    if(/^reformas?\s*:/i.test(l)){ capturando=true; continue; }
+    if(capturando){
+      if(/^[a-z]\)|^\d\)|^[-•●▸]/.test(l)) itensObra.push(l.replace(/^[a-z]\)\s*|^\d\)\s*|^[-•●▸]\s*/,'').trim());
+      else if(itensObra.length>0) break;
+    }
+    if(!capturando && /^(?:[a-z]\)|[-•●▸])\s*.{5,}/.test(l) && /substitui|instala|troca|pintura|piso|revestimento|forro|gesso|ar.?condicionado|armário|bancada|pedra|impermeabiliz/i.test(l)){
+      itensObra.push(l.replace(/^[a-z]\)\s*|^[-•●▸]\s*/,'').trim());
+    }
+  }
+  if(itensObra.length) out.obra=itensObra.join('; ').slice(0,300);
+  else{
+    const tipos=['banheiro','cozinha','sala','quarto','dormitório','varanda','fachada','elétric','hidráulic','piso','parede','teto','reforma'];
+    const baixo=txtCombo.toLowerCase();
+    const found=tipos.filter(t=>baixo.includes(t));
+    if(found.length) out.obra=found.slice(0,4).join(', ');
+  }
   return out;
 }
 function copiarTxt(t,btn){ navigator.clipboard.writeText(t).then(()=>{const o=btn.textContent;btn.textContent='✓';setTimeout(()=>btn.textContent=o,1200);}); }
@@ -1366,14 +1398,10 @@ function derivaCardDeLive(tel, liveData){
   // quem: se última msg from_me=false, está aguardando Diagnóstika
   const quem = (last && !last.from_me) ? 'diag' : 'cliente';
   let apto=null;
-  const ba=txtAll.match(/(?:bl(?:oco)?|torre)\.?\s*:?\s*([0-9A-Za-z]+)[\s,\-/]+(?:ap(?:t)?o?\.?\s*:?\s*)([0-9A-Za-z]+)/i);
-  if(ba) apto=`Bloco ${ba[1]}, apto ${ba[2]}`;
-  else{
-    const ap=txtAll.match(/(?:n[uú]mero\s*(?:do\s*)?)?ap(?:artamento|t)?o?\.?\s*:?\s*(\d{1,4})/i);
-    const bl=txtAll.match(/(?:bl(?:oco)?|torre)\.?\s*:?\s*([0-9A-Za-z]+)/i);
-    if(ap&&bl) apto=`Bloco ${bl[1]}, apto ${ap[1]}`;
-    else if(ap) apto=`apto ${ap[1]}`;
-  }
+  const ex=extrairBlocoAptoTexto(txtAll);
+  if(ex.bloco&&ex.apto) apto=`Bloco ${ex.bloco}, apto ${ex.apto}`;
+  else if(ex.apto) apto=`apto ${ex.apto}`;
+  else if(ex.bloco) apto=`Bloco ${ex.bloco}`;
   return { tel, nome, cond, tipo, data, apto, quem, _live:true, _lastMs:lastTs };
 }
 function formatRelativo(ts){
@@ -1445,14 +1473,10 @@ function rebuildPend(){
     const msgs=LIVE[p.tel]?.msgs||[];
     if(!msgs.length) return;
     const txt=msgs.map(m=>m.texto||'').join('\n');
-    const ba=txt.match(/(?:bl(?:oco)?|torre)\.?\s*:?\s*([0-9A-Za-z]+)[\s,\-/]+(?:ap(?:t)?o?\.?\s*:?\s*)([0-9A-Za-z]+)/i);
-    if(ba) p.apto=`Bloco ${ba[1]}, apto ${ba[2]}`;
-    else{
-      const ap=txt.match(/(?:n[uú]mero\s*(?:do\s*)?)?ap(?:artamento|t)?o?\.?\s*:?\s*(\d{1,4})/i);
-      const bl=txt.match(/(?:bl(?:oco)?|torre)\.?\s*:?\s*([0-9A-Za-z]+)/i);
-      if(ap&&bl) p.apto=`Bloco ${bl[1]}, apto ${ap[1]}`;
-      else if(ap) p.apto=`apto ${ap[1]}`;
-    }
+    const ex=extrairBlocoAptoTexto(txt);
+    if(ex.bloco&&ex.apto) p.apto=`Bloco ${ex.bloco}, apto ${ex.apto}`;
+    else if(ex.apto) p.apto=`apto ${ex.apto}`;
+    else if(ex.bloco) p.apto=`Bloco ${ex.bloco}`;
   });
   // sort extras: mais recentes primeiro (sentido de urgência)
   extras.sort((a,b)=>(b._lastMs||0)-(a._lastMs||0));
@@ -2435,19 +2459,15 @@ function abrirModalAprovacao(tel){
     const dt=new Date(ano,mes,d);
     if(!isNaN(dt)) datas.push(dt);
   }
-  // Ordena e pega a primeira como início
+  // Ordena e garante que data início nunca é antes de hoje
   datas.sort((a,b)=>a-b);
+  const hojeZero=new Date(hoje.getFullYear(),hoje.getMonth(),hoje.getDate());
   const fmtDt=dt=>{const dd=String(dt.getDate()).padStart(2,'0');const mm=String(dt.getMonth()+1).padStart(2,'0');const yy=dt.getFullYear();return dd+'/'+mm+'/'+yy;};
-  if(datas.length>=2){
-    document.getElementById('aprov-dt-ini').value=fmtDt(datas[0]);
-    document.getElementById('aprov-dt-fim').value=fmtDt(datas[datas.length-1]);
-  } else if(datas.length===1){
-    document.getElementById('aprov-dt-ini').value=fmtDt(datas[0]);
-    document.getElementById('aprov-dt-fim').value='';
-  } else {
-    document.getElementById('aprov-dt-ini').value='';
-    document.getElementById('aprov-dt-fim').value='';
-  }
+  const futuras=datas.filter(d=>d>=hojeZero);
+  const dtIni=futuras.length?futuras[0]:hojeZero;
+  const dtFim=futuras.length>=2?futuras[futuras.length-1]:null;
+  document.getElementById('aprov-dt-ini').value=fmtDt(dtIni);
+  document.getElementById('aprov-dt-fim').value=dtFim?fmtDt(dtFim):'';
 
   // Código: usa protocolo MegaZap se disponível
   const rawM=RAW.find(x=>x.tel===tel);

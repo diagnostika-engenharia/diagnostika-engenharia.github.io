@@ -374,6 +374,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpbW1qZ2R3aGlmc3JyYnJlY2hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzU2NDIsImV4cCI6MjA5NTE1MTY0Mn0.eAmMS95M8BkfX3NCcOtHnhKWXy0jkvXwSGEoqv_Q21Q';
 const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON,{auth:{persistSession:false}}) : null;
 
+const CONDS_COM_TEMPLATE=['Monte Carlo','Morada Morumbi','Santa Clara','Portal Primavera'];
 const LIVE = {}; // tel -> {msgs:[], loaded:bool, channel:obj}
 let LIVE_OK = null; // null=desconhecido, true=tabela existe, false=ainda não criada
 
@@ -1295,10 +1296,10 @@ function renderModal(){
   const prevInp=document.getElementById('chatInput');
   const savedVal=prevInp?prevInp.value:'';
   const focoChat=document.activeElement&&document.activeElement.id==='chatInput';
-  const emitAprovBtn=`<div style="padding:8px 14px;background:rgba(141,183,42,.08);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px">
+  const emitAprovBtn=CONDS_COM_TEMPLATE.some(c=>c.toLowerCase()===(p.cond||'').toLowerCase())?`<div style="padding:8px 14px;background:rgba(141,183,42,.08);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px">
     <button onclick="event.stopPropagation();abrirModalAprovacao('${MODAL_TEL}')" style="padding:7px 14px;background:var(--lima);color:#001;border:0;border-radius:8px;font-size:12px;cursor:pointer;font-weight:700">📋 Emitir Aprovação</button>
     <span style="font-size:11px;color:var(--mut)">Gera DOCX de Autorização de Reforma com os dados deste atendimento</span>
-  </div>`;
+  </div>`:'';
   body.innerHTML=cabHtml+emitAprovBtn+msgsHtml+iaHtml+crEAnetHtml(p,ia,d.msgs)+dossieHtml(MODAL_TEL)+finHtml(MODAL_TEL)+gmailHtml(MODAL_TEL)+arqHtml+chatHtml;
   requestAnimationFrame(()=>{
     const list=document.getElementById('iaChatList'); if(list) list.scrollTop=list.scrollHeight;
@@ -1851,7 +1852,7 @@ function cardAprov(p){
         <span class="ap-badge ${p.quem}" style="margin:0">${p.quem==='diag'?'🔴 Diag.':'🟠 Cliente'}</span>
         <a class="ap-wa" href="${waLink(p.tel)}" target="_blank" style="margin:0">WA ↗</a>
         <div style="flex:1"></div>
-        <button onclick="event.stopPropagation();abrirModalAprovacao('${safeTel}')" style="padding:6px 12px;background:var(--lima);color:#001;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">📋 Emitir</button>
+        ${CONDS_COM_TEMPLATE.some(c=>c.toLowerCase()===(p.cond||'').toLowerCase())?`<button onclick="event.stopPropagation();abrirModalAprovacao('${safeTel}')" style="padding:6px 12px;background:var(--lima);color:#001;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">📋 Emitir</button>`:''}
         <button onclick="abrirConversa('${safeTel}','${safeNome}')" style="padding:6px 12px;background:var(--turq);color:#001;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">Abrir ↗</button>
       </div>
     </div>
@@ -2245,7 +2246,7 @@ function renderInboxThread(){
 
     <h5>Próxima ação</h5>
     ${tipo==='ART' || ia.classificacao==='ART' ? `<button class="cta" onclick="ibEmitirART()">🤖 Emitir ART (RPA)</button><div style="font-size:10px;color:var(--mut);margin-top:4px;text-align:center">requer server.mjs em 127.0.0.1:9999</div>` : ''}
-    <button class="cta" style="background:var(--lima);color:#001;margin-top:6px" onclick="abrirModalAprovacao('${IB_TEL}')">📋 Emitir Aprovação</button>
+    ${CONDS_COM_TEMPLATE.some(c=>c.toLowerCase()===cond.toLowerCase())?`<button class="cta" style="background:var(--lima);color:#001;margin-top:6px" onclick="abrirModalAprovacao('${IB_TEL}')">📋 Emitir Aprovação</button>`:''}
     <button class="cta" style="background:transparent;border:1px solid var(--turq);color:var(--turq);margin-top:6px" onclick="abrirConversa('${IB_TEL}','${(nome||'').replace(/'/g,"\\\\'")}')">📺 Abrir modal completo</button>
 
     <h5>Financeiro ${fin?`<button onclick="ibBuscarFin()" style="float:right;background:transparent;color:var(--ib-mut);border:1px solid var(--ib-line);border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer" title="Atualizar">↻</button>`:'<button onclick="ibBuscarFin()" style="float:right;background:#1f7a3d;color:#fff;border:0;border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer">Buscar</button>'}</h5>
@@ -2359,8 +2360,13 @@ ibApplyLayout();
 // ====== EMITIR APROVAÇÃO DE REFORMA ======
 function parseApto(str){
   if(!str) return {bloco:'',apto:''};
-  const m=str.match(/(?:Bloco|BL)\s*(\w+),?\s*(?:apto|ap)\s*(\d+)/i);
-  return m?{bloco:m[1],apto:m[2]}:{bloco:'',apto:''};
+  // "Apto 22, Bloco A" (invertido — testar primeiro)
+  let m=str.match(/ap(?:t)?o?\.?\s*([0-9A-Za-z]+)[\s,\-/]+bl(?:oco)?\.?\s*([0-9A-Za-z]+)/i);
+  if(m) return {bloco:m[2],apto:m[1]};
+  // "Bloco B, apto 31", "BL 06, apto 304", "A/22", "B 31"
+  m=str.match(/(?:bl(?:oco)?\.?\s*)?([0-9A-Za-z]+)[\s,\-/]+(?:ap(?:t)?o?\.?\s*)?([0-9A-Za-z]+)/i);
+  if(m) return {bloco:m[1],apto:m[2]};
+  return {bloco:'',apto:''};
 }
 
 function abrirModalAprovacao(tel){
@@ -2415,6 +2421,7 @@ function abrirModalAprovacao(tel){
   const rawM=RAW.find(x=>x.tel===tel);
   const proto=p.protocolo||p.protocol||(rawM&&rawM.protocolo)||'';
   document.getElementById('aprov-codigo').value=proto?String(proto):'';
+  if(document.getElementById('aprov-obs-gas')) document.getElementById('aprov-obs-gas').value='';
   document.getElementById('aprov-status').textContent='';
   document.getElementById('modalAprov').classList.add('on');
 }
@@ -2422,16 +2429,23 @@ function abrirModalAprovacao(tel){
 function fecharModalAprov(){document.getElementById('modalAprov').classList.remove('on');}
 
 async function gerarAprovacao(){
+  const dtRx=/^\d{2}\/\d{2}\/\d{4}$/;
+  const dtIni=document.getElementById('aprov-dt-ini').value.trim();
+  const dtFim=document.getElementById('aprov-dt-fim').value.trim();
+  if(dtIni&&!dtRx.test(dtIni)){sombraToast('Data início deve estar no formato dd/mm/aaaa','err');return;}
+  if(dtFim&&!dtRx.test(dtFim)){sombraToast('Data fim deve estar no formato dd/mm/aaaa','err');return;}
+  const obsGas=(document.getElementById('aprov-obs-gas')||{}).value||'';
   const body={
     condominio:document.getElementById('aprov-cond').value,
     nome:document.getElementById('aprov-nome').value,
     bloco:document.getElementById('aprov-bloco').value,
     apto:document.getElementById('aprov-apto').value,
     descricao:document.getElementById('aprov-desc').value,
-    dataInicio:document.getElementById('aprov-dt-ini').value,
-    dataFim:document.getElementById('aprov-dt-fim').value,
+    dataInicio:dtIni,
+    dataFim:dtFim,
     codigo:document.getElementById('aprov-codigo').value||undefined,
   };
+  if(obsGas) body.obsGas=obsGas;
   const missing=['condominio','nome','bloco','apto','descricao','dataInicio','dataFim'].filter(k=>!body[k]);
   if(missing.length){sombraToast('Preencha todos os campos obrigatórios','err');return;}
   const st=document.getElementById('aprov-status');
@@ -2482,6 +2496,9 @@ async function gerarAprovacao(){
       </div>
       <label style="font-size:12px;color:var(--mut)">Descrição da reforma
         <textarea id="aprov-desc" rows="3" placeholder="Ex: Troca de piso, pintura, instalação de gesso..." style="width:100%;margin-top:4px;padding:9px 12px;background:var(--card2);color:var(--txt);border:1px solid var(--line);border-radius:8px;font-size:13px;resize:vertical;font-family:inherit;display:block"></textarea>
+      </label>
+      <label style="font-size:12px;color:var(--mut)">Observação — ponto de gás (opcional)
+        <input id="aprov-obs-gas" placeholder="Ex: Instalação de ponto de gás na cozinha" style="width:100%;margin-top:4px;padding:9px 12px;background:var(--card2);color:var(--txt);border:1px solid var(--line);border-radius:8px;font-size:13px">
       </label>
       <div style="display:flex;gap:12px">
         <label style="font-size:12px;color:var(--mut);flex:1">Data início

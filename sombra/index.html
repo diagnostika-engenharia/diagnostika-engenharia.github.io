@@ -1635,11 +1635,30 @@ function detectarContratacao(p){
 
 // Detecta evidências de pagamento na conversa
 function detectarPagamento(msgs){
-  if(!msgs||!msgs.length) return {pago:false,sinais:[],valor:null,dataRef:null};
+  if(!msgs||!msgs.length) return {pago:false,sinais:[],valor:null,valorComprovante:null,dataRef:null,pdfIds:[]};
   const sinais=[];
-  let valorDetectado=null, dataRef=null;
+  let valorCobrado=null, valorComprovante=null, dataRef=null;
+  const pdfIds=[];
   for(const m of msgs){
     const t=(m.texto||'').toLowerCase();
+    // PDFs enviados pelo cliente (possíveis comprovantes)
+    if(!m.from_me && m.tipo==='document'){
+      pdfIds.push(m.id);
+      // Verifica se já foi extraído e tem texto de comprovante
+      const cached=PDF_CACHE[m.id];
+      if(cached && cached.texto){
+        const ptxt=cached.texto.toLowerCase();
+        if(/comprovante|transfer[eê]ncia|pix|pagamento|recibo|transa[çc][ãa]o/i.test(ptxt)){
+          sinais.push({tipo:'pdf_comprovante',msg:'PDF de comprovante lido',de:'cliente',at:m.recebida_em});
+          const vm=ptxt.match(/(?:valor|r\$)\s*:?\s*([\d.,]+)/i);
+          if(vm){
+            const v=vm[1].replace(/\./g,'').replace(',','.');
+            const num=parseFloat(v);
+            if(num>0 && num<100000) valorComprovante=num;
+          }
+        }
+      }
+    }
     if(!t) continue;
     // Cliente enviou comprovante/confirmou pagamento
     if(!m.from_me){
@@ -1652,28 +1671,52 @@ function detectarPagamento(msgs){
       if(/enviar\s*pix|chave\s*pix|dados.*pagamento|valor.*R\$|R\$\s*\d/i.test(t)){
         sinais.push({tipo:'cobranca_enviada',msg:t.slice(0,60),de:'diag',at:m.recebida_em});
         const vm=t.match(/R\$\s*([\d.,]+)/i);
-        if(vm) valorDetectado=vm[1].replace('.','').replace(',','.');
+        if(vm){
+          const v=vm[1].replace(/\./g,'').replace(',','.');
+          const num=parseFloat(v);
+          if(num>0 && num<100000) valorCobrado=num;
+        }
       }
     }
     // Qualquer menção a PIX/transferência com contexto de valor
     if(/\bpix\b/i.test(t)){
       const vm=t.match(/R\$\s*([\d.,]+)/i);
-      if(vm && !valorDetectado) valorDetectado=vm[1].replace('.','').replace(',','.');
+      if(vm && !valorCobrado){
+        const v=vm[1].replace(/\./g,'').replace(',','.');
+        const num=parseFloat(v);
+        if(num>0 && num<100000) valorCobrado=num;
+      }
     }
-    // Imagem enviada pelo cliente (pode ser comprovante)
+    // Imagem/doc enviado pelo cliente após cobrança
     if(!m.from_me && (m.tipo==='image'||m.tipo==='document') && sinais.some(s=>s.tipo==='cobranca_enviada'))
       sinais.push({tipo:'midia_apos_cobranca',msg:'imagem/doc enviado',de:'cliente',at:m.recebida_em});
   }
   // Classificação
   const temConfirmDiag=sinais.some(s=>s.tipo==='diag_confirmou');
+  const temPdfComprovante=sinais.some(s=>s.tipo==='pdf_comprovante');
   const temComprovanteCliente=sinais.some(s=>s.tipo==='comprovante'||s.tipo==='confirmou_pgto'||s.tipo==='midia_apos_cobranca');
   const temCobranca=sinais.some(s=>s.tipo==='cobranca_enviada');
   let status='desconhecido';
   if(temConfirmDiag) status='confirmado';
+  else if(temPdfComprovante) status='comprovante_pdf';
   else if(temComprovanteCliente) status='cliente_diz_pago';
   else if(temCobranca) status='cobrado';
+  // Validação do valor: comprovante bate com cobrança?
+  let valorBate=null;
+  if(valorCobrado && valorComprovante) valorBate=Math.abs(valorCobrado-valorComprovante)<0.5;
   const ultimo=sinais.length?sinais[sinais.length-1].at:null;
-  return {pago:status==='confirmado',status,sinais,valor:valorDetectado,dataRef:ultimo};
+  return {pago:status==='confirmado',status,sinais,valor:valorCobrado,valorComprovante,valorBate,dataRef:ultimo,pdfIds};
+}
+
+// Auto-extrai PDFs de comprovante quando abre conversa
+async function autoExtrairComprovantes(tel){
+  const msgs=(LIVE[tel]&&LIVE[tel].msgs)||[];
+  const docs=msgs.filter(m=>!m.from_me && m.tipo==='document' && !PDF_CACHE[m.id] && !PDF_LOADING[m.id]);
+  if(!docs.length) return;
+  for(const m of docs.slice(-3)){
+    try{ await extrairPdf(m.id); }catch(e){ console.warn('auto-pdf err',m.id,e.message); }
+  }
+  if(typeof renderInboxThread==='function' && IB_TEL===tel) renderInboxThread();
 }
 
 // Override manual de classificação por tel
@@ -2150,23 +2193,41 @@ function renderInboxThread(){
 
   // Badge de pagamento
   const pgtoLabel = pgto.status==='confirmado' ? '✅ Pago (confirmado)' :
+    pgto.status==='comprovante_pdf' ? '📄 Comprovante PDF recebido' :
     pgto.status==='cliente_diz_pago' ? '💬 Cliente diz que pagou' :
     pgto.status==='cobrado' ? '⏳ Cobrança enviada' : '';
   const pgtoCor = pgto.status==='confirmado' ? '#1f7a3d' :
+    pgto.status==='comprovante_pdf' ? '#2e7d32' :
     pgto.status==='cliente_diz_pago' ? '#b8860b' :
     pgto.status==='cobrado' ? '#6b5b00' : '';
   const pgtoBg = pgto.status==='confirmado' ? 'rgba(31,122,61,.15)' :
+    pgto.status==='comprovante_pdf' ? 'rgba(46,125,50,.15)' :
     pgto.status==='cliente_diz_pago' ? 'rgba(184,134,11,.15)' :
     pgto.status==='cobrado' ? 'rgba(107,91,0,.1)' : '';
+  // Linha extra: valor do comprovante vs cobrado
+  let pgtoDetalhe='';
+  if(pgto.valorComprovante!=null){
+    const fmtV=v=>'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+    if(pgto.valorBate===true) pgtoDetalhe=`<div style="font-size:11px;color:#2e7d32;margin-top:4px">✅ Valor confere: ${fmtV(pgto.valorComprovante)}</div>`;
+    else if(pgto.valorBate===false) pgtoDetalhe=`<div style="font-size:11px;color:#c62828;margin-top:4px">⚠️ Valor diverge — comprovante: ${fmtV(pgto.valorComprovante)} · cobrado: ${fmtV(pgto.valor)}</div>`;
+    else pgtoDetalhe=`<div style="font-size:11px;color:var(--ib-mut);margin-top:4px">Valor no comprovante: ${fmtV(pgto.valorComprovante)}</div>`;
+  }
 
   // Auto-buscar financeiro se ainda não buscou
   if(!fin && !FIN_LOADING[IB_TEL] && (nome||cond)) setTimeout(()=>ibBuscarFin(),200);
+  // Auto-extrair PDFs de comprovante
+  if(pgto.pdfIds.length && pgto.pdfIds.some(id=>!PDF_CACHE[id])) setTimeout(()=>autoExtrairComprovantes(IB_TEL),500);
+
+  // Protocolo MegaZap
+  const rawMatch=RAW.find(x=>x.tel===IB_TEL);
+  const protocolo=p.protocolo||p.protocol||(rawMatch&&rawMatch.protocolo)||'';
 
   ctxEl.innerHTML = `
     <div class="av">
       <div class="bub" style="background:${ibAvatarCor(IB_TEL)}">${escH(inic)}</div>
       <div><b>${escH(nome)}</b><div class="ph">📞 ${escH(IB_TEL)}</div></div>
     </div>
+    ${protocolo?`<div style="margin-bottom:8px"><span style="background:#1a5c3a;color:#6fdc8c;font-size:10px;padding:2px 8px;border-radius:4px;font-weight:700">#${escH(String(protocolo))}</span> <span style="font-size:10px;color:var(--ib-mut)">Protocolo MegaZap</span></div>`:''}
     <h5>Cliente</h5>
     ${cond?`<div class="ib-row"><span>Condomínio</span><span>${escH(cond)}</span></div>`:''}
     ${p.apto?`<div class="ib-row"><span>Bloco/Apto</span><span>${escH(p.apto)}</span></div>`:''}
@@ -2174,9 +2235,12 @@ function renderInboxThread(){
     ${dados.metragem?`<div class="ib-row"><span>Metragem</span><span>${escH(dados.metragem)}</span></div>`:''}
     ${dados.obra?`<div class="ib-row"><span>Obra</span><span>${escH(dados.obra)}</span></div>`:''}
 
-    ${pgtoLabel?`<div style="margin:10px 0 4px;padding:8px 12px;background:${pgtoBg};border:1px solid ${pgtoCor};border-radius:8px;display:flex;align-items:center;gap:8px">
-      <span style="font-size:13px;font-weight:700;color:${pgtoCor}">${pgtoLabel}</span>
-      ${pgto.valor?`<span style="font-size:11px;color:var(--ib-mut)">R$ ${escH(pgto.valor)}</span>`:''}
+    ${pgtoLabel?`<div style="margin:10px 0 4px;padding:8px 12px;background:${pgtoBg};border:1px solid ${pgtoCor};border-radius:8px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:13px;font-weight:700;color:${pgtoCor}">${pgtoLabel}</span>
+        ${pgto.valor?`<span style="font-size:11px;color:var(--ib-mut)">R$ ${pgto.valor.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>`:''}
+      </div>
+      ${pgtoDetalhe}
     </div>`:''}
 
     <h5>Próxima ação</h5>
@@ -2347,7 +2411,10 @@ function abrirModalAprovacao(tel){
     document.getElementById('aprov-dt-fim').value='';
   }
 
-  document.getElementById('aprov-codigo').value='';
+  // Código: usa protocolo MegaZap se disponível
+  const rawM=RAW.find(x=>x.tel===tel);
+  const proto=p.protocolo||p.protocol||(rawM&&rawM.protocolo)||'';
+  document.getElementById('aprov-codigo').value=proto?String(proto):'';
   document.getElementById('aprov-status').textContent='';
   document.getElementById('modalAprov').classList.add('on');
 }

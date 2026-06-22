@@ -169,6 +169,7 @@
     .tabs{gap:4px;flex-wrap:nowrap}
     .tabs .theme-btn{padding:6px 8px;font-size:12px;margin-right:2px}
     .tab{padding:7px 10px;font-size:11px}
+    .ib-back-mobile{display:block!important;background:var(--teal);color:#fff;border:none;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;width:100%}
     /* Inbox 3-panel → single panel on mobile */
     .inbox-app{grid-template-columns:1fr!important;height:calc(100vh - 56px)}
     .inbox-app .ib-ctx{display:none!important}
@@ -271,6 +272,7 @@
 .inbox-app.hide-right{grid-template-columns:var(--ib-col-left,340px) 5px 1fr 0 0}
 .inbox-app.hide-left.hide-right{grid-template-columns:0 0 1fr 0 0}
 .inbox-app.hide-left .ib-list,.inbox-app.hide-right .ib-ctx{display:none}
+.ib-back-mobile{display:none}
 .inbox-app.hide-left .ib-drag-left,.inbox-app.hide-right .ib-drag-right{display:none}
 
 /* drag handles */
@@ -2068,7 +2070,7 @@ function ibFiltrar(){
 }
 
 function ibSelFila(id){ IB_FILA=id; localStorage.setItem('sombra_ib_fila',id); renderInbox(); }
-function ibSelConvo(tel){ IB_TEL=tel; renderInbox(); }
+function ibSelConvo(tel){ IB_TEL=tel; const app=document.getElementById('ibApp'); if(app) app.classList.toggle('has-active',!!tel); renderInbox(); }
 
 function ibConvoLastMsg(tel){
   const m = LIVE[tel]?.msgs || [];
@@ -2222,6 +2224,7 @@ function renderInboxThread(){
   }
 
   mainEl.innerHTML = `
+    <button class="ib-back-mobile" onclick="ibSelConvo(null);IB_TEL=null;document.getElementById('ibApp').classList.remove('has-active');renderInbox()">← Voltar</button>
     <div class="ib-mhead">
       <div class="info">
         <b>${escH(nome)}${cond?' · '+escH(cond):''}${p.apto?' · '+escH(p.apto):''}</b>

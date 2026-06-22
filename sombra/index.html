@@ -160,6 +160,23 @@
     .msg{max-width:90%!important}
     .ib-grid{grid-template-columns:1fr!important}
     .ib-drag,.ib-toggle{display:none!important}
+    /* Header mobile */
+    .h-inner{padding:10px 12px;gap:8px;flex-wrap:wrap}
+    .h-inner .logo{display:none}
+    .h-inner>div:first-of-type{flex:0 0 auto;max-width:45%}
+    h1{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .sub{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .tabs{gap:4px;flex-wrap:nowrap}
+    .tabs .theme-btn{padding:6px 8px;font-size:12px;margin-right:2px}
+    .tab{padding:7px 10px;font-size:11px}
+    /* Inbox 3-panel → single panel on mobile */
+    .inbox-app{grid-template-columns:1fr!important;height:calc(100vh - 56px)}
+    .inbox-app .ib-ctx{display:none!important}
+    .inbox-app .ib-drag-left,.inbox-app .ib-drag-right{display:none!important}
+    .inbox-app .ib-list{border-right:none}
+    .inbox-app .ib-main{display:none}
+    .inbox-app.has-active .ib-list{display:none}
+    .inbox-app.has-active .ib-main{display:flex!important;flex-direction:column}
   }
 </style>
 </head>

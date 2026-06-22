@@ -709,6 +709,37 @@ function extrairDadosART(p,msgs){
   const out={nome:'',cpf:'',cond:'',endereco:'',bloco:'',apto:'',metragem:'',obra:'',tel:p?.tel||MODAL_TEL||''};
   out.nome=p?.nome||p?.contato||MODAL_NOME||'';
   out.cond=p?.cond||p?.fields?.condominio||'';
+  // Nome completo: tenta extrair das mensagens e campos do protocolo
+  {
+    const txtN=[p?.fields?.dados||'',...(msgs||[]).map(m=>m?.texto||m?.content||'')].join('\n');
+    // 1) campo "dados" do protocolo geralmente tem nome completo na 1ª linha
+    if(p?.fields?.dados){
+      const primeiraLinha=p.fields.dados.trim().split(/\n/)[0].trim();
+      if(primeiraLinha.length>3 && /^[A-ZÀ-Ú][a-zà-ú]+\s+[A-ZÀ-Úa-zà-ú]/.test(primeiraLinha) && !/\d{3}/.test(primeiraLinha))
+        out.nome=primeiraLinha;
+    }
+    // 2) padrão "Nome: Fulano de Tal" ou "nome completo: ..."
+    if(!out.nome||out.nome.split(/\s+/).length<2){
+      const mN=txtN.match(/(?:nome\s*(?:completo)?\s*[:=]\s*)([A-ZÀ-Ú][A-Za-zÀ-ÿ\s]{4,60})/i);
+      if(mN && mN[1].trim().split(/\s+/).length>=2) out.nome=mN[1].trim().replace(/\s+(?:CPF|RG|TEL|FONE|CEP|END|BLOCO|APTO|AP|BL)\b.*/i,'').trim();
+    }
+    // 3) "me chamo Fulano", "sou o Fulano", "meu nome é Fulano"
+    if(!out.nome||out.nome.split(/\s+/).length<2){
+      const mN2=txtN.match(/(?:me\s+chamo|sou\s+(?:o|a)\s+|meu\s+nome\s+[eé]\s+)([A-ZÀ-Ú][A-Za-zÀ-ÿ\s]{4,60})/i);
+      if(mN2 && mN2[1].trim().split(/\s+/).length>=2) out.nome=mN2[1].trim().replace(/[.,;!]+$/,'');
+    }
+    // 4) push_name do WhatsApp (pode ser nome completo)
+    if(!out.nome||out.nome.split(/\s+/).length<2){
+      const cliMsg=(msgs||[]).find(m=>!m.from_me && m.push_name && m.push_name.split(/\s+/).length>=2);
+      if(cliMsg) out.nome=cliMsg.push_name.trim();
+    }
+    // 5) contato do ticket MegaZap pode ter nome completo
+    if(!out.nome||out.nome.split(/\s+/).length<2){
+      const rawM=RAW.find(x=>x.tel===(p?.tel||''));
+      if(rawM?.contato && rawM.contato.split(/\s+/).length>=2 && !/cond\.|morador/i.test(rawM.contato))
+        out.nome=rawM.contato.replace(/\s*[-–]\s*cond\.?.*/i,'').trim();
+    }
+  }
   const blocoApto=p?.fields?.blocoEApartamento||p?.apto||'';
   if(blocoApto){
     const m=blocoApto.match(/(?:bl(?:oco)?\.?\s*)?([0-9A-Za-z]+)[\s,\-/]+(?:ap(?:t)?o?\.?\s*)?([0-9A-Za-z]+)/i);
@@ -2448,7 +2479,7 @@ function abrirModalAprovacao(tel){
   const sel=document.getElementById('aprov-cond');
   sel.value=p.cond||'';
   if(!sel.value){for(const o of sel.options){if(p.cond&&o.value.toLowerCase().includes(p.cond.toLowerCase())){sel.value=o.value;break;}}}
-  document.getElementById('aprov-nome').value=p.nome||'';
+  document.getElementById('aprov-nome').value=dados.nome||p.nome||'';
   document.getElementById('aprov-bloco').value=dados.bloco||bloco;
   document.getElementById('aprov-apto').value=dados.apto||apto;
 
@@ -2512,6 +2543,7 @@ async function gerarAprovacao(){
   if(obsGas) body.obsGas=obsGas;
   const missing=['condominio','nome','bloco','apto','descricao','dataInicio','dataFim'].filter(k=>!body[k]);
   if(missing.length){sombraToast('Preencha todos os campos obrigatórios','err');return;}
+  if(body.nome.trim().split(/\s+/).length<2){sombraToast('⚠️ Nome completo obrigatório (nome + sobrenome)','err');return;}
   const st=document.getElementById('aprov-status');
   st.textContent='⏳ Gerando documento...';
   try{

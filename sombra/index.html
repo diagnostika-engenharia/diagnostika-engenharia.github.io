@@ -1348,8 +1348,17 @@ function renderModal(){
   });
 }
 
-// ====== Eventos reais capturados (n8n / MegaZap) — aba Modo Sombra ======
-const RAW = [{"id":"316","startedAt":"2026-06-17T16:15:30.140Z","event":"TICKET_STARTED","contato":"Matheus Silva - cond. Sol Maior","tel":"558195470893","depto":"ART","agente":"Claudemir Scaranello","protocolo":562950823,"fields":{}},{"id":"296","startedAt":"2026-06-17T14:58:53.830Z","event":"TICKET_STARTED","contato":"Marcia","tel":"5519986120982","depto":"ART","agente":"Gustavo Souza - Área Técnica","protocolo":562833031,"fields":{"condominio":"Portal Primavera","dados":"Marcia Regina Cavelagna \n306.787.048-48\nPortal Primavera \nAv: Thereza Ana Cecon Breda, 1951 Vila São Pedro cep: 13.183-250\nAp: 304 BL 06 \n51mts\nBanheiro"}},{"id":"280","startedAt":"2026-06-17T14:00:43.160Z","event":"TICKET_STARTED","contato":"Rogério","tel":"5519994860452","depto":"Administrativo","agente":"Claudemir Scaranello","protocolo":562893769,"fields":{"blocoEApartamento":"inicio","condominio":"Primavera"}},{"id":"265","startedAt":"2026-06-17T13:47:48.245Z","event":"TICKET_STARTED","contato":"Aline Viera cond Parque Valença 1","tel":"5519987557182","depto":"ART","agente":"Claudemir Scaranello","protocolo":562886528,"fields":{}},{"id":"133","startedAt":"2026-06-15T23:49:14.639Z","event":"TICKET_STARTED","contato":"Ana","tel":"5519998481889","depto":"Administrativo","agente":"Claudemir Scaranello","protocolo":561869539,"fields":{}},{"id":"124","startedAt":"2026-06-15T23:43:28.044Z","event":"TICKET_STARTED","contato":"Vicente","tel":"5519981771107","depto":"ART","agente":"Claudemir Scaranello","protocolo":562460460,"fields":{"blocoEApartamento":"12 102","condominio":"Portal Primavera"}},{"id":"41","startedAt":"2026-06-15T19:33:55.700Z","event":"TICKET_STARTED","contato":"Sou Luan Bonomi, morador do apartamento 268 no morada Morumbi","tel":"5519999053959","depto":"Comercial","agente":"Claudemir Scaranello","protocolo":562396267,"fields":{"blocoEApartamento":"Bloco 2 apartamento 268","condominio":"Morada Morumbi"}}];
+// ====== Tickets MegaZap — carregados do Supabase (tickets_megazap) ======
+let RAW = [];
+async function loadTicketsMegazap(){
+  try{
+    const r=await fetch(SUPABASE_URL+'/rest/v1/tickets_megazap?select=*&order=started_at.desc&limit=200',{headers:{apikey:SUPABASE_ANON,Authorization:'Bearer '+SUPABASE_ANON}});
+    if(!r.ok) throw new Error(r.status);
+    const rows=await r.json();
+    RAW=rows.map(r=>({id:String(r.id),startedAt:r.started_at,event:r.evento,contato:r.contato,tel:r.tel,depto:r.departamento,agente:r.agente,protocolo:r.protocolo,fields:r.campos||{}}));
+    console.log('tickets_megazap:',RAW.length,'tickets carregados');
+  }catch(e){console.warn('loadTicketsMegazap falhou:',e.message);}
+}
 
 // ====== Pendências últimos 10 dias (varredura do corpus + capturas vivas) — aba Aprovação ======
 // PEND_BASE = curados manualmente; PEND = base + derivados de LIVE
@@ -1436,6 +1445,7 @@ async function recarregarLive(btn){
   if (btn) { btn.disabled=true; btn.textContent='…'; }
   try{
     Object.values(LIVE).forEach(d=>{ if(d) d.loaded=false; });
+    await loadTicketsMegazap();
     await Promise.all(PEND_BASE.map(p=>loadHistorico(p.tel)));
     await Promise.all(RAW.filter(ev=>ev.tel).map(ev=>loadHistorico(ev.tel)));
     // auto-descobre tels novos do Supabase (não dependentes do PEND_BASE)
@@ -2286,6 +2296,7 @@ function renderInboxThread(){
     </div>
     ${protocolo?`<div style="margin-bottom:8px"><span style="background:#1a5c3a;color:#6fdc8c;font-size:10px;padding:2px 8px;border-radius:4px;font-weight:700">#${escH(String(protocolo))}</span> <span style="font-size:10px;color:var(--ib-mut)">Protocolo MegaZap</span></div>`:''}
     <h5>Cliente</h5>
+    ${protocolo?`<div class="ib-row"><span>Protocolo</span><span style="color:#6fdc8c;font-weight:700">#${escH(String(protocolo))}</span></div>`:''}
     ${cond?`<div class="ib-row"><span>Condomínio</span><span>${escH(cond)}</span></div>`:''}
     ${p.apto?`<div class="ib-row"><span>Bloco/Apto</span><span>${escH(p.apto)}</span></div>`:''}
     ${dados.cpf?`<div class="ib-row"><span>CPF</span><span>${escH(dados.cpf)}</span></div>`:''}
@@ -2345,6 +2356,7 @@ renderAprov();
 
 // boot live capture
 (async()=>{
+  await loadTicketsMegazap();
   await probeLive();
   if(LIVE_OK){
     renderAprov(); // re-render para trocar aviso pelo bloco live

@@ -697,6 +697,14 @@ function extrairDadosART(p,msgs){
     if(m){ out.bloco=m[1]; out.apto=m[2]; } else out.apto=blocoApto;
   }
   const txtCombo=[p?.fields?.dados||'',...(msgs||[]).map(m=>m?.texto||m?.content||'')].join('\n');
+  if(!out.bloco&&!out.apto){
+    const ba=txtCombo.match(/(?:bl(?:oco)?|torre)\.?\s*:?\s*([0-9A-Za-z]+)[\s,\-/]+(?:ap(?:t)?o?\.?\s*:?\s*)([0-9A-Za-z]+)/i);
+    if(ba){ out.bloco=ba[1]; out.apto=ba[2]; }
+    else{
+      const ap=txtCombo.match(/(?:n[uú]mero\s*(?:do\s*)?)?ap(?:artamento|t)?o?\.?\s*:?\s*(\d{1,4})/i); if(ap) out.apto=ap[1];
+      const bl=txtCombo.match(/(?:bl(?:oco)?|torre)\.?\s*:?\s*([0-9A-Za-z]+)/i); if(bl) out.bloco=bl[1];
+    }
+  }
   const cpf=txtCombo.match(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/);
   if(cpf) out.cpf=cpf[0].replace(/\D/g,'').replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4');
   const metr=txtCombo.match(/(\d{1,4}(?:[.,]\d{1,2})?)\s*m\s*(?:²|2|q)/i);
@@ -1357,7 +1365,16 @@ function derivaCardDeLive(tel, liveData){
   const data = lastTs ? new Date(lastTs).toLocaleDateString('pt-BR') : '';
   // quem: se última msg from_me=false, está aguardando Diagnóstika
   const quem = (last && !last.from_me) ? 'diag' : 'cliente';
-  return { tel, nome, cond, tipo, data, apto:null, quem, _live:true, _lastMs:lastTs };
+  let apto=null;
+  const ba=txtAll.match(/(?:bl(?:oco)?|torre)\.?\s*:?\s*([0-9A-Za-z]+)[\s,\-/]+(?:ap(?:t)?o?\.?\s*:?\s*)([0-9A-Za-z]+)/i);
+  if(ba) apto=`Bloco ${ba[1]}, apto ${ba[2]}`;
+  else{
+    const ap=txtAll.match(/(?:n[uú]mero\s*(?:do\s*)?)?ap(?:artamento|t)?o?\.?\s*:?\s*(\d{1,4})/i);
+    const bl=txtAll.match(/(?:bl(?:oco)?|torre)\.?\s*:?\s*([0-9A-Za-z]+)/i);
+    if(ap&&bl) apto=`Bloco ${bl[1]}, apto ${ap[1]}`;
+    else if(ap) apto=`apto ${ap[1]}`;
+  }
+  return { tel, nome, cond, tipo, data, apto, quem, _live:true, _lastMs:lastTs };
 }
 function formatRelativo(ts){
   if (!ts) return '';
@@ -1421,6 +1438,21 @@ function rebuildPend(){
     if (lastTs && lastTs < cutoff) return; // descarta cards live antigos
     const card = derivaCardDeLive(tel, LIVE[tel]);
     if (card) extras.push(card);
+  });
+  // enriquece cards base com dados live (apto, nome)
+  PEND_BASE.forEach(p=>{
+    if(p.apto) return;
+    const msgs=LIVE[p.tel]?.msgs||[];
+    if(!msgs.length) return;
+    const txt=msgs.map(m=>m.texto||'').join('\n');
+    const ba=txt.match(/(?:bl(?:oco)?|torre)\.?\s*:?\s*([0-9A-Za-z]+)[\s,\-/]+(?:ap(?:t)?o?\.?\s*:?\s*)([0-9A-Za-z]+)/i);
+    if(ba) p.apto=`Bloco ${ba[1]}, apto ${ba[2]}`;
+    else{
+      const ap=txt.match(/(?:n[uú]mero\s*(?:do\s*)?)?ap(?:artamento|t)?o?\.?\s*:?\s*(\d{1,4})/i);
+      const bl=txt.match(/(?:bl(?:oco)?|torre)\.?\s*:?\s*([0-9A-Za-z]+)/i);
+      if(ap&&bl) p.apto=`Bloco ${bl[1]}, apto ${ap[1]}`;
+      else if(ap) p.apto=`apto ${ap[1]}`;
+    }
   });
   // sort extras: mais recentes primeiro (sentido de urgência)
   extras.sort((a,b)=>(b._lastMs||0)-(a._lastMs||0));

@@ -2239,16 +2239,51 @@ function parseApto(str){
 function abrirModalAprovacao(tel){
   const p=PEND.find(x=>x.tel===tel);
   if(!p){sombraToast('Pendência não encontrada','err');return;}
+  const msgs=(LIVE[tel]&&LIVE[tel].msgs)||[];
+  const dados=extrairDadosART(p,msgs);
   const {bloco,apto}=parseApto(p.apto);
+
+  // Condomínio
   const sel=document.getElementById('aprov-cond');
   sel.value=p.cond||'';
   if(!sel.value){for(const o of sel.options){if(p.cond&&o.value.toLowerCase().includes(p.cond.toLowerCase())){sel.value=o.value;break;}}}
   document.getElementById('aprov-nome').value=p.nome||'';
-  document.getElementById('aprov-bloco').value=bloco;
-  document.getElementById('aprov-apto').value=apto;
-  document.getElementById('aprov-desc').value='';
-  document.getElementById('aprov-dt-ini').value='';
-  document.getElementById('aprov-dt-fim').value='';
+  document.getElementById('aprov-bloco').value=dados.bloco||bloco;
+  document.getElementById('aprov-apto').value=dados.apto||apto;
+
+  // Descrição: usa obra extraída das mensagens
+  document.getElementById('aprov-desc').value=dados.obra||'';
+
+  // Datas: tenta extrair da conversa
+  const txtAll=[p.obs||'',...msgs.map(m=>m.texto||m.content||'')].join('\n');
+  const hoje=new Date();
+  const datas=[];
+  // "dia 22", "dia 25/07", "22/06", "22/06/2026"
+  const rxDatas=/(?:dia\s+)?(\d{1,2})(?:\/(\d{1,2})(?:\/(\d{2,4}))?)?/gi;
+  let dm;
+  while((dm=rxDatas.exec(txtAll))!==null){
+    const d=parseInt(dm[1]);
+    if(d<1||d>31) continue;
+    const mes=dm[2]?parseInt(dm[2])-1:hoje.getMonth();
+    let ano=dm[3]?parseInt(dm[3]):hoje.getFullYear();
+    if(ano<100) ano+=2000;
+    const dt=new Date(ano,mes,d);
+    if(!isNaN(dt)) datas.push(dt);
+  }
+  // Ordena e pega a primeira como início
+  datas.sort((a,b)=>a-b);
+  const fmtDt=dt=>{const dd=String(dt.getDate()).padStart(2,'0');const mm=String(dt.getMonth()+1).padStart(2,'0');const yy=dt.getFullYear();return dd+'/'+mm+'/'+yy;};
+  if(datas.length>=2){
+    document.getElementById('aprov-dt-ini').value=fmtDt(datas[0]);
+    document.getElementById('aprov-dt-fim').value=fmtDt(datas[datas.length-1]);
+  } else if(datas.length===1){
+    document.getElementById('aprov-dt-ini').value=fmtDt(datas[0]);
+    document.getElementById('aprov-dt-fim').value='';
+  } else {
+    document.getElementById('aprov-dt-ini').value='';
+    document.getElementById('aprov-dt-fim').value='';
+  }
+
   document.getElementById('aprov-codigo').value='';
   document.getElementById('aprov-status').textContent='';
   document.getElementById('modalAprov').classList.add('on');

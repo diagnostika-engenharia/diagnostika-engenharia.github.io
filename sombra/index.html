@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://fimmjgdwhifsrrbreche.supabase.co https://84.46.248.23.sslip.io; img-src 'self' data: blob: https://fimmjgdwhifsrrbreche.supabase.co; frame-src 'none'; object-src 'none'; base-uri 'self';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://fimmjgdwhifsrrbreche.supabase.co https://84.46.248.23.sslip.io http://127.0.0.1:9999; img-src 'self' data: blob: https://fimmjgdwhifsrrbreche.supabase.co; frame-src 'none'; object-src 'none'; base-uri 'self';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Modo Sombra — Assistente Diagnóstika</title>
 <style>
@@ -1295,7 +1295,11 @@ function renderModal(){
   const prevInp=document.getElementById('chatInput');
   const savedVal=prevInp?prevInp.value:'';
   const focoChat=document.activeElement&&document.activeElement.id==='chatInput';
-  body.innerHTML=cabHtml+msgsHtml+iaHtml+crEAnetHtml(p,ia,d.msgs)+dossieHtml(MODAL_TEL)+finHtml(MODAL_TEL)+gmailHtml(MODAL_TEL)+arqHtml+chatHtml;
+  const emitAprovBtn=`<div style="padding:8px 14px;background:rgba(141,183,42,.08);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px">
+    <button onclick="event.stopPropagation();abrirModalAprovacao('${MODAL_TEL}')" style="padding:7px 14px;background:var(--lima);color:#001;border:0;border-radius:8px;font-size:12px;cursor:pointer;font-weight:700">📋 Emitir Aprovação</button>
+    <span style="font-size:11px;color:var(--mut)">Gera DOCX de Autorização de Reforma com os dados deste atendimento</span>
+  </div>`;
+  body.innerHTML=cabHtml+emitAprovBtn+msgsHtml+iaHtml+crEAnetHtml(p,ia,d.msgs)+dossieHtml(MODAL_TEL)+finHtml(MODAL_TEL)+gmailHtml(MODAL_TEL)+arqHtml+chatHtml;
   requestAnimationFrame(()=>{
     const list=document.getElementById('iaChatList'); if(list) list.scrollTop=list.scrollHeight;
     const inp=document.getElementById('chatInput');
@@ -1761,6 +1765,7 @@ function cardAprov(p){
         <span class="ap-badge ${p.quem}" style="margin:0">${p.quem==='diag'?'🔴 Diag.':'🟠 Cliente'}</span>
         <a class="ap-wa" href="${waLink(p.tel)}" target="_blank" style="margin:0">WA ↗</a>
         <div style="flex:1"></div>
+        <button onclick="event.stopPropagation();abrirModalAprovacao('${safeTel}')" style="padding:6px 12px;background:var(--lima);color:#001;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">📋 Emitir</button>
         <button onclick="abrirConversa('${safeTel}','${safeNome}')" style="padding:6px 12px;background:var(--turq);color:#001;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">Abrir ↗</button>
       </div>
     </div>
@@ -2110,6 +2115,12 @@ function renderInboxThread(){
     ${dados.cpf?`<div class="ib-row"><span>CPF</span><span>${escH(dados.cpf)}</span></div>`:''}
     ${dados.metragem?`<div class="ib-row"><span>Metragem</span><span>${escH(dados.metragem)}</span></div>`:''}
     ${dados.obra?`<div class="ib-row"><span>Obra</span><span>${escH(dados.obra)}</span></div>`:''}
+
+    <h5>Próxima ação</h5>
+    ${tipo==='ART' || ia.classificacao==='ART' ? `<button class="cta" onclick="ibEmitirART()">🤖 Emitir ART (RPA)</button><div style="font-size:10px;color:var(--mut);margin-top:4px;text-align:center">requer server.mjs em 127.0.0.1:9999</div>` : ''}
+    <button class="cta" style="background:var(--lima);color:#001;margin-top:6px" onclick="abrirModalAprovacao('${IB_TEL}')">📋 Emitir Aprovação</button>
+    <button class="cta" style="background:transparent;border:1px solid var(--turq);color:var(--turq);margin-top:6px" onclick="abrirConversa('${IB_TEL}','${(nome||'').replace(/'/g,"\\\\'")}')">📺 Abrir modal completo</button>
+
     <h5>Financeiro ${fin?'':'<button onclick="ibBuscarFin()" style="float:right;background:#1f7a3d;color:#fff;border:0;border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer">Buscar</button>'}</h5>
     ${FIN_LOADING[IB_TEL]?'<div style="color:var(--mut);font-size:11px">Buscando…</div>':''}
     ${fin&&fin.erro?`<div style="color:#e88;font-size:11px">${escH(fin.erro)}</div>`:''}
@@ -2133,9 +2144,6 @@ function renderInboxThread(){
       ${ia.urgencia?`<div class="ib-row"><span>Urgência</span><span>${escH(ia.urgencia)}</span></div>`:''}
     `:''}
 
-    <h5>Próxima ação</h5>
-    ${tipo==='ART' || ia.classificacao==='ART' ? `<button class="cta" onclick="ibEmitirART()">🤖 Emitir ART (RPA)</button><div style="font-size:10px;color:var(--mut);margin-top:4px;text-align:center">requer server.mjs em 127.0.0.1:9999</div>` : ''}
-    <button class="cta" style="background:transparent;border:1px solid var(--turq);color:var(--turq);margin-top:6px" onclick="abrirConversa('${IB_TEL}','${(nome||'').replace(/'/g,"\\\\'")}')">📺 Abrir modal completo</button>
   `;
 }
 
@@ -2220,6 +2228,115 @@ function ibStartDrag(e,side){
   document.addEventListener('mouseup',onUp);
 }
 ibApplyLayout();
+
+// ====== EMITIR APROVAÇÃO DE REFORMA ======
+function parseApto(str){
+  if(!str) return {bloco:'',apto:''};
+  const m=str.match(/(?:Bloco|BL)\s*(\w+),?\s*(?:apto|ap)\s*(\d+)/i);
+  return m?{bloco:m[1],apto:m[2]}:{bloco:'',apto:''};
+}
+
+function abrirModalAprovacao(tel){
+  const p=PEND.find(x=>x.tel===tel);
+  if(!p){sombraToast('Pendência não encontrada','err');return;}
+  const {bloco,apto}=parseApto(p.apto);
+  const sel=document.getElementById('aprov-cond');
+  sel.value=p.cond||'';
+  if(!sel.value){for(const o of sel.options){if(p.cond&&o.value.toLowerCase().includes(p.cond.toLowerCase())){sel.value=o.value;break;}}}
+  document.getElementById('aprov-nome').value=p.nome||'';
+  document.getElementById('aprov-bloco').value=bloco;
+  document.getElementById('aprov-apto').value=apto;
+  document.getElementById('aprov-desc').value='';
+  document.getElementById('aprov-dt-ini').value='';
+  document.getElementById('aprov-dt-fim').value='';
+  document.getElementById('aprov-codigo').value='';
+  document.getElementById('aprov-status').textContent='';
+  document.getElementById('modalAprov').classList.add('on');
+}
+
+function fecharModalAprov(){document.getElementById('modalAprov').classList.remove('on');}
+
+async function gerarAprovacao(){
+  const body={
+    condominio:document.getElementById('aprov-cond').value,
+    nome:document.getElementById('aprov-nome').value,
+    bloco:document.getElementById('aprov-bloco').value,
+    apto:document.getElementById('aprov-apto').value,
+    descricao:document.getElementById('aprov-desc').value,
+    dataInicio:document.getElementById('aprov-dt-ini').value,
+    dataFim:document.getElementById('aprov-dt-fim').value,
+    codigo:document.getElementById('aprov-codigo').value||undefined,
+  };
+  const missing=['condominio','nome','bloco','apto','descricao','dataInicio','dataFim'].filter(k=>!body[k]);
+  if(missing.length){sombraToast('Preencha todos os campos obrigatórios','err');return;}
+  const st=document.getElementById('aprov-status');
+  st.textContent='⏳ Gerando documento...';
+  try{
+    const res=await fetch('http://127.0.0.1:9999/gerar-aprovacao',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const data=await res.json();
+    if(data.success){
+      st.innerHTML=escH('✅ Documento gerado!')+`<br><span style="font-size:12px;color:var(--turq);word-break:break-all">${escH(data.winPath||data.docx||'')}</span>`;
+      sombraToast('✅ Aprovação gerada com sucesso','ok');
+    }else{
+      st.textContent='❌ Erro: '+(data.error||'desconhecido');
+      sombraToast('Erro ao gerar aprovação','err');
+    }
+  }catch(e){
+    st.textContent='❌ Servidor offline (porta 9999): '+e.message;
+    sombraToast('Servidor RPA offline','err');
+  }
+}
 </script>
+
+<!-- Modal Emitir Aprovação -->
+<div class="modal-bg" id="modalAprov" onclick="if(event.target===this)fecharModalAprov()">
+  <div class="modal-box" style="max-width:520px">
+    <div class="modal-head">
+      <h3>📋 Emitir Aprovação de Reforma</h3>
+      <div class="mh-btns"><button onclick="fecharModalAprov()" class="close" title="Fechar">✕</button></div>
+    </div>
+    <div class="modal-body" style="padding:18px;display:flex;flex-direction:column;gap:14px">
+      <label style="font-size:12px;color:var(--mut)">Condomínio
+        <select id="aprov-cond" style="width:100%;margin-top:4px;padding:9px 12px;background:var(--card2);color:var(--txt);border:1px solid var(--line);border-radius:8px;font-size:13px">
+          <option value="Monte Carlo">Monte Carlo</option>
+          <option value="Morada Morumbi">Morada Morumbi</option>
+          <option value="Santa Clara">Santa Clara</option>
+          <option value="Portal Primavera">Portal Primavera</option>
+        </select>
+      </label>
+      <label style="font-size:12px;color:var(--mut)">Nome completo
+        <input id="aprov-nome" style="width:100%;margin-top:4px;padding:9px 12px;background:var(--card2);color:var(--txt);border:1px solid var(--line);border-radius:8px;font-size:13px">
+      </label>
+      <div style="display:flex;gap:12px">
+        <label style="font-size:12px;color:var(--mut);flex:1">Bloco
+          <input id="aprov-bloco" style="width:100%;margin-top:4px;padding:9px 12px;background:var(--card2);color:var(--txt);border:1px solid var(--line);border-radius:8px;font-size:13px">
+        </label>
+        <label style="font-size:12px;color:var(--mut);flex:1">Apartamento
+          <input id="aprov-apto" style="width:100%;margin-top:4px;padding:9px 12px;background:var(--card2);color:var(--txt);border:1px solid var(--line);border-radius:8px;font-size:13px">
+        </label>
+      </div>
+      <label style="font-size:12px;color:var(--mut)">Descrição da reforma
+        <textarea id="aprov-desc" rows="3" placeholder="Ex: Troca de piso, pintura, instalação de gesso..." style="width:100%;margin-top:4px;padding:9px 12px;background:var(--card2);color:var(--txt);border:1px solid var(--line);border-radius:8px;font-size:13px;resize:vertical;font-family:inherit;display:block"></textarea>
+      </label>
+      <div style="display:flex;gap:12px">
+        <label style="font-size:12px;color:var(--mut);flex:1">Data início
+          <input id="aprov-dt-ini" placeholder="dd/mm/aaaa" style="width:100%;margin-top:4px;padding:9px 12px;background:var(--card2);color:var(--txt);border:1px solid var(--line);border-radius:8px;font-size:13px">
+        </label>
+        <label style="font-size:12px;color:var(--mut);flex:1">Data fim
+          <input id="aprov-dt-fim" placeholder="dd/mm/aaaa" style="width:100%;margin-top:4px;padding:9px 12px;background:var(--card2);color:var(--txt);border:1px solid var(--line);border-radius:8px;font-size:13px">
+        </label>
+      </div>
+      <label style="font-size:12px;color:var(--mut)">Código (opcional — auto se vazio)
+        <input id="aprov-codigo" placeholder="auto" style="width:100%;margin-top:4px;padding:9px 12px;background:var(--card2);color:var(--txt);border:1px solid var(--line);border-radius:8px;font-size:13px">
+      </label>
+      <div style="display:flex;gap:10px;margin-top:4px">
+        <button onclick="gerarAprovacao()" style="flex:1;padding:11px;background:var(--ok);color:#fff;border:0;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer">✅ Gerar Documento</button>
+        <button onclick="fecharModalAprov()" style="padding:11px 18px;background:transparent;color:var(--mut);border:1px solid var(--line);border-radius:9px;font-size:13px;cursor:pointer">Cancelar</button>
+      </div>
+      <div id="aprov-status" style="font-size:13px;min-height:20px;margin-top:4px"></div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

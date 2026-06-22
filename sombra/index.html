@@ -2454,7 +2454,13 @@ async function gerarAprovacao(){
     const res=await fetch('http://127.0.0.1:9999/gerar-aprovacao',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const data=await res.json();
     if(data.success){
-      st.innerHTML=escH('✅ Documento gerado!')+`<br><span style="font-size:12px;color:var(--turq);word-break:break-all">${escH(data.winPath||data.docx||'')}</span>`;
+      let html=escH('✅ Documento gerado!');
+      if(data.pdfUrl){
+        html+=`<br><a href="${escH(data.pdfUrl)}" target="_blank" style="font-size:12px;color:var(--turq);word-break:break-all">📄 Abrir PDF online</a>`;
+        html+=`<br><button onclick="navigator.clipboard.writeText('${escH(data.pdfUrl)}');sombraToast('Link copiado','ok')" style="margin-top:6px;padding:6px 12px;background:var(--turq);color:#001;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">📋 Copiar link do PDF</button>`;
+      }
+      html+=`<br><span style="font-size:11px;color:var(--mut);word-break:break-all">${escH(data.winPath||data.docx||'')}</span>`;
+      st.innerHTML=html;
       sombraToast('✅ Aprovação gerada com sucesso','ok');
     }else{
       st.textContent='❌ Erro: '+(data.error||'desconhecido');

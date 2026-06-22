@@ -1633,6 +1633,49 @@ function detectarContratacao(p){
   return {is,score:sinais.length,sinais,inCond};
 }
 
+// Detecta evidências de pagamento na conversa
+function detectarPagamento(msgs){
+  if(!msgs||!msgs.length) return {pago:false,sinais:[],valor:null,dataRef:null};
+  const sinais=[];
+  let valorDetectado=null, dataRef=null;
+  for(const m of msgs){
+    const t=(m.texto||'').toLowerCase();
+    if(!t) continue;
+    // Cliente enviou comprovante/confirmou pagamento
+    if(!m.from_me){
+      if(/comprovante|comprova[çc]/i.test(t)) sinais.push({tipo:'comprovante',msg:t.slice(0,60),de:'cliente',at:m.recebida_em});
+      if(/\bpaguei\b|\bpago\b|\btransferi\b|\bfiz o pix\b|\bj[aá] depositei\b|\benviei o pix\b/i.test(t)) sinais.push({tipo:'confirmou_pgto',msg:t.slice(0,60),de:'cliente',at:m.recebida_em});
+    }
+    // Diagnóstika confirmou recebimento
+    if(m.from_me){
+      if(/pagamento\s*(confirmado|recebido|ok)|recebemos.*pagamento|confirmamos.*pagamento|pix\s*(recebido|confirmado)/i.test(t)) sinais.push({tipo:'diag_confirmou',msg:t.slice(0,60),de:'diag',at:m.recebida_em});
+      if(/enviar\s*pix|chave\s*pix|dados.*pagamento|valor.*R\$|R\$\s*\d/i.test(t)){
+        sinais.push({tipo:'cobranca_enviada',msg:t.slice(0,60),de:'diag',at:m.recebida_em});
+        const vm=t.match(/R\$\s*([\d.,]+)/i);
+        if(vm) valorDetectado=vm[1].replace('.','').replace(',','.');
+      }
+    }
+    // Qualquer menção a PIX/transferência com contexto de valor
+    if(/\bpix\b/i.test(t)){
+      const vm=t.match(/R\$\s*([\d.,]+)/i);
+      if(vm && !valorDetectado) valorDetectado=vm[1].replace('.','').replace(',','.');
+    }
+    // Imagem enviada pelo cliente (pode ser comprovante)
+    if(!m.from_me && (m.tipo==='image'||m.tipo==='document') && sinais.some(s=>s.tipo==='cobranca_enviada'))
+      sinais.push({tipo:'midia_apos_cobranca',msg:'imagem/doc enviado',de:'cliente',at:m.recebida_em});
+  }
+  // Classificação
+  const temConfirmDiag=sinais.some(s=>s.tipo==='diag_confirmou');
+  const temComprovanteCliente=sinais.some(s=>s.tipo==='comprovante'||s.tipo==='confirmou_pgto'||s.tipo==='midia_apos_cobranca');
+  const temCobranca=sinais.some(s=>s.tipo==='cobranca_enviada');
+  let status='desconhecido';
+  if(temConfirmDiag) status='confirmado';
+  else if(temComprovanteCliente) status='cliente_diz_pago';
+  else if(temCobranca) status='cobrado';
+  const ultimo=sinais.length?sinais[sinais.length-1].at:null;
+  return {pago:status==='confirmado',status,sinais,valor:valorDetectado,dataRef:ultimo};
+}
+
 // Override manual de classificação por tel
 const CKEY="sombra_class_v1";
 let CLASS=JSON.parse(localStorage.getItem(CKEY)||"{}");
@@ -2097,12 +2140,27 @@ function renderInboxThread(){
 
   // ctx
   const dados = extrairDadosART ? extrairDadosART(p, msgs) : {};
+  const pgto = detectarPagamento(msgs);
   const finRows = Array.isArray(fin)?fin:(fin&&Array.isArray(fin.rows)?fin.rows:[]);
   const nfs = fin&&Array.isArray(fin.nfse)?fin.nfse:[];
   const aberto = finRows.filter(r=>!r.estornado && !r.data_recebimento).reduce((s,r)=>s+(r.valor||0),0);
   const recebido = finRows.filter(r=>!r.estornado && r.data_recebimento).reduce((s,r)=>s+(r.valor||0),0);
   const fmt = v=>'R$ '+((v||0)/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
   const inic = (nome||'?').split(' ').slice(0,2).map(s=>s[0]).join('').toUpperCase().slice(0,2);
+
+  // Badge de pagamento
+  const pgtoLabel = pgto.status==='confirmado' ? '✅ Pago (confirmado)' :
+    pgto.status==='cliente_diz_pago' ? '💬 Cliente diz que pagou' :
+    pgto.status==='cobrado' ? '⏳ Cobrança enviada' : '';
+  const pgtoCor = pgto.status==='confirmado' ? '#1f7a3d' :
+    pgto.status==='cliente_diz_pago' ? '#b8860b' :
+    pgto.status==='cobrado' ? '#6b5b00' : '';
+  const pgtoBg = pgto.status==='confirmado' ? 'rgba(31,122,61,.15)' :
+    pgto.status==='cliente_diz_pago' ? 'rgba(184,134,11,.15)' :
+    pgto.status==='cobrado' ? 'rgba(107,91,0,.1)' : '';
+
+  // Auto-buscar financeiro se ainda não buscou
+  if(!fin && !FIN_LOADING[IB_TEL] && (nome||cond)) setTimeout(()=>ibBuscarFin(),200);
 
   ctxEl.innerHTML = `
     <div class="av">
@@ -2116,12 +2174,17 @@ function renderInboxThread(){
     ${dados.metragem?`<div class="ib-row"><span>Metragem</span><span>${escH(dados.metragem)}</span></div>`:''}
     ${dados.obra?`<div class="ib-row"><span>Obra</span><span>${escH(dados.obra)}</span></div>`:''}
 
+    ${pgtoLabel?`<div style="margin:10px 0 4px;padding:8px 12px;background:${pgtoBg};border:1px solid ${pgtoCor};border-radius:8px;display:flex;align-items:center;gap:8px">
+      <span style="font-size:13px;font-weight:700;color:${pgtoCor}">${pgtoLabel}</span>
+      ${pgto.valor?`<span style="font-size:11px;color:var(--ib-mut)">R$ ${escH(pgto.valor)}</span>`:''}
+    </div>`:''}
+
     <h5>Próxima ação</h5>
     ${tipo==='ART' || ia.classificacao==='ART' ? `<button class="cta" onclick="ibEmitirART()">🤖 Emitir ART (RPA)</button><div style="font-size:10px;color:var(--mut);margin-top:4px;text-align:center">requer server.mjs em 127.0.0.1:9999</div>` : ''}
     <button class="cta" style="background:var(--lima);color:#001;margin-top:6px" onclick="abrirModalAprovacao('${IB_TEL}')">📋 Emitir Aprovação</button>
     <button class="cta" style="background:transparent;border:1px solid var(--turq);color:var(--turq);margin-top:6px" onclick="abrirConversa('${IB_TEL}','${(nome||'').replace(/'/g,"\\\\'")}')">📺 Abrir modal completo</button>
 
-    <h5>Financeiro ${fin?'':'<button onclick="ibBuscarFin()" style="float:right;background:#1f7a3d;color:#fff;border:0;border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer">Buscar</button>'}</h5>
+    <h5>Financeiro ${fin?`<button onclick="ibBuscarFin()" style="float:right;background:transparent;color:var(--ib-mut);border:1px solid var(--ib-line);border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer" title="Atualizar">↻</button>`:'<button onclick="ibBuscarFin()" style="float:right;background:#1f7a3d;color:#fff;border:0;border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer">Buscar</button>'}</h5>
     ${FIN_LOADING[IB_TEL]?'<div style="color:var(--mut);font-size:11px">Buscando…</div>':''}
     ${fin&&fin.erro?`<div style="color:#e88;font-size:11px">${escH(fin.erro)}</div>`:''}
     ${fin&&!fin.erro?`

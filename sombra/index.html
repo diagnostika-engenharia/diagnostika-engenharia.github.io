@@ -207,6 +207,7 @@
       <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Alternar tema">🌙</button>
       <button class="tab on" id="tab-inbox" onclick="setTab('inbox')">📥 Inbox <b id="ibcount"></b></button>
       <button class="tab" id="tab-aprov" onclick="setTab('aprov')">✅ Aprovação <b id="apcount"></b></button>
+      <button class="tab" id="tab-docs" onclick="setTab('docs')">📁 Documentos</button>
     </div>
   </div>
 </header>
@@ -357,7 +358,48 @@
 .ib-ctx .ib-row span:last-child{font-weight:500;text-align:right}
 .ib-ctx .cta{background:#8DB72A;color:#001a00;border:0;border-radius:8px;padding:11px 14px;width:100%;font-weight:700;cursor:pointer;margin-top:8px;font-size:13px}
 .ib-ctx .cta:hover{filter:brightness(1.05)}
+/* docs module */
+.docs-wrap{padding:22px 28px 80px;max-width:1280px;margin:0 auto}
+.docs-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
+.docs-bar input{flex:1;min-width:200px;padding:10px 14px;background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--txt);font-size:14px;font-family:inherit;outline:none}
+.docs-bar input:focus{border-color:var(--turq)}
+.docs-bar select{padding:10px 14px;background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--txt);font-size:13px;font-family:inherit;outline:none;cursor:pointer}
+.docs-crumbs{display:flex;gap:6px;align-items:center;margin-bottom:16px;font-size:13px;color:var(--mut);flex-wrap:wrap}
+.docs-crumbs span{cursor:pointer;color:var(--turq);font-weight:600}
+.docs-crumbs span:hover{text-decoration:underline}
+.docs-crumbs .sep{color:var(--line);cursor:default}
+.docs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.doc-item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;cursor:pointer;transition:border-color .15s}
+.doc-item:hover{border-color:var(--turq)}
+.doc-icon{font-size:32px;margin-bottom:8px}
+.doc-name{font-weight:700;font-size:14px;word-break:break-word}
+.doc-meta{font-size:11px;color:var(--mut);margin-top:4px}
+.doc-actions{display:flex;gap:8px;margin-top:10px}
+.doc-actions a,.doc-actions button{padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;cursor:pointer;border:1px solid var(--line);background:var(--card2);color:var(--txt)}
+.doc-actions a:hover,.doc-actions button:hover{border-color:var(--turq);color:var(--turq)}
+.docs-empty{text-align:center;color:var(--mut);padding:60px 20px;font-size:14px;grid-column:1/-1}
+.docs-loading{text-align:center;color:var(--mut);padding:60px 20px;font-size:14px;grid-column:1/-1}
+@media(max-width:600px){
+  .docs-grid{grid-template-columns:1fr}
+  .docs-bar{flex-direction:column}
+  .docs-bar input,.docs-bar select{width:100%}
+}
 </style>
+<div class="wrap hide" id="view-docs">
+  <div class="docs-wrap" style="padding:0">
+    <h2 style="margin:0 0 4px;font-size:18px">📁 Documentos na Nuvem</h2>
+    <p style="color:var(--mut);font-size:13px;margin:0 0 16px">Navegue pelos documentos armazenados no Supabase Storage.</p>
+    <div class="docs-bar">
+      <input id="docSearch" placeholder="🔍 Buscar por nome, bloco, condomínio..." oninput="filterDocs()">
+      <select id="docSort" onchange="renderDocs()">
+        <option value="recent">Mais recentes</option>
+        <option value="name">Nome A→Z</option>
+      </select>
+    </div>
+    <div class="docs-crumbs" id="docCrumbs"></div>
+    <div class="docs-grid" id="docGrid"><div class="docs-loading">Carregando...</div></div>
+  </div>
+</div>
 <div class="wrap" id="view-inbox">
   <div class="inbox-app" id="ibApp">
     <!-- coluna 1: lista -->
@@ -2397,9 +2439,119 @@ function setTab(t){
   const vs=document.getElementById("view-sombra"); if(vs) vs.classList.add("hide");
   document.getElementById("view-aprov").classList.toggle("hide",t!=="aprov");
   const vi=document.getElementById("view-inbox"); if(vi) vi.classList.toggle("hide",t!=="inbox");
+  const vd=document.getElementById("view-docs"); if(vd) vd.classList.toggle("hide",t!=="docs");
   document.getElementById("tab-aprov").classList.toggle("on",t==="aprov");
   const ti=document.getElementById("tab-inbox"); if(ti) ti.classList.toggle("on",t==="inbox");
+  const td=document.getElementById("tab-docs"); if(td) td.classList.toggle("on",t==="docs");
   if(t==="inbox") renderInbox();
+  if(t==="docs" && !DOCS_LOADED) loadDocs();
+}
+
+// ========== MÓDULO DOCUMENTOS ==========
+let DOCS_CACHE=[], DOCS_PATH=[], DOCS_LOADED=false, DOCS_FILTER='';
+
+async function loadDocs(){
+  DOCS_LOADED=true;
+  const grid=document.getElementById('docGrid');
+  grid.innerHTML='<div class="docs-loading">Carregando documentos...</div>';
+  try{
+    await docNavigate([]);
+  }catch(e){
+    grid.innerHTML='<div class="docs-empty">Erro ao carregar: '+escH(e.message)+'</div>';
+  }
+}
+
+async function docListFolder(prefix){
+  const path=prefix||'';
+  const url=SUPABASE_URL+'/storage/v1/object/list/documentos';
+  const body={prefix:path,limit:500,offset:0,sortBy:{column:'name',order:'asc'}};
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json',apikey:SUPABASE_ANON,Authorization:'Bearer '+SUPABASE_ANON},body:JSON.stringify(body)});
+  if(!r.ok) throw new Error('Storage API '+r.status);
+  return r.json();
+}
+
+async function docNavigate(pathParts){
+  DOCS_PATH=pathParts;
+  const prefix=pathParts.join('/');
+  const items=await docListFolder(prefix);
+  DOCS_CACHE=items.map(it=>({
+    name:it.name,
+    isFolder:it.id===null,
+    size:it.metadata?.size||0,
+    updated:it.updated_at||it.created_at||'',
+    mime:it.metadata?.mimetype||''
+  }));
+  renderDocCrumbs();
+  renderDocs();
+}
+
+function renderDocCrumbs(){
+  const el=document.getElementById('docCrumbs');
+  el.innerHTML='';
+  const root=document.createElement('span');
+  root.textContent='documentos';
+  root.onclick=()=>docNavigate([]);
+  el.appendChild(root);
+  DOCS_PATH.forEach((p,i)=>{
+    const sep=document.createElement('span');sep.className='sep';sep.textContent='›';el.appendChild(sep);
+    const s=document.createElement('span');
+    s.textContent=p;
+    const sub=DOCS_PATH.slice(0,i+1);
+    s.onclick=()=>docNavigate(sub);
+    el.appendChild(s);
+  });
+}
+
+function renderDocs(){
+  const grid=document.getElementById('docGrid');
+  const sort=document.getElementById('docSort').value;
+  let items=[...DOCS_CACHE];
+  if(DOCS_FILTER){
+    const q=DOCS_FILTER.toLowerCase();
+    items=items.filter(it=>it.name.toLowerCase().includes(q));
+  }
+  items.sort((a,b)=>{
+    if(a.isFolder&&!b.isFolder) return -1;
+    if(!a.isFolder&&b.isFolder) return 1;
+    if(sort==='name') return a.name.localeCompare(b.name);
+    return (b.updated||'').localeCompare(a.updated||'');
+  });
+  grid.innerHTML='';
+  if(!items.length){
+    grid.innerHTML='<div class="docs-empty">'+(DOCS_FILTER?'Nenhum resultado para "'+escH(DOCS_FILTER)+'"':'Pasta vazia')+'</div>';
+    return;
+  }
+  items.forEach(it=>{
+    const div=document.createElement('div');div.className='doc-item';
+    if(it.isFolder){
+      const path=[...DOCS_PATH,it.name];
+      div.innerHTML='<div class="doc-icon">📁</div><div class="doc-name">'+escH(it.name)+'</div><div class="doc-meta">Pasta</div>';
+      div.onclick=()=>docNavigate(path);
+    }else{
+      const pubUrl=SUPABASE_URL+'/storage/v1/object/public/documentos/'+[...DOCS_PATH,it.name].map(encodeURIComponent).join('/');
+      const icon=it.mime.includes('pdf')?'📄':it.name.endsWith('.docx')?'📝':'📎';
+      const sizeStr=it.size>1048576?(it.size/1048576).toFixed(1)+' MB':it.size>1024?(it.size/1024).toFixed(0)+' KB':it.size+' B';
+      const dateStr=it.updated?new Date(it.updated).toLocaleDateString('pt-BR'):'';
+      div.innerHTML='<div class="doc-icon">'+icon+'</div><div class="doc-name">'+escH(it.name)+'</div><div class="doc-meta">'+sizeStr+(dateStr?' · '+dateStr:'')+'</div><div class="doc-actions"><a href="'+escH(pubUrl)+'" target="_blank">Abrir</a><button class="doc-copy-btn">Copiar link</button></div>';
+      div.querySelector('.doc-copy-btn').onclick=e=>{e.stopPropagation();copyDocUrl(pubUrl)};
+    }
+    grid.appendChild(div);
+  });
+}
+
+function filterDocs(){
+  DOCS_FILTER=document.getElementById('docSearch').value;
+  renderDocs();
+}
+
+function copyDocUrl(url){
+  navigator.clipboard.writeText(url).then(()=>{
+    const el=event.target;
+    const orig=el.textContent;
+    el.textContent='Copiado!';
+    el.style.color='var(--ok)';
+    setTimeout(()=>{el.textContent=orig;el.style.color=''},1500);
+  });
 }
 
 render();

@@ -2566,8 +2566,13 @@ async function gerarAprovacao(){
   if(body.nome.trim().split(/\s+/).length<2){sombraToast('⚠️ Nome completo obrigatório (nome + sobrenome)','err');return;}
   const st=document.getElementById('aprov-status');
   st.textContent='⏳ Gerando documento...';
+  const VPS_URL='https://docs.diagnostika.eng.br/gerar-aprovacao';
+  const LOCAL_URL='http://127.0.0.1:9999/gerar-aprovacao';
+  const opts={method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)};
   try{
-    const res=await fetch('http://127.0.0.1:9999/gerar-aprovacao',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    let res;
+    try{ res=await Promise.race([fetch(VPS_URL,opts),new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),8000))]); }
+    catch(vpsErr){ console.log('VPS indisponível, tentando local...',vpsErr.message); res=await fetch(LOCAL_URL,opts); }
     const data=await res.json();
     if(data.success){
       let html=escH('✅ Documento gerado!');
@@ -2575,16 +2580,16 @@ async function gerarAprovacao(){
         html+=`<br><a href="${escH(data.pdfUrl)}" target="_blank" style="font-size:12px;color:var(--turq);word-break:break-all">📄 Abrir PDF online</a>`;
         html+=`<br><button onclick="navigator.clipboard.writeText('${escH(data.pdfUrl)}');sombraToast('Link copiado','ok')" style="margin-top:6px;padding:6px 12px;background:var(--turq);color:#001;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">📋 Copiar link do PDF</button>`;
       }
-      html+=`<br><span style="font-size:11px;color:var(--mut);word-break:break-all">${escH(data.winPath||data.docx||'')}</span>`;
+      if(data.winPath) html+=`<br><span style="font-size:11px;color:var(--mut);word-break:break-all">${escH(data.winPath)}</span>`;
       st.innerHTML=html;
-      sombraToast('✅ Aprovação gerada com sucesso','ok');
+      sombraToast('Aprovação gerada com sucesso','ok');
     }else{
-      st.textContent='❌ Erro: '+(data.error||'desconhecido');
+      st.textContent='Erro: '+(data.error||'desconhecido');
       sombraToast('Erro ao gerar aprovação','err');
     }
   }catch(e){
-    st.textContent='❌ Servidor offline (porta 9999): '+e.message;
-    sombraToast('Servidor RPA offline','err');
+    st.textContent='Servidor offline: '+e.message;
+    sombraToast('Servidor de documentos offline','err');
   }
 }
 </script>

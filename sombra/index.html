@@ -768,7 +768,7 @@ function gmailHtml(tel){
   const data = GMAIL_CACHE[tel];
   const loading = GMAIL_LOADING[tel];
   const nome = MODAL_NOME||'';
-  const btn = `<button onclick="buscarGmail('${tel}', ${JSON.stringify(nome).replace(/"/g,'&quot;')})" ${loading?'disabled':''} style="padding:5px 11px;background:#d44638;color:#fff;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">${loading?'Buscando…':(data?'Re-buscar':'📧 Buscar e-mails')}</button>`;
+  const btn = `<button onclick="buscarGmail('${escH(tel)}', ${JSON.stringify(nome).replace(/"/g,'&quot;')})" ${loading?'disabled':''} style="padding:5px 11px;background:#d44638;color:#fff;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">${loading?'Buscando…':(data?'Re-buscar':'📧 Buscar e-mails')}</button>`;
   let body = '';
   if(data && data.erro) body = `<div style="color:#f88;margin-top:6px;font-size:11px">Webhook Gmail não configurado: ${data.erro}</div>`;
   else if(Array.isArray(data) && data.length){
@@ -972,7 +972,7 @@ function finHtml(tel){
   // suporta tanto array (legado) quanto {rows, nfse}
   const data = Array.isArray(raw) ? raw : (raw && Array.isArray(raw.rows) ? raw.rows : raw);
   const nfse = (raw && Array.isArray(raw.nfse)) ? raw.nfse : [];
-  const btn=`<button onclick="buscarFinanceiro('${tel}')" ${loading?'disabled':''} style="padding:5px 11px;background:#1f7a3d;color:#fff;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">${loading?'Buscando…':(raw?'Re-buscar':'💰 Buscar financeiro')}</button>`;
+  const btn=`<button onclick="buscarFinanceiro('${escH(tel)}')" ${loading?'disabled':''} style="padding:5px 11px;background:#1f7a3d;color:#fff;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">${loading?'Buscando…':(raw?'Re-buscar':'💰 Buscar financeiro')}</button>`;
   let body='';
   if(loading) body='<div style="color:var(--mut);margin-top:6px;font-size:11px">Consultando Supabase…</div>';
   else if(data && data.erro) body=`<div style="color:#f88;margin-top:6px;font-size:11px">${data.erro}</div>`;
@@ -1048,7 +1048,7 @@ async function gerarDossie(tel){
 function escH(s){return (s==null?'':(''+s)).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 function dossieHtml(tel){
   const d=DOSSIE_CACHE[tel]; const loading=DOSSIE_LOADING[tel];
-  const btn=`<button onclick="gerarDossie('${tel}')" ${loading?'disabled':''} style="padding:5px 11px;background:#7a4ec2;color:#fff;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">${loading?'Gerando…':(d?'Re-gerar':'📚 Gerar dossiê')}</button>`;
+  const btn=`<button onclick="gerarDossie('${escH(tel)}')" ${loading?'disabled':''} style="padding:5px 11px;background:#7a4ec2;color:#fff;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">${loading?'Gerando…':(d?'Re-gerar':'📚 Gerar dossiê')}</button>`;
   let body='';
   if(loading) body='<div style="color:var(--mut);margin-top:6px;font-size:11px">Consolidando WhatsApp + Gmail e enviando ao GPT-4o (pode levar 30-60s)…</div>';
   else if(d && d.erro) body=`<div style="color:#f88;margin-top:6px;font-size:11px">Erro: ${escH(d.erro||d.raw||'')}</div>`;
@@ -1318,7 +1318,7 @@ function macrosBarHtml(ia){
   return `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;padding:6px;background:#0d1417;border:1px solid var(--line);border-radius:7px">
     <div style="width:100%;font-size:10px;color:var(--mut);margin-bottom:2px">⚡ Macros · <span style="color:var(--lima);font-weight:700">${cat}</span></div>
     ${list.map(m=>`<button onclick="usarMacro(${JSON.stringify(m.t).replace(/"/g,'&quot;')})" title="${m.t.replace(/"/g,'&quot;')}" style="padding:4px 9px;background:rgba(0,180,172,.15);color:var(--turq);border:1px solid rgba(0,180,172,.35);border-radius:6px;font-size:11px;cursor:pointer;font-weight:600">${m.l}</button>`).join('')}
-    ${MODAL_TEL&&CONDS_COM_TEMPLATE.some(c=>c.toLowerCase()===((PEND.find(x=>x.tel===MODAL_TEL)||{}).cond||'').toLowerCase())?`<button onclick="event.stopPropagation();abrirModalAprovacao('${MODAL_TEL}')" style="padding:4px 9px;background:var(--lima);color:#001;border:1px solid var(--lima);border-radius:6px;font-size:11px;cursor:pointer;font-weight:700">📋 Emitir Aprovação</button>`:''}
+    ${MODAL_TEL&&CONDS_COM_TEMPLATE.some(c=>c.toLowerCase()===((PEND.find(x=>x.tel===MODAL_TEL)||{}).cond||'').toLowerCase())?`<button onclick="event.stopPropagation();abrirModalAprovacao('${escH(MODAL_TEL)}')" style="padding:4px 9px;background:var(--lima);color:#001;border:1px solid var(--lima);border-radius:6px;font-size:11px;cursor:pointer;font-weight:700">📋 Emitir Aprovação</button>`:''}
   </div>`;
 }
 function usarMacro(txt){
@@ -1401,7 +1401,7 @@ function renderModal(){
       const isPdf=/\.pdf$/i.test(fname);
       const pcache=PDF_CACHE[m.id]; const ploading=PDF_LOADING[m.id];
       const pdfBtn=isPdf?`<button onclick="extrairPdf(${m.id})" ${ploading?'disabled':''} title="${pcache?'PDF já lido pela IA':'Extrair texto pra IA'}" style="margin-left:4px;padding:3px 9px;background:${pcache?'#0d1417':'var(--turq)'};color:${pcache?'var(--turq)':'#001'};border:${pcache?'1px solid var(--turq)':'0'};border-radius:6px;font-size:11px;cursor:pointer;font-weight:700">${ploading?'⏳ lendo…':(pcache?'✅ IA lê este PDF':'🤖 Ler pra IA')}</button>`:'';
-      txt=`📄 ${fname} <button onclick="abrirArquivo(${m.id})" ${mloading?'disabled':''} style="margin-left:6px;padding:3px 9px;background:var(--lima);color:#001;border:0;border-radius:6px;font-size:11px;cursor:pointer;font-weight:700">${mloading?'⏳':'📥 Baixar'}</button>${pdfBtn}${pcache?`<div style="margin-top:6px;font-size:10px;color:var(--mut);font-style:italic">📝 ${pcache.texto.length} caracteres extraídos</div>`:''}`;
+      txt=`📄 ${escH(fname)} <button onclick="abrirArquivo(${m.id})" ${mloading?'disabled':''} style="margin-left:6px;padding:3px 9px;background:var(--lima);color:#001;border:0;border-radius:6px;font-size:11px;cursor:pointer;font-weight:700">${mloading?'⏳':'📥 Baixar'}</button>${pdfBtn}${pcache?`<div style="margin-top:6px;font-size:10px;color:var(--mut);font-style:italic">📝 ${pcache.texto.length} caracteres extraídos</div>`:''}`;
     } else {
       txt=escH(m.texto||'['+(m.tipo||'mídia')+']');
     }
@@ -1412,11 +1412,11 @@ function renderModal(){
   const iaHtml=`<div style="padding:10px 14px;background:rgba(0,180,172,.06);border-bottom:1px solid var(--line);font-size:12px">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
       <b style="color:var(--turq)">🤖 Análise IA (gpt-4o-mini)</b>
-      <button onclick="analisarIA('${MODAL_TEL}')" ${IA_LOADING?'disabled':''} style="padding:5px 11px;background:var(--turq);color:#001;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">
+      <button onclick="analisarIA('${escH(MODAL_TEL)}')" ${IA_LOADING?'disabled':''} style="padding:5px 11px;background:var(--turq);color:#001;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">
         ${IA_LOADING?'Analisando…':(ia?'Reanalisar':'Analisar com IA')}
       </button>
     </div>
-    ${ia?(ia.erro?`<div style="color:#f88;margin-top:6px">Erro: ${ia.erro}</div>`:`
+    ${ia?(ia.erro?`<div style="color:#f88;margin-top:6px">Erro: ${escH(ia.erro)}</div>`:`
       <div style="margin-top:8px;color:#cfdde0"><b>Classificação:</b> <span style="color:var(--lima)">${ia.classificacao}</span> · confiança ${Math.round((ia.confianca||0)*100)}%</div>
       ${ia.sinais&&ia.sinais.length?`<div style="margin-top:4px;color:var(--mut);font-size:11px">Sinais: ${ia.sinais.join(' · ')}</div>`:''}
     `):'<div style="color:var(--mut);margin-top:6px;font-size:11px">Clique para classificar e gerar sugestão de resposta.</div>'}
@@ -1455,7 +1455,7 @@ function renderModal(){
   const chatHtml=`<div style="padding:10px 14px;background:rgba(141,183,42,.05)">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
       <b style="color:var(--lima);font-size:12px">💬 Chat com IA</b>
-      ${chatHist.length?`<button onclick="limparChat('${MODAL_TEL}')" style="padding:3px 8px;background:transparent;color:var(--mut);border:1px solid var(--line);border-radius:6px;font-size:10px;cursor:pointer">Limpar</button>`:''}
+      ${chatHist.length?`<button onclick="limparChat('${escH(MODAL_TEL)}')" style="padding:3px 8px;background:transparent;color:var(--mut);border:1px solid var(--line);border-radius:6px;font-size:10px;cursor:pointer">Limpar</button>`:''}
     </div>
     ${sugBtn}
     ${macrosBarHtml(ia)}
@@ -1463,14 +1463,14 @@ function renderModal(){
     <div style="display:flex;gap:6px;margin-top:6px">
       <input id="chatInput" onkeydown="chatKeydown(event)" placeholder="Pergunte ou clique no 🎤…" ${CHAT_LOADING?'disabled':''} style="flex:1;padding:8px 10px;background:#0d1417;border:1px solid var(--line);border-radius:7px;color:#e5edee;font-size:12px;font-family:inherit">
       <button id="chatMic" onclick="gravarVoz()" ${CHAT_LOADING?'disabled':''} title="Ditar (pt-BR)" style="padding:8px 12px;background:#0d1417;color:#cfdde0;border:1px solid var(--line);border-radius:7px;font-size:14px;cursor:pointer">🎤</button>
-      <button onclick="perguntarChat('${MODAL_TEL}')" ${CHAT_LOADING?'disabled':''} style="padding:8px 14px;background:var(--lima);color:#001;border:0;border-radius:7px;font-size:12px;cursor:pointer;font-weight:700">${CHAT_LOADING?'…':'Enviar'}</button>
+      <button onclick="perguntarChat('${escH(MODAL_TEL)}')" ${CHAT_LOADING?'disabled':''} style="padding:8px 14px;background:var(--lima);color:#001;border:0;border-radius:7px;font-size:12px;cursor:pointer;font-weight:700">${CHAT_LOADING?'…':'Enviar'}</button>
     </div>
   </div>`;
   const prevInp=document.getElementById('chatInput');
   const savedVal=prevInp?prevInp.value:'';
   const focoChat=document.activeElement&&document.activeElement.id==='chatInput';
   const emitAprovBtn=CONDS_COM_TEMPLATE.some(c=>c.toLowerCase()===(p.cond||'').toLowerCase())?`<div style="padding:8px 14px;background:rgba(141,183,42,.08);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px">
-    <button onclick="event.stopPropagation();abrirModalAprovacao('${MODAL_TEL}')" style="padding:7px 14px;background:var(--lima);color:#001;border:0;border-radius:8px;font-size:12px;cursor:pointer;font-weight:700">📋 Emitir Aprovação</button>
+    <button onclick="event.stopPropagation();abrirModalAprovacao('${escH(MODAL_TEL)}')" style="padding:7px 14px;background:var(--lima);color:#001;border:0;border-radius:8px;font-size:12px;cursor:pointer;font-weight:700">📋 Emitir Aprovação</button>
     <span style="font-size:11px;color:var(--mut)">Gera DOCX de Autorização de Reforma com os dados deste atendimento</span>
   </div>`:'';
   body.innerHTML=cabHtml+emitAprovBtn+msgsHtml+iaHtml+crEAnetHtml(p,ia,d.msgs)+dossieHtml(MODAL_TEL)+finHtml(MODAL_TEL)+gmailHtml(MODAL_TEL)+arqHtml+chatHtml;
@@ -1770,20 +1770,20 @@ function render(){
     const aptoInfo=[p.apto,p.area].filter(Boolean).join(' · ');
     const contatoLimpo=(ev.contato||'').split(' - ')[0].split(',')[0].slice(0,40);
     const vtxt=cur?`<span class="${cur.v}" style="font-weight:600">${cur.v==='ok'?'✅':cur.v==='warn'?'⚠️':'❌'}</span>`:'';
-    const safeContato=(ev.contato||'').replace(/'/g,"\\'");
-    return `<div class="card ${cur?'done':''}" style="cursor:pointer" onclick="abrirConversa('${ev.tel||''}','${safeContato}')">
+    const safeContato=escH((ev.contato||'').replace(/'/g,"\\'"));
+    return `<div class="card ${cur?'done':''}" style="cursor:pointer" onclick="abrirConversa('${escH(ev.tel||'')}','${safeContato}')">
       <div class="c-head">
         <div style="flex:1;min-width:0">
           <div class="c-who" style="display:flex;align-items:center;gap:8px">
-            ${contatoLimpo||'Contato'} ${vtxt}
+            ${escH(contatoLimpo)||'Contato'} ${vtxt}
           </div>
           <div class="c-meta">
-            ${cond?`<b style="color:var(--lima)">${cond}</b> · `:''}${aptoInfo?aptoInfo+' · ':''}${fmtData(ev.startedAt)}${ev.protocolo?' · #'+ev.protocolo:''}
+            ${cond?`<b style="color:var(--lima)">${escH(cond)}</b> · `:''}${aptoInfo?escH(aptoInfo)+' · ':''}${fmtData(ev.startedAt)}${ev.protocolo?' · #'+escH(ev.protocolo):''}
           </div>
         </div>
         <span class="tag ${t}">${t}</span>
       </div>
-      ${ev.tel&&LIVE_OK!==false?`<div class="live-mini" data-live-tel="${ev.tel}" onclick="event.stopPropagation();abrirConversa('${ev.tel}','${safeContato}')" style="margin-top:10px">
+      ${ev.tel&&LIVE_OK!==false?`<div class="live-mini" data-live-tel="${ev.tel}" onclick="event.stopPropagation();abrirConversa('${escH(ev.tel)}','${safeContato}')" style="margin-top:10px">
         <div class="lm-text">Carregando histórico…</div>
         <div class="lm-cta">ver conversa ↗</div>
       </div>`:''}
@@ -2052,7 +2052,7 @@ function renderAprov(){
     const arr=grupos[cond].sort((a,b)=>(a.quem==='diag'?0:1)-(b.quem==='diag'?0:1));
     const nd=arr.filter(p=>p.quem==='diag').length;
     return `<div class="ap-cond">
-      <h3>🏢 ${cond} <span class="cnt">${arr.length} pendência${arr.length>1?'s':''}${nd?` · ${nd} com a Diagnóstika`:''}</span></h3>
+      <h3>🏢 ${escH(cond)} <span class="cnt">${arr.length} pendência${arr.length>1?'s':''}${nd?` · ${nd} com a Diagnóstika`:''}</span></h3>
       <div class="ap-grid">${arr.map(p=>cardAprov(p)).join("")}</div>
     </div>`;
   }).join("");

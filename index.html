@@ -260,7 +260,7 @@ async function verificarSessao(){
     // autenticado — verifica se é síndico
     const {data:vincs}=await sb.from('user_condos').select('role').eq('user_id',data.session.user.id);
     if(vincs && vincs.some(v=>v.role==='sindico')){
-      window.location.replace('/sindico/'); return;
+      window.location.replace('./sindico/'); return;
     }
     // equipe interna → libera portal
     document.body.classList.remove('locked');

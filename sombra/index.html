@@ -2735,7 +2735,8 @@ renderAprov();
     }catch(e){ console.warn('auto-descoberta tels:', e.message); }
     // após carregar histórico, mescla LIVE no PEND (cards auto-derivados)
     rebuildPend();
-    renderAprov(); render(); // re-render para aplicar detecção + cards live
+    await loadDemandasIA();
+    renderAprov(); render(); renderInbox(); // re-render para aplicar detecção + cards live
     Object.keys(LIVE).forEach(tel=>renderHistorico(tel)); // repopula minis após re-render
   }else{
     renderAprov(); // mostra aviso de "DDL pendente"

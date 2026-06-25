@@ -2873,7 +2873,7 @@ async function gerarAprovacao(){
   if(body.nome.trim().split(/\s+/).length<2){sombraToast('⚠️ Nome completo obrigatório (nome + sobrenome)','err');return;}
   const st=document.getElementById('aprov-status');
   st.textContent='⏳ Gerando documento...';
-  const VPS_URL='https://docs.84.46.248.23.sslip.io/gerar-aprovacao';
+  const VPS_URL='https://84.46.248.23.sslip.io/docs/gerar-aprovacao';
   const LOCAL_URL='http://127.0.0.1:9999/gerar-aprovacao';
   const opts={method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)};
   try{

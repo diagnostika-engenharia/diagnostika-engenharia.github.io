@@ -337,6 +337,11 @@
 [data-theme="light"] .ib-tg.art{background:rgba(0,180,172,.14);color:#0d5a55}
 .ib-tg.diag{background:rgba(232,136,136,.16);color:#f0a8a8}
 [data-theme="light"] .ib-tg.diag{background:rgba(198,58,50,.12);color:#b03228}
+.ib-tg.ok{background:rgba(58,208,122,.16);color:#3ad07a}
+[data-theme="light"] .ib-tg.ok{background:rgba(31,157,86,.12);color:#1a7a42}
+.ib-tg.blk{background:rgba(240,188,82,.16);color:#f0bc52}
+[data-theme="light"] .ib-tg.blk{background:rgba(184,134,29,.12);color:#8a6510}
+.ia-resumo{font-size:11px;color:var(--turq);opacity:.85;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ib-tg.cliente{background:rgba(251,176,64,.16);color:#fbb040}
 [data-theme="light"] .ib-tg.cliente{background:rgba(184,134,29,.12);color:#8c5d10}
 .ib-tg.live{background:rgba(141,183,42,.18);color:#a8d142}
@@ -1558,6 +1563,38 @@ function exportarPendCSV(){
   URL.revokeObjectURL(url);
   sombraToast('📊 CSV baixado: '+PEND.length+' linha(s)', 'ok');
 }
+let DEMANDAS_IA = [];
+async function loadDemandasIA(){
+  try{
+    const r = await fetch(SUPABASE_URL+'/rest/v1/demandas_status?select=*&status=neq.resolvida&order=updated_at.desc&limit=200',{headers:{apikey:SUPABASE_ANON,Authorization:'Bearer '+SUPABASE_ANON}});
+    if(!r.ok) return;
+    DEMANDAS_IA = await r.json();
+    const byTel = {};
+    DEMANDAS_IA.forEach(d=>{ byTel[d.tel]=d; });
+    PEND.forEach(p=>{
+      const ia = byTel[p.tel];
+      if(!ia) return;
+      if(ia.resumo_ia) p.resumo_ia = ia.resumo_ia;
+      if(ia.status) p.status_ia = ia.status;
+      if(ia.pendencias?.length) p.pendencias_ia = ia.pendencias;
+      if(ia.documentos_enviados?.length) p.docs_ia = ia.documentos_enviados;
+      if(ia.sla_vencido) p.sla_vencido = true;
+      if(ia.status==='pendente_cliente') p.quem='cliente';
+      else if(ia.status==='pendente_diag') p.quem='diag';
+    });
+    const baseTels = new Set(PEND.map(p=>p.tel));
+    DEMANDAS_IA.forEach(d=>{
+      if(baseTels.has(d.tel)) return;
+      PEND.push({
+        tel:d.tel, nome:d.nome||'('+d.tel+')', cond:d.cond||'Sem condomínio identificado',
+        tipo:d.tipo||'Outro', data:d.data_demanda?new Date(d.data_demanda).toLocaleDateString('pt-BR'):'',
+        apto:d.apto||null, quem:d.status==='pendente_cliente'?'cliente':'diag',
+        resumo_ia:d.resumo_ia, status_ia:d.status, pendencias_ia:d.pendencias,
+        docs_ia:d.documentos_enviados, _ia:true
+      });
+    });
+  }catch(e){}
+}
 async function recarregarLive(btn){
   if (btn) { btn.disabled=true; btn.textContent='…'; }
   try{
@@ -1565,7 +1602,6 @@ async function recarregarLive(btn){
     await loadTicketsMegazap();
     await Promise.all(PEND_BASE.map(p=>loadHistorico(p.tel)));
     await Promise.all(RAW.filter(ev=>ev.tel).map(ev=>loadHistorico(ev.tel)));
-    // auto-descobre tels novos do Supabase (não dependentes do PEND_BASE)
     try{
       const since = new Date(Date.now()-10*24*60*60*1000).toISOString();
       const r = await fetch(SUPABASE_URL+'/rest/v1/mensagens_wa?select=tel&recebida_em=gte.'+encodeURIComponent(since)+'&from_me=is.false&limit=500',{headers:{apikey:SUPABASE_ANON,Authorization:'Bearer '+SUPABASE_ANON}});
@@ -1574,9 +1610,10 @@ async function recarregarLive(btn){
       await Promise.all(novos.map(tel=>loadHistorico(tel)));
     }catch(e){}
     rebuildPend();
+    await loadDemandasIA();
     renderAprov();
     if (typeof renderInbox==='function' && document.getElementById('view-inbox') && !document.getElementById('view-inbox').classList.contains('hide')) renderInbox();
-    sombraToast('📡 Capturas recarregadas: '+PEND.filter(p=>p._live).length+' ao vivo', 'ok');
+    sombraToast('📡 Capturas recarregadas: '+PEND.filter(p=>p._live).length+' ao vivo | '+DEMANDAS_IA.length+' IA', 'ok');
   }catch(e){ sombraToast('❌ Falha ao recarregar: '+e.message, 'err'); }
   if (btn) { btn.disabled=false; btn.textContent='↻'; }
 }
@@ -2256,7 +2293,8 @@ function ibRenderCvList(list){
       <div class="cv-top"><span class="cv-nome">${escH(p.nome||p.tel)}${sla?`<span class="ib-sla ${sla.cls}">${escH(sla.txt)}</span>`:''}</span><span class="cv-hora">${escH(last.hora)}</span></div>
       ${aptoStr?`<div class="cv-apto">${escH(aptoStr)}</div>`:''}
       <div class="pv">${escH(last.txt)}</div>
-      ${p.tipo?`<div class="tags"><span class="ib-tg art">${escH(p.tipo)}</span></div>`:''}
+      ${p.resumo_ia?`<div class="pv ia-resumo">🤖 ${escH(p.resumo_ia)}</div>`:''}
+      ${p.tipo?`<div class="tags"><span class="ib-tg art">${escH(p.tipo)}</span>${p.status_ia?`<span class="ib-tg ${p.status_ia==='cumprida'?'ok':p.status_ia==='bloqueada'?'blk':''}">${escH(p.status_ia)}</span>`:''}</div>`:''}
     </div>`;
   }).join('');
 }

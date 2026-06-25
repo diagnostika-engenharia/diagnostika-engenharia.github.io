@@ -2731,6 +2731,7 @@ function parseApto(str){
 }
 
 function abrirModalAprovacao(tel){
+  MODAL_TEL=tel;
   const p=PEND.find(x=>x.tel===tel);
   if(!p){sombraToast('Pendência não encontrada','err');return;}
   const msgs=(LIVE[tel]&&LIVE[tel].msgs)||[];
@@ -2785,6 +2786,31 @@ function abrirModalAprovacao(tel){
 
 function fecharModalAprov(){document.getElementById('modalAprov').classList.remove('on');}
 
+// Busca protocolo MegaZap pelo telefone do atendimento atual
+function buscarProtocoloMZ(){
+  const tel=MODAL_TEL||'';
+  if(!tel){sombraToast('Nenhum telefone associado a esta pendência','err');return;}
+  const matches=RAW.filter(x=>x.tel===tel&&x.protocolo);
+  if(matches.length===0){
+    sombraToast('Nenhum protocolo MegaZap encontrado para este telefone','err');
+    return;
+  }
+  if(matches.length===1){
+    document.getElementById('aprov-codigo').value=String(matches[0].protocolo);
+    sombraToast('Protocolo #'+matches[0].protocolo+' encontrado','ok');
+    return;
+  }
+  // Múltiplos protocolos — deixa o usuário escolher
+  const opcoes=matches.map((m,i)=>`${i+1}) #${m.protocolo} — ${m.event||m.contato||''} (${m.startedAt?new Date(m.startedAt).toLocaleDateString('pt-BR'):''})`).join('\n');
+  const escolha=prompt('Múltiplos protocolos encontrados. Digite o número:\n\n'+opcoes);
+  if(!escolha) return;
+  const idx=parseInt(escolha)-1;
+  if(idx>=0&&idx<matches.length){
+    document.getElementById('aprov-codigo').value=String(matches[idx].protocolo);
+    sombraToast('Protocolo #'+matches[idx].protocolo+' selecionado','ok');
+  }
+}
+
 async function gerarAprovacao(){
   const dtRx=/^\d{2}\/\d{2}\/\d{4}$/;
   const dtIni=document.getElementById('aprov-dt-ini').value.trim();
@@ -2803,6 +2829,7 @@ async function gerarAprovacao(){
     codigo:document.getElementById('aprov-codigo').value||undefined,
   };
   if(obsGas) body.obsGas=obsGas;
+  if(!body.codigo){sombraToast('⚠️ Protocolo MegaZap obrigatório — clique em 🔍 Buscar','err');return;}
   const missing=['condominio','nome','bloco','apto','descricao','dataInicio','dataFim'].filter(k=>!body[k]);
   if(missing.length){sombraToast('Preencha todos os campos obrigatórios','err');return;}
   if(body.nome.trim().split(/\s+/).length<2){sombraToast('⚠️ Nome completo obrigatório (nome + sobrenome)','err');return;}
@@ -2877,8 +2904,11 @@ async function gerarAprovacao(){
           <input id="aprov-dt-fim" placeholder="dd/mm/aaaa" style="width:100%;margin-top:4px;padding:9px 12px;background:var(--card2);color:var(--txt);border:1px solid var(--line);border-radius:8px;font-size:13px">
         </label>
       </div>
-      <label style="font-size:12px;color:var(--mut)">Código (opcional — auto se vazio)
-        <input id="aprov-codigo" placeholder="auto" style="width:100%;margin-top:4px;padding:9px 12px;background:var(--card2);color:var(--txt);border:1px solid var(--line);border-radius:8px;font-size:13px">
+      <label style="font-size:12px;color:var(--mut)">Protocolo MegaZap <span style="color:var(--err);font-weight:700">*</span>
+        <div style="display:flex;gap:6px;margin-top:4px">
+          <input id="aprov-codigo" placeholder="Nº do protocolo" style="flex:1;padding:9px 12px;background:var(--card2);color:var(--txt);border:1px solid var(--line);border-radius:8px;font-size:13px" readonly>
+          <button id="aprov-buscar-proto" onclick="buscarProtocoloMZ()" style="padding:9px 14px;background:var(--turq);color:#001;border:0;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap" title="Buscar protocolo no MegaZap">🔍 Buscar</button>
+        </div>
       </label>
       <div style="display:flex;gap:10px;margin-top:4px">
         <button onclick="gerarAprovacao()" style="flex:1;padding:11px;background:var(--ok);color:#fff;border:0;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer">✅ Gerar Documento</button>

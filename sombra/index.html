@@ -1309,6 +1309,7 @@ function macrosBarHtml(ia){
   return `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;padding:6px;background:#0d1417;border:1px solid var(--line);border-radius:7px">
     <div style="width:100%;font-size:10px;color:var(--mut);margin-bottom:2px">⚡ Macros · <span style="color:var(--lima);font-weight:700">${cat}</span></div>
     ${list.map(m=>`<button onclick="usarMacro(${JSON.stringify(m.t).replace(/"/g,'&quot;')})" title="${m.t.replace(/"/g,'&quot;')}" style="padding:4px 9px;background:rgba(0,180,172,.15);color:var(--turq);border:1px solid rgba(0,180,172,.35);border-radius:6px;font-size:11px;cursor:pointer;font-weight:600">${m.l}</button>`).join('')}
+    ${MODAL_TEL&&CONDS_COM_TEMPLATE.some(c=>c.toLowerCase()===((PEND.find(x=>x.tel===MODAL_TEL)||{}).cond||'').toLowerCase())?`<button onclick="event.stopPropagation();abrirModalAprovacao('${MODAL_TEL}')" style="padding:4px 9px;background:var(--lima);color:#001;border:1px solid var(--lima);border-radius:6px;font-size:11px;cursor:pointer;font-weight:700">📋 Emitir Aprovação</button>`:''}
   </div>`;
 }
 function usarMacro(txt){

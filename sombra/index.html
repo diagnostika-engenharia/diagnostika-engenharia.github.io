@@ -313,6 +313,13 @@
 .ib-cond-header .cnt-diag{color:#f0a8a8;background:rgba(232,136,136,.16);padding:1px 7px;border-radius:8px}
 .ib-cond-header .cnt-cli{color:var(--ib-mut);background:var(--ib-elev2);padding:1px 7px;border-radius:8px}
 [data-theme="light"] .ib-cond-header .cnt-diag{color:#b03228;background:rgba(198,58,50,.1)}
+.ib-cond-header .cnt-aprov{color:var(--lima);background:rgba(141,183,42,.15);padding:1px 7px;border-radius:8px}
+.ib-cond-header .cnt-art{color:var(--turq);background:rgba(0,180,172,.15);padding:1px 7px;border-radius:8px}
+.ib-sla{font-size:9px;padding:1px 6px;border-radius:4px;font-weight:700;margin-left:4px}
+.ib-sla.green{color:#3ad07a;background:rgba(58,208,122,.15)}
+.ib-sla.yellow{color:#f0bc52;background:rgba(240,188,82,.18)}
+.ib-sla.red{color:#ef6a62;background:rgba(239,106,98,.18);animation:sla-pulse 1.5s infinite}
+@keyframes sla-pulse{0%,100%{opacity:1}50%{opacity:.6}}
 .ib-cond-body{padding-left:4px}
 .ib-cond-body.collapsed{display:none}
 .ib-status-label{font-size:9.5px;text-transform:uppercase;letter-spacing:1px;color:var(--ib-mut);padding:6px 12px 3px;font-weight:700;display:flex;align-items:center;gap:5px}
@@ -2188,13 +2195,18 @@ function renderInbox(){
       const items=groups[key];
       const nDiag=items.filter(p=>p.quem==='diag').length;
       const nCli=items.length-nDiag;
+      const nAprov=items.filter(p=>/aprov/i.test(p.tipo||'')||/reforma/i.test(p.tipo||'')).length;
+      const nArt=items.filter(p=>/^art$/i.test((p.tipo||'').trim())).length;
+      const nAtrasado=items.filter(p=>{const s=ibCalcSla(p);return s&&s.cls==='red'}).length;
       const isCol=collapsed[key];
       html+=`<div class="ib-cond-group">`;
       html+=`<div class="ib-cond-header ${isCol?'collapsed':''}" onclick="window._ibCollapsed['${escH(key)}']=!window._ibCollapsed['${escH(key)}'];renderInbox()">`;
       html+=`<span class="cond-name"><span class="cond-arrow">▼</span>${escH(key)}</span>`;
       html+=`<span class="cond-counts">`;
-      if(nDiag) html+=`<span class="cnt-diag">🔴 ${nDiag}</span>`;
-      if(nCli) html+=`<span class="cnt-cli">⏳ ${nCli}</span>`;
+      if(nAprov) html+=`<span class="cnt-aprov">✅ ${nAprov} aprov</span>`;
+      if(nArt) html+=`<span class="cnt-art">📋 ${nArt} ART</span>`;
+      if(nAtrasado) html+=`<span class="cnt-diag">🔴 ${nAtrasado} atrasado${nAtrasado>1?'s':''}</span>`;
+      if(!nAtrasado&&nDiag) html+=`<span class="cnt-diag">${nDiag} pendente${nDiag>1?'s':''}</span>`;
       html+=`</span></div>`;
       html+=`<div class="ib-cond-body ${isCol?'collapsed':''}">`;
       const diag=items.filter(p=>p.quem==='diag');
@@ -2220,12 +2232,28 @@ function renderInbox(){
   renderInboxThread();
 }
 
+const SLA_DIAS={art:3,aprovacao:2};
+function ibCalcSla(p){
+  if(!p.data) return null;
+  const parts=p.data.split('/');
+  const d0=new Date(+parts[2],+parts[1]-1,+parts[0]);
+  const hoje=new Date(); hoje.setHours(0,0,0,0);
+  const diff=Math.floor((hoje-d0)/(86400000));
+  const tipo=(p.tipo||'').toLowerCase();
+  const limite=tipo.includes('art')?SLA_DIAS.art:SLA_DIAS.aprovacao;
+  const restante=limite-diff;
+  if(restante>1) return {cls:'green',txt:restante+'d restantes'};
+  if(restante===1) return {cls:'yellow',txt:'1d restante'};
+  if(restante===0) return {cls:'yellow',txt:'Vence hoje!'};
+  return {cls:'red',txt:Math.abs(restante)+'d atrasado'};
+}
 function ibRenderCvList(list){
   return list.map(p=>{
     const last=ibConvoLastMsg(p.tel);
     const aptoStr=p.apto||'';
+    const sla=ibCalcSla(p);
     return `<div class="ib-cv ${IB_TEL===p.tel?'on':''}" onclick="ibSelConvo('${p.tel}')">
-      <div class="cv-top"><span class="cv-nome">${escH(p.nome||p.tel)}</span><span class="cv-hora">${escH(last.hora)}</span></div>
+      <div class="cv-top"><span class="cv-nome">${escH(p.nome||p.tel)}${sla?`<span class="ib-sla ${sla.cls}">${escH(sla.txt)}</span>`:''}</span><span class="cv-hora">${escH(last.hora)}</span></div>
       ${aptoStr?`<div class="cv-apto">${escH(aptoStr)}</div>`:''}
       <div class="pv">${escH(last.txt)}</div>
       ${p.tipo?`<div class="tags"><span class="ib-tg art">${escH(p.tipo)}</span></div>`:''}

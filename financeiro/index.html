@@ -1711,7 +1711,7 @@ async function loadContasBancarias(){
   const{data}=await sb.from('fin_contas_bancarias').select('*').eq('ativa',true);
   _bancos=data||[];
   const sel=document.getElementById('mpag-conta');
-  sel.innerHTML='<option value="">Sem vínculo</option>'+_bancos.map(b=>`<option value="${b.id}">${esc(b.nome)} (${fmt(b.saldo)})</option>`).join('');
+  if(sel) sel.innerHTML='<option value="">Sem vínculo</option>'+_bancos.map(b=>`<option value="${b.id}">${esc(b.nome)} (${fmt(b.saldo)})</option>`).join('');
 }
 
 // ── Contas a Receber ──────────────────────────────────────────

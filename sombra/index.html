@@ -342,6 +342,15 @@
 .ib-tg.blk{background:rgba(240,188,82,.16);color:#f0bc52}
 [data-theme="light"] .ib-tg.blk{background:rgba(184,134,29,.12);color:#8a6510}
 .ia-resumo{font-size:11px;color:var(--turq);opacity:.85;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cv-actions{display:flex;align-items:center;gap:4px;margin-top:4px;flex-wrap:wrap}
+.cv-btns{margin-left:auto;display:flex;gap:4px}
+.cv-btn{display:inline-block;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;text-decoration:none;border:none;font-family:inherit}
+.cv-btn.wa{background:rgba(37,211,102,.15);color:#25d366}
+.cv-btn.emitir{background:rgba(0,180,172,.15);color:var(--turq)}
+.cv-btn.abrir{background:rgba(255,255,255,.08);color:var(--mut)}
+[data-theme="light"] .cv-btn.wa{background:rgba(37,211,102,.12);color:#128c48}
+[data-theme="light"] .cv-btn.emitir{background:rgba(0,180,172,.12);color:#0d5a55}
+[data-theme="light"] .cv-btn.abrir{background:rgba(0,0,0,.06);color:#5b727d}
 .ib-tg.cliente{background:rgba(251,176,64,.16);color:#fbb040}
 [data-theme="light"] .ib-tg.cliente{background:rgba(184,134,29,.12);color:#8c5d10}
 .ib-tg.live{background:rgba(141,183,42,.18);color:#a8d142}
@@ -2290,14 +2299,34 @@ function ibRenderCvList(list){
     const last=ibConvoLastMsg(p.tel);
     const aptoStr=p.apto||'';
     const sla=ibCalcSla(p);
+    const isAprov=/aprov|reforma/i.test(p.tipo||'');
+    const waUrl='https://wa.me/'+encodeURIComponent(p.tel);
     return `<div class="ib-cv ${IB_TEL===p.tel?'on':''}" onclick="ibSelConvo('${p.tel}')">
       <div class="cv-top"><span class="cv-nome">${escH(p.nome||p.tel)}${sla?`<span class="ib-sla ${sla.cls}">${escH(sla.txt)}</span>`:''}</span><span class="cv-hora">${escH(last.hora)}</span></div>
       ${aptoStr?`<div class="cv-apto">${escH(aptoStr)}</div>`:''}
       <div class="pv">${escH(last.txt)}</div>
       ${p.resumo_ia?`<div class="pv ia-resumo">🤖 ${escH(p.resumo_ia)}</div>`:''}
-      ${p.tipo?`<div class="tags"><span class="ib-tg art">${escH(p.tipo)}</span>${p.status_ia?`<span class="ib-tg ${p.status_ia==='cumprida'?'ok':p.status_ia==='bloqueada'?'blk':''}">${escH(p.status_ia)}</span>`:''}</div>`:''}
+      <div class="cv-actions">
+        ${p.tipo?`<span class="ib-tg art">${escH(p.tipo)}</span>`:''}
+        ${p.status_ia?`<span class="ib-tg ${p.status_ia==='cumprida'?'ok':p.status_ia==='bloqueada'?'blk':''}">${escH(p.status_ia)}</span>`:''}
+        <span class="cv-btns">
+          <a class="cv-btn wa" href="${waUrl}" target="_blank" onclick="event.stopPropagation()" title="Abrir WhatsApp">WA</a>
+          ${isAprov?`<button class="cv-btn emitir" onclick="event.stopPropagation();ibEmitirAprov('${p.tel}')" title="Emitir aprovação">Emitir</button>`:''}
+          <button class="cv-btn abrir" onclick="event.stopPropagation();ibSelConvo('${p.tel}')" title="Ver conversa">Abrir</button>
+        </span>
+      </div>
     </div>`;
   }).join('');
+}
+function ibEmitirAprov(tel){
+  const p=PEND.find(x=>x.tel===tel);
+  if(!p) return sombraToast('Pendência não encontrada','err');
+  MODAL_TEL=tel; MODAL_P=p; MODAL_NOME=p.nome||'';
+  setTab('aprov');
+  setTimeout(()=>{
+    const card=document.querySelector('.card[data-tel="'+tel+'"]');
+    if(card) card.scrollIntoView({behavior:'smooth',block:'center'});
+  },300);
 }
 async function ibAnalisar(tel){
   // wrapper: garante MODAL_TEL/P pra analisarIA() usar como contexto, depois re-render Inbox

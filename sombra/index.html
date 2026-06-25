@@ -1402,7 +1402,7 @@ function renderModal(){
   const ia=IA_CACHE[MODAL_TEL];
   const iaHtml=`<div style="padding:10px 14px;background:rgba(0,180,172,.06);border-bottom:1px solid var(--line);font-size:12px">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-      <b style="color:var(--turq)">🤖 Análise IA (gpt-4.1)</b>
+      <b style="color:var(--turq)">🤖 Análise IA (gpt-4o-mini)</b>
       <button onclick="analisarIA('${MODAL_TEL}')" ${IA_LOADING?'disabled':''} style="padding:5px 11px;background:var(--turq);color:#001;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">
         ${IA_LOADING?'Analisando…':(ia?'Reanalisar':'Analisar com IA')}
       </button>

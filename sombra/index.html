@@ -303,10 +303,25 @@
 .ib-cv{padding:10px 12px;border-radius:8px;cursor:pointer;margin-bottom:3px;font-size:12px;transition:background .12s;position:relative}
 .ib-cv:hover{background:var(--ib-elev)}
 .ib-cv.on{background:var(--ib-elev2);box-shadow:inset 3px 0 0 #00B4AC}
+.ib-cond-group{margin-bottom:6px}
+.ib-cond-header{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;cursor:pointer;border-radius:8px;transition:background .12s}
+.ib-cond-header:hover{background:var(--ib-elev)}
+.ib-cond-header .cond-name{font-weight:700;font-size:13px;color:var(--turq);display:flex;align-items:center;gap:6px}
+.ib-cond-header .cond-name .cond-arrow{font-size:10px;color:var(--ib-mut);transition:transform .2s}
+.ib-cond-header.collapsed .cond-arrow{transform:rotate(-90deg)}
+.ib-cond-header .cond-counts{display:flex;gap:6px;font-size:10px;font-weight:600}
+.ib-cond-header .cnt-diag{color:#f0a8a8;background:rgba(232,136,136,.16);padding:1px 7px;border-radius:8px}
+.ib-cond-header .cnt-cli{color:var(--ib-mut);background:var(--ib-elev2);padding:1px 7px;border-radius:8px}
+[data-theme="light"] .ib-cond-header .cnt-diag{color:#b03228;background:rgba(198,58,50,.1)}
+.ib-cond-body{padding-left:4px}
+.ib-cond-body.collapsed{display:none}
+.ib-status-label{font-size:9.5px;text-transform:uppercase;letter-spacing:1px;color:var(--ib-mut);padding:6px 12px 3px;font-weight:700;display:flex;align-items:center;gap:5px}
+.ib-status-label .dot{width:6px;height:6px;border-radius:50%;display:inline-block}
+.ib-status-label .dot.diag{background:#ef6a62}
+.ib-status-label .dot.cli{background:var(--ib-mut)}
 .ib-cv .cv-top{display:flex;justify-content:space-between;align-items:flex-start;gap:6px}
-.ib-cv .cv-cond{font-weight:700;font-size:12px;color:var(--turq);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ib-cv .cv-nome{font-weight:600;color:var(--ib-txt);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ib-cv .cv-hora{color:var(--ib-mut);font-size:10.5px;font-weight:400;white-space:nowrap;flex-shrink:0}
-.ib-cv .cv-nome{font-weight:600;color:var(--ib-txt);font-size:13px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ib-cv .cv-apto{font-size:10.5px;color:var(--ib-mut);margin-top:1px}
 .ib-cv .pv{color:var(--ib-mut);font-size:11.5px;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ib-cv .tags{margin-top:5px;display:flex;gap:4px;flex-wrap:wrap}
@@ -2151,21 +2166,51 @@ function renderInbox(){
     convos=convos.filter(p=>(p.nome||'').toLowerCase().includes(q)||(p.tel||'').includes(q)||(p.cond||'').toLowerCase().includes(q)||(p.tipo||'').toLowerCase().includes(q));
   }
   document.getElementById('ibCvCount').textContent = convos.length;
-  document.getElementById('ibConvos').innerHTML = convos.length ? convos.map(p=>{
-    const last = ibConvoLastMsg(p.tel);
-    const condNome = p.cond && p.cond!=='Sem condomínio identificado' ? p.cond : '';
-    const aptoStr = p.apto ? p.apto : '';
-    return `<div class="ib-cv ${IB_TEL===p.tel?'on':''}" onclick="ibSelConvo('${p.tel}')">
-      <div class="cv-top"><span class="cv-cond">${condNome?escH(condNome):'<span style="color:var(--ib-mut);font-weight:400">Sem condomínio</span>'}</span><span class="cv-hora">${escH(last.hora)}</span></div>
-      <div class="cv-nome">${escH(p.nome||p.tel)}</div>
-      ${aptoStr?`<div class="cv-apto">${escH(aptoStr)}</div>`:''}
-      <div class="pv">${escH(last.txt)}</div>
-      <div class="tags">
-        ${p.tipo?`<span class="ib-tg art">${escH(p.tipo)}</span>`:''}
-        ${p.quem==='diag'?'<span class="ib-tg diag">Aguarda Diag</span>':'<span class="ib-tg cliente">Aguarda Cliente</span>'}
-      </div>
-    </div>`;
-  }).join('') : '<div class="ib-empty">Nenhuma conversa nesta fila</div>';
+  if(!convos.length){
+    document.getElementById('ibConvos').innerHTML='<div class="ib-empty">Nenhuma conversa nesta fila</div>';
+  }else{
+    const groups={};
+    convos.forEach(p=>{
+      const key=p.cond&&p.cond!=='Sem condomínio identificado'?p.cond:'Sem condomínio';
+      if(!groups[key]) groups[key]=[];
+      groups[key].push(p);
+    });
+    const sortedKeys=Object.keys(groups).sort((a,b)=>{
+      if(a==='Sem condomínio') return 1;
+      if(b==='Sem condomínio') return -1;
+      const da=groups[a].filter(p=>p.quem==='diag').length;
+      const db=groups[b].filter(p=>p.quem==='diag').length;
+      return db-da||a.localeCompare(b);
+    });
+    const collapsed=window._ibCollapsed||(window._ibCollapsed={});
+    let html='';
+    sortedKeys.forEach(key=>{
+      const items=groups[key];
+      const nDiag=items.filter(p=>p.quem==='diag').length;
+      const nCli=items.length-nDiag;
+      const isCol=collapsed[key];
+      html+=`<div class="ib-cond-group">`;
+      html+=`<div class="ib-cond-header ${isCol?'collapsed':''}" onclick="window._ibCollapsed['${escH(key)}']=!window._ibCollapsed['${escH(key)}'];renderInbox()">`;
+      html+=`<span class="cond-name"><span class="cond-arrow">▼</span>${escH(key)}</span>`;
+      html+=`<span class="cond-counts">`;
+      if(nDiag) html+=`<span class="cnt-diag">🔴 ${nDiag}</span>`;
+      if(nCli) html+=`<span class="cnt-cli">⏳ ${nCli}</span>`;
+      html+=`</span></div>`;
+      html+=`<div class="ib-cond-body ${isCol?'collapsed':''}">`;
+      const diag=items.filter(p=>p.quem==='diag');
+      const cli=items.filter(p=>p.quem!=='diag');
+      if(diag.length){
+        html+=`<div class="ib-status-label"><span class="dot diag"></span>Precisamos responder (${diag.length})</div>`;
+        html+=ibRenderCvList(diag);
+      }
+      if(cli.length){
+        html+=`<div class="ib-status-label"><span class="dot cli"></span>Aguardando resposta (${cli.length})</div>`;
+        html+=ibRenderCvList(cli);
+      }
+      html+=`</div></div>`;
+    });
+    document.getElementById('ibConvos').innerHTML=html;
+  }
 
   // contador na aba
   const ib = document.getElementById('ibcount');
@@ -2175,6 +2220,18 @@ function renderInbox(){
   renderInboxThread();
 }
 
+function ibRenderCvList(list){
+  return list.map(p=>{
+    const last=ibConvoLastMsg(p.tel);
+    const aptoStr=p.apto||'';
+    return `<div class="ib-cv ${IB_TEL===p.tel?'on':''}" onclick="ibSelConvo('${p.tel}')">
+      <div class="cv-top"><span class="cv-nome">${escH(p.nome||p.tel)}</span><span class="cv-hora">${escH(last.hora)}</span></div>
+      ${aptoStr?`<div class="cv-apto">${escH(aptoStr)}</div>`:''}
+      <div class="pv">${escH(last.txt)}</div>
+      ${p.tipo?`<div class="tags"><span class="ib-tg art">${escH(p.tipo)}</span></div>`:''}
+    </div>`;
+  }).join('');
+}
 async function ibAnalisar(tel){
   // wrapper: garante MODAL_TEL/P pra analisarIA() usar como contexto, depois re-render Inbox
   const p = PEND.find(x=>x.tel===tel) || {tel};

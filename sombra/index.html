@@ -205,8 +205,8 @@
       <span id="n8nStatus" title="Status do servidor n8n" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#aaa;margin-right:8px;cursor:pointer;vertical-align:middle" onclick="checkN8nStatus()"></span>
       <button class="theme-btn" onclick="editarN8nBase()" title="Configurar URL n8n" style="margin-right:6px">⚙️</button>
       <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Alternar tema">🌙</button>
-      <button class="tab on" id="tab-inbox" onclick="setTab('inbox')">📥 Inbox <b id="ibcount"></b></button>
-      <button class="tab" id="tab-aprov" onclick="setTab('aprov')">✅ Aprovação <b id="apcount"></b></button>
+      <button class="tab on" id="tab-inbox" onclick="setTab('inbox')">💬 Conversas <b id="ibcount"></b></button>
+      <button class="tab" id="tab-aprov" onclick="setTab('aprov')">📋 Painel <b id="apcount"></b></button>
       <button class="tab" id="tab-docs" onclick="setTab('docs')">📁 Documentos</button>
     </div>
   </div>
@@ -434,7 +434,8 @@
   <div class="inbox-app" id="ibApp">
     <!-- coluna 1: lista -->
     <div class="ib-list" id="ibListPanel">
-      <h1>📥 Caixa de entrada</h1>
+      <h1>💬 Conversas WhatsApp</h1>
+      <div style="padding:0 12px 4px;font-size:11px;color:var(--mut)">Mensagens recentes dos clientes — quem precisa de resposta</div>
       <div style="padding:6px 12px 2px"><input id="ibSearch" oninput="IB_SEARCH=this.value;renderInbox()" placeholder="🔍 Buscar nome, tel, condomínio..." style="width:100%;padding:7px 10px;background:var(--card2);border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:12px;font-family:inherit;outline:none"></div>
       <div class="ib-section">Filas</div>
       <div class="ib-filas" id="ibFilas"></div>
@@ -2143,11 +2144,10 @@ function ibFilas(){
   const liveCount = ABERTOS.filter(p=>p._live).length;
   const resolvedCount = VIS.filter(p=>!!IB_RESOLVED[p.tel]).length;
   return [
-    {id:'aguarda_diag', label:'Aguardando humano', n:aguardaDiag},
+    {id:'aguarda_diag', label:'Precisamos responder', n:aguardaDiag},
     {id:'aguarda_cli', label:'Aguardando cliente', n:aguardaCli},
     {id:'sla', label:'⚠ SLA crítico (>24h)', n:slaCritico, warn:true},
-    {id:'live', label:'📡 Captura ao vivo', n:liveCount},
-    {id:'todos', label:'Todos abertos', n:ABERTOS.length},
+    {id:'todos', label:'Todas conversas', n:ABERTOS.length},
     {id:'resolvidos', label:'✅ Resolvidos', n:resolvedCount},
   ];
 }

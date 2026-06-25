@@ -1,3 +1,4 @@
+{% raw %}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -1119,7 +1120,7 @@ body.capturing .rel-acao{display:none!important}
         <div class="form-row"><label>Valor mensal (R$)</label><input id="nc-valor" type="number" min="0" step="0.01" placeholder="0,00"></div>
         <div class="form-row"><label>ISS</label><select id="nc-iss"><option value="2">Não retido</option><option value="1">Retido</option></select></div>
       </div>
-      <div class="form-row"><label>Descrição padrão da nota</label><textarea id="nc-desc" rows="3" placeholder="Use {vencimento}, {valor} como variáveis. Deixe vazio para padrão."></textarea></div>
+      <div class="form-row"><label>Descrição padrão da nota</label><textarea id="nc-desc" rows="3" placeholder="Use {{vencimento}}, {{valor}} como variáveis. Deixe vazio para padrão."></textarea></div>
       <div id="nc-result"></div>
     </div>
     <div class="modal-ft">
@@ -3738,7 +3739,7 @@ function _dbToNfseCondo(r){
     tomador:{cnpj:r.cnpj,inscricao_municipal:r.inscricao_municipal||'',razao_social:r.razao_social||r.nome.toUpperCase(),municipio:r.cidade||'',cod_municipio:r.cod_municipio||'',cep:r.cep||'',uf:r.uf||'SP',email:r.email_financeiro||''},
     valor:valorReais, iss_retido:r.iss_retido?'1':'2',
     parcelamento:r.parcelas_total?{ativo:true,parcela_atual:r.parcelas_emitidas||1,total:r.parcelas_total}:null,
-    descricao:r.descricao_padrao||'Prestação de serviços técnicos de engenharia condominial, conforme contrato.\nPIX CNPJ: 54.027.948/0001-60\nVencimento '+'{'+'{vencimento}}',
+    descricao:r.descricao_padrao||'Prestação de serviços técnicos de engenharia condominial, conforme contrato.\nPIX CNPJ: 54.027.948/0001-60\nVencimento {{vencimento}}',
     canal_envio:r.canal_envio, megazap:r.canal_envio==='megazap',
     envio:r.canal_envio==='megazap'?'E-mail automático da prefeitura + MegaZap':'E-mail automático da prefeitura'
   };
@@ -4080,7 +4081,7 @@ async function salvarNovoCliente(){
   if(!nome){ res.innerHTML='<div class="nfse-resultado erro">Informe o nome do condomínio/cliente.</div>'; return; }
   if(cnpj.length!==14){ res.innerHTML='<div class="nfse-resultado erro">CNPJ inválido (14 dígitos).</div>'; return; }
   if(NFSE_CONDOS.some(c=>c.tomador.cnpj===cnpj)){ res.innerHTML='<div class="nfse-resultado erro">Já existe um cliente com este CNPJ.</div>'; return; }
-  if(!desc) desc='Prestação de serviços técnicos mensais de assessoria em engenharia condominial, conforme contrato.\nPagamento via PIX Chave CNPJ: 54.027.948/0001-60.\nVencimento '+'{'+'{vencimento}}';
+  if(!desc) desc='Prestação de serviços técnicos mensais de assessoria em engenharia condominial, conforme contrato.\nPagamento via PIX Chave CNPJ: 54.027.948/0001-60.\nVencimento {{vencimento}}';
   res.innerHTML='<div class="nfse-resultado">Salvando...</div>';
   const payload={
     nome, cnpj, razao_social:nome.toUpperCase(),
@@ -4668,3 +4669,4 @@ async function desconciliarTxn(txnId){
 </script>
 </body>
 </html>
+{% endraw %}

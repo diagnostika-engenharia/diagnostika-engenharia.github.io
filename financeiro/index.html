@@ -1982,7 +1982,8 @@ async function confirmarPago(){
   // Cascata: marca reembolsos do mês como Pagos
   if(conta?.competencia&&conta?.tipo_reembolso){
     const tabela=conta.tipo_reembolso==='digital'?'fin_reembolsos_digitais':'fin_reembolsos';
-    await sb.from(tabela).update({status:'Pago'}).eq('mes',conta.competencia);
+    const colMes=conta.tipo_reembolso==='digital'?'mes_referencia':'mes';
+    await sb.from(tabela).update({status:'Pago'}).eq(colMes,conta.competencia);
   }
 
   // Se pagamento pelo Cofre: lança saída automática
@@ -2028,7 +2029,8 @@ async function confirmarEstornoP(){
   // Cascata: reembolsos do mês voltam a Pendente
   if(conta&&conta.competencia&&conta.tipo_reembolso){
     const tabela=conta.tipo_reembolso==='digital'?'fin_reembolsos_digitais':'fin_reembolsos';
-    await sb.from(tabela).update({status:'Pendente'}).eq('mes',conta.competencia);
+    const colMes=conta.tipo_reembolso==='digital'?'mes_referencia':'mes';
+    await sb.from(tabela).update({status:'Pendente'}).eq(colMes,conta.competencia);
   }
   closeModal('modal-estorno-p');toast('Estornado');loadPagar();loadDash();
 }
@@ -3430,7 +3432,8 @@ async function reconciliarReembolsosAuto(silencioso=false){
       // Cascata: marcar reembolsos do mês como Pagos
       if(conta.competencia&&conta.tipo_reembolso){
         const tabela=conta.tipo_reembolso==='digital'?'fin_reembolsos_digitais':'fin_reembolsos';
-        await sb.from(tabela).update({status:'Pago'}).eq('mes',conta.competencia);
+        const colMes=conta.tipo_reembolso==='digital'?'mes_referencia':'mes';
+        await sb.from(tabela).update({status:'Pago'}).eq(colMes,conta.competencia);
       }
 
       reconciliados++;

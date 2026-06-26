@@ -949,6 +949,21 @@ body.capturing .rel-acao{display:none!important}
           <span style="font-size:12px;color:var(--text2);font-weight:600;margin-right:2px">Período:</span>
           <div id="ex-mes-chips" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"></div>
         </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 2px 0">
+          <label style="font-size:12px;color:var(--text2);font-weight:600">Tipo:</label>
+          <select id="ex-tipo-filtro" onchange="_dreSetTipo(this.value)" style="font-size:13px;padding:4px 8px;border-radius:8px;border:1px solid var(--gray3)">
+            <option value="todos">Todos</option>
+            <option value="credito">Crédito (entradas)</option>
+            <option value="debito">Débito (saídas)</option>
+          </select>
+          <span style="color:var(--gray3)">|</span>
+          <label style="font-size:12px;color:var(--text2);font-weight:600">De:</label>
+          <input type="date" id="ex-per-de" onchange="_drePeriodoChange()" style="font-size:13px;padding:3px 6px;border-radius:8px;border:1px solid var(--gray3)">
+          <label style="font-size:12px;color:var(--text2);font-weight:600">Até:</label>
+          <input type="date" id="ex-per-ate" onchange="_drePeriodoChange()" style="font-size:13px;padding:3px 6px;border-radius:8px;border:1px solid var(--gray3)">
+          <button class="btn btn-outline btn-sm" onclick="_dreLimparPeriodo()">Limpar período</button>
+          <small style="color:var(--text2)">(período personalizado ignora os meses acima)</small>
+        </div>
 
         <div class="ex-dre-grid">
           <div class="card ex-kpi"><span>Receitas</span><b class="val-green" id="ex-kpi-rec">R$ 0,00</b></div>
@@ -1088,6 +1103,33 @@ body.capturing .rel-acao{display:none!important}
     <div class="modal-ft">
       <button class="btn btn-outline" onclick="closeModal('modal-receber')">Cancelar</button>
       <button class="btn btn-primary" onclick="saveReceber()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CLASSIFICAR LANÇAMENTO MANUALMENTE -->
+<div class="modal-bg" id="modal-classificar">
+  <div class="modal">
+    <div class="modal-hd"><h3>Classificar lançamento</h3><button onclick="closeModal('modal-classificar')">×</button></div>
+    <div class="modal-bd">
+      <div id="cl-resumo" style="font-size:13px;color:var(--text2);margin-bottom:10px"></div>
+      <label style="font-size:12px;font-weight:600">Condomínio / Cliente</label>
+      <input id="cl-condominio" list="cl-clientes-list" placeholder="Selecione ou digite…" style="width:100%;box-sizing:border-box;margin:4px 0 10px;padding:7px 9px;border:1px solid var(--gray3);border-radius:8px">
+      <datalist id="cl-clientes-list"></datalist>
+      <label style="font-size:12px;font-weight:600">Tipo de serviço</label>
+      <select id="cl-tiposervico" onchange="_clTipoServ(this.value)" style="width:100%;box-sizing:border-box;margin:4px 0 10px;padding:7px 9px;border:1px solid var(--gray3);border-radius:8px">
+        <option value="">—</option>
+        <option>ART</option><option>Assessoria</option><option>Projeto</option>
+        <option>Vistoria</option><option>Averbação</option><option>Regularização</option>
+        <option>Anexação</option><option>Laudo</option><option>Parecer</option><option>Outros</option>
+      </select>
+      <label style="font-size:12px;font-weight:600">Categoria</label>
+      <input id="cl-categoria" placeholder="ex: Receita de ART" style="width:100%;box-sizing:border-box;margin:4px 0 4px;padding:7px 9px;border:1px solid var(--gray3);border-radius:8px">
+      <small style="color:var(--text2)">A sincronização automática não altera o que você classificar aqui.</small>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('modal-classificar')">Cancelar</button>
+      <button class="btn btn-primary" id="cl-salvar-btn" onclick="salvarClassificacao()">Salvar</button>
     </div>
   </div>
 </div>
@@ -4430,13 +4472,14 @@ async function extratoArquivos(files){
 }
 
 function _exTabela(txns,preview){
-  return `<table class="nfse-hist-tbl"><thead><tr><th>Data</th><th>Histórico</th><th>Categoria</th><th>Tipo</th><th style="text-align:right">Valor</th></tr></thead><tbody>`+
+  return `<table class="nfse-hist-tbl"><thead><tr><th>Data</th><th>Histórico</th><th>Categoria / Condomínio</th><th>Tipo</th><th style="text-align:right">Valor</th>${preview?'':'<th></th>'}</tr></thead><tbody>`+
     txns.map(t=>`<tr>
-      <td>${esc(t.dataBR||(t.data?t.data.slice(8,10)+'/'+t.data.slice(5,7):''))}</td>
+      <td style="white-space:nowrap">${esc(t.dataBR||(t.data?t.data.slice(8,10)+'/'+t.data.slice(5,7):''))}${t.hora?' <small style="color:var(--text2)">'+esc(t.hora)+'</small>':''}</td>
       <td>${esc(t.historico||t.descricao||'')}</td>
-      <td>${esc(t.categoria||'—')}${t.categoria==='Não classificado'?' <span class="nfse-flag" style="background:#FFF3E0;color:#E65100">revisar</span>':''}</td>
+      <td>${esc(t.categoria||'—')}${t.categoria==='Não classificado'?' <span class="nfse-flag" style="background:#FFF3E0;color:#E65100">revisar</span>':''}${t.condominio?'<br><small style="color:var(--teal)">🏢 '+esc(t.condominio)+(t.tipo_servico?' · '+esc(t.tipo_servico):'')+'</small>':''}</td>
       <td><span class="ex-tag ${t.tipo==='C'?'cred':'deb'}">${t.tipo==='C'?'crédito':'débito'}</span></td>
       <td style="text-align:right;color:${t.tipo==='C'?'var(--green)':'var(--red)'}">${t.tipo==='C'?'+':'−'} R$ ${(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+      ${preview?'':`<td style="text-align:right">${t.id?'<button title="Classificar" onclick="abrirClassificar('+t.id+')" style="cursor:pointer;border:none;background:none;font-size:15px">✏️</button>':''}</td>`}
     </tr>`).join('')+`</tbody></table>`;
 }
 function cancelarExtrato(){ _exPendentes=null; document.getElementById('ex-preview-card').style.display='none'; document.getElementById('ex-status').textContent=''; }
@@ -4523,11 +4566,15 @@ function _cofreComoTxns(rows){
 let _cofreCache=null, _dreBankCache=null;
 // meses selecionados na DRE (vazio = todos). Permite escolher vários períodos.
 let _dreMeses=new Set();
+let _dreTipo='todos';
 function _dreToggleMes(m){
   if(!m){ _dreMeses.clear(); }            // chip "Todos"
   else { _dreMeses.has(m)?_dreMeses.delete(m):_dreMeses.add(m); }
   renderExtratoDRE();                      // re-filtra usando cache (sem rede)
 }
+function _dreSetTipo(v){ _dreTipo=v||'todos'; renderExtratoDRE(); }
+function _drePeriodoChange(){ renderExtratoDRE(); }
+function _dreLimparPeriodo(){ const a=document.getElementById('ex-per-de'),b=document.getElementById('ex-per-ate'); if(a)a.value=''; if(b)b.value=''; renderExtratoDRE(); }
 async function renderExtratoDRE(force){
   if(force){ _dreBankCache=null; _cofreCache=null; }
   const incCofre=document.getElementById('ex-inc-cofre')?.checked!==false;
@@ -4554,8 +4601,13 @@ async function renderExtratoDRE(force){
     chipsBox.innerHTML='<button class="mes-chip'+(_dreMeses.size===0?' on':'')+'" onclick="_dreToggleMes(\'\')">Todos</button>'+
       comps.map(c=>'<button class="mes-chip'+(_dreMeses.has(c)?' on':'')+'" onclick="_dreToggleMes(\''+c+'\')">'+_compLabel(c)+'</button>').join('');
   }
-  // filtra pelos meses escolhidos (vazio = todos)
-  let txns = _dreMeses.size ? all.filter(t=>_dreMeses.has(_txComp(t))) : all.slice();
+  // filtra por período personalizado (de/até) OU meses escolhidos; depois por tipo
+  const _de=document.getElementById('ex-per-de')?.value||'';
+  const _ate=document.getElementById('ex-per-ate')?.value||'';
+  let txns;
+  if(_de||_ate){ txns = all.filter(t=> t.data && (!_de||String(t.data)>=_de) && (!_ate||String(t.data)<=_ate)); }
+  else { txns = _dreMeses.size ? all.filter(t=>_dreMeses.has(_txComp(t))) : all.slice(); }
+  if(_dreTipo && _dreTipo!=='todos'){ txns = txns.filter(t=> t.tipo===_dreTipo); }
   const rec=txns.filter(t=>t.tipo==='credito').reduce((s,t)=>s+(+t.valor),0);
   const desp=txns.filter(t=>t.tipo==='debito').reduce((s,t)=>s+(+t.valor),0);
   document.getElementById('ex-kpi-rec').textContent='R$ '+rec.toLocaleString('pt-BR',{minimumFractionDigits:2});
@@ -4567,6 +4619,43 @@ async function renderExtratoDRE(force){
   // ── DRE contábil: plano de contas × meses + AV%/AH% ──
   cats.innerHTML = _dreRender(txns);
   txnsBox.innerHTML = txns.length? _exTabela(txns.map(t=>({...t,tipo:t.tipo==='credito'?'C':'D'})),false) : '<p class="empty">Nenhum lançamento importado.</p>';
+}
+
+// ── Classificação manual de lançamento ──
+let _clTxId=null;
+async function abrirClassificar(id){
+  _clTxId=id;
+  const t=(_dreBankCache||[]).find(x=>x.id===id);
+  if(!t){ toast('Lançamento não encontrado',true); return; }
+  document.getElementById('cl-resumo').innerHTML='<b>'+esc(t.historico||t.descricao||'')+'</b><br>'+(t.data?String(t.data).split('-').reverse().join('/'):'')+(t.hora?' '+esc(t.hora):'')+' · '+(t.tipo==='credito'?'Crédito':'Débito')+' · R$ '+(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})+(t.observacao?'<br><small>'+esc(t.observacao)+'</small>':'');
+  document.getElementById('cl-condominio').value=t.condominio||'';
+  document.getElementById('cl-tiposervico').value=t.tipo_servico||'';
+  document.getElementById('cl-categoria').value=(t.categoria&&t.categoria!=='Não classificado')?t.categoria:'';
+  try{ const dl=document.getElementById('cl-clientes-list'); if(dl && !dl.dataset.loaded){ const {data}=await sb.from('fin_clientes').select('nome').order('nome'); dl.innerHTML=(data||[]).map(c=>'<option value="'+esc(c.nome)+'">').join(''); dl.dataset.loaded='1'; } }catch(e){}
+  document.getElementById('modal-classificar').classList.add('open');
+}
+function _clTipoServ(v){
+  const cat=document.getElementById('cl-categoria'); if(!cat||cat.value) return;
+  if(v==='ART')cat.value='Receita de ART';
+  else if(['Projeto','Averbação','Regularização','Anexação'].includes(v))cat.value='Receita de Projetos';
+  else if(v==='Assessoria')cat.value='Serviços de Engenharia';
+  else if(v==='Vistoria')cat.value='Receita de Vistoria';
+}
+async function salvarClassificacao(){
+  if(!_clTxId)return;
+  const t=(_dreBankCache||[]).find(x=>x.id===_clTxId);
+  const condominio=document.getElementById('cl-condominio').value.trim()||null;
+  const tipo_servico=document.getElementById('cl-tiposervico').value||null;
+  const categoria=document.getElementById('cl-categoria').value.trim()||(tipo_servico?'Receita de '+tipo_servico:'Classificado');
+  const tipo_categoria=(t&&t.tipo==='credito')?'Receita':'Despesa';
+  const btn=document.getElementById('cl-salvar-btn'); btn.disabled=true; btn.textContent='Salvando…';
+  try{
+    const {error}=await sb.from('fin_transacoes_bancarias').update({condominio,tipo_servico,categoria,tipo_categoria,status:'classificado'}).eq('id',_clTxId);
+    if(error)throw error;
+    closeModal('modal-classificar'); toast('Lançamento classificado!');
+    await renderExtratoDRE(true);
+  }catch(e){ toast('Erro ao salvar: '+e.message,true); }
+  finally{ btn.disabled=false; btn.textContent='Salvar'; }
 }
 
 // rótulo de competência 'AAAA-MM' → 'mar/26'

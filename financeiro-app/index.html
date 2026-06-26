@@ -860,19 +860,15 @@ body.capturing .rel-acao{display:none!important}
         <div class="sicoob-sync-card" id="sicoob-card">
           <div class="sicoob-header">
             <div class="sicoob-status">
-              <span class="sicoob-dot" id="sicoob-dot"></span>
-              <span class="sicoob-label" id="sicoob-label">Verificando conexão…</span>
-            </div>
-            <div class="sicoob-saldo" id="sicoob-saldo" style="display:none">
-              <small>Saldo atual</small>
-              <b id="sicoob-saldo-val">—</b>
+              <span class="sicoob-dot green" id="sicoob-dot"></span>
+              <span class="sicoob-label" id="sicoob-label">Sincronização automática ativa</span>
             </div>
           </div>
           <div class="sicoob-actions">
-            <button class="btn btn-primary btn-sm" id="btn-sicoob-sync" onclick="sicoobSync()">🏦 Sincronizar Sicoob</button>
+            <button class="btn btn-primary btn-sm" id="btn-sicoob-sync" onclick="sicoobSync()">🔄 Atualizar dados</button>
             <span class="sicoob-last-sync" id="sicoob-last-sync"></span>
           </div>
-          <div id="sicoob-msg" style="font-size:12.5px;margin-top:6px;color:var(--text2)"></div>
+          <div id="sicoob-msg" style="font-size:12.5px;margin-top:6px;color:var(--text2)">O extrato do Sicoob é sincronizado automaticamente a cada 5 minutos (7h–22h).</div>
         </div>
 
         <!-- Fallback: Upload PDF manual -->
@@ -4159,61 +4155,32 @@ function sicoobUpdateStatus(state,label){
 }
 
 async function sicoobCheckConnection(){
-  sicoobUpdateStatus('yellow','Verificando conexão…');
+  // A sincronizacao agora e automatica (cron na VPS, a cada 5 min). Aqui so mostramos o status.
+  sicoobUpdateStatus('green','Sincronização automática ativa');
   try{
-    const r=await fetch(SICOOB_SALDO_URL,{method:'GET',headers:{'X-API-Key':'PENDENTE'}});
-    if(r.ok){
-      const d=await r.json();
-      if(d.ok&&d.saldo!=null){
-        _sicoobReady=true;
-        sicoobUpdateStatus('green','Conectado ao Sicoob');
-        const se=document.getElementById('sicoob-saldo');
-        const sv=document.getElementById('sicoob-saldo-val');
-        if(se) se.style.display='';
-        if(sv) sv.textContent='R$ '+Number(d.saldo).toLocaleString('pt-BR',{minimumFractionDigits:2});
-        return;
-      }
+    const {data}=await sb.from('fin_transacoes_bancarias').select('data,hora').order('data',{ascending:false}).limit(1);
+    if(data&&data.length){
+      const t=data[0];
+      const d=t.data?String(t.data).split('-').reverse().join('/'):'';
+      const el=document.getElementById('sicoob-last-sync');
+      if(el) el.textContent='Última transação: '+d+(t.hora?' '+t.hora:'');
     }
-    _sicoobReady=false;
-    sicoobUpdateStatus('red','Aguardando credenciais — configure no n8n');
-    document.getElementById('sicoob-msg').textContent='As credenciais do Sicoob ainda não foram configuradas no n8n. Use o checklist em Senhas/sicoob-checklist.md.';
-  }catch(e){
-    _sicoobReady=false;
-    sicoobUpdateStatus('red','n8n inacessível');
-    document.getElementById('sicoob-msg').textContent='Não foi possível conectar ao n8n. Verifique se a VPS está online.';
-  }
+  }catch(e){}
 }
 
 async function sicoobSync(){
+  // Botao "Atualizar dados": recarrega o que ja foi sincronizado automaticamente (sem depender de n8n).
   const btn=document.getElementById('btn-sicoob-sync');
   const msg=document.getElementById('sicoob-msg');
-  if(!_sicoobReady){
-    msg.textContent='⚠️ Credenciais não configuradas. Siga o checklist primeiro.';
-    msg.style.color='var(--red,#EF4444)';
-    return;
-  }
-  btn.disabled=true; btn.textContent='⏳ Sincronizando…';
-  msg.textContent=''; msg.style.color='var(--text2)';
+  btn.disabled=true; btn.textContent='⏳ Atualizando…';
   try{
-    const r=await fetch(SICOOB_SYNC_URL,{method:'POST',headers:{'X-API-Key':'PENDENTE','Content-Type':'application/json'}});
-    const d=await r.json();
-    if(d.ok){
-      const ts=new Date(d.timestamp).toLocaleString('pt-BR');
-      msg.textContent='✅ Sync concluída: '+d.transacoes+' transações processadas';
-      msg.style.color='var(--green,#22C55E)';
-      document.getElementById('sicoob-last-sync').textContent='Última sync: '+ts;
-      localStorage.setItem('diag_sicoob_last_sync',ts);
-      renderExtratoDRE(true);
-      sicoobCheckConnection();
-    }else{
-      msg.textContent='❌ Erro na sync: '+(d.message||'resposta inesperada');
-      msg.style.color='var(--red,#EF4444)';
-    }
+    await renderExtratoDRE(true);
+    await sicoobCheckConnection();
+    if(msg){ msg.textContent='✅ Dados atualizados.'; msg.style.color='var(--green,#22C55E)'; }
   }catch(e){
-    msg.textContent='❌ Erro de conexão: '+e.message;
-    msg.style.color='var(--red,#EF4444)';
+    if(msg){ msg.textContent='Erro ao atualizar: '+e.message; msg.style.color='var(--red,#EF4444)'; }
   }finally{
-    btn.disabled=false; btn.textContent='🏦 Sincronizar Sicoob';
+    btn.disabled=false; btn.textContent='🔄 Atualizar dados';
   }
 }
 

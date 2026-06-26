@@ -4313,8 +4313,51 @@ function _exHash(s){ let h=0; for(let i=0;i<s.length;i++){ h=((h<<5)-h+s.charCod
 function _fcHash(s){ let h=0; for(let i=0;i<s.length;i++){ h=((h<<5)-h+s.charCodeAt(i))|0; } return 'fc'+(h>>>0).toString(16); }
 
 let _fcServicos=null,_fcItensPreview=[],_fcFaturaTemp=null;
+// Catálogo embutido — funciona mesmo se a tabela fin_servicos_empresa estiver vazia ou indisponível.
+// palavras_chave em MAIÚSCULAS; match por inclusão na descrição da transação da fatura.
+const _FC_CATALOGO_BUILTIN=[
+  {nome:'Anthropic (Claude)',    palavras_chave:['ANTHROPIC','CLAUDE'],                          categoria:'IA'},
+  {nome:'OpenAI (ChatGPT/API)',  palavras_chave:['OPENAI','CHATGPT','CHAT GPT'],                 categoria:'IA'},
+  {nome:'Google (Gemini/Cloud)', palavras_chave:['GEMINI','GOOGLE*CLOUD','GOOGLE *CLOUD','GOOGLE CLOUD','GOOGLE*GSUITE','GOOGLE *AI'], categoria:'IA / Cloud'},
+  {nome:'Cursor',                palavras_chave:['CURSOR','CURSOR AI','CURSOR.SO','ANYSPHERE'],   categoria:'IA'},
+  {nome:'Perplexity',            palavras_chave:['PERPLEXITY'],                                  categoria:'IA'},
+  {nome:'Midjourney',            palavras_chave:['MIDJOURNEY'],                                  categoria:'IA'},
+  {nome:'ElevenLabs',            palavras_chave:['ELEVENLABS','ELEVEN LABS'],                    categoria:'IA'},
+  {nome:'Manus',                 palavras_chave:['MANUS'],                                       categoria:'IA'},
+  {nome:'DocuSign',              palavras_chave:['DOCUSIGN','DOCU SIGN'],                        categoria:'Ferramentas'},
+  {nome:'Microsoft 365',         palavras_chave:['MICROSOFT*365','MSFT*365','MICROSOFT 365','MICROSOFT*STORE','OFFICE 365'], categoria:'Ferramentas'},
+  {nome:'Adobe',                 palavras_chave:['ADOBE','ACROBAT'],                             categoria:'Ferramentas'},
+  {nome:'Canva',                 palavras_chave:['CANVA'],                                       categoria:'Marketing'},
+  {nome:'Notion',                palavras_chave:['NOTION'],                                      categoria:'Ferramentas'},
+  {nome:'Zoom',                  palavras_chave:['ZOOM','ZOOM.US','ZOOM VIDEO'],                 categoria:'Comunicação'},
+  {nome:'MegaZap',               palavras_chave:['MEGAZAP','MZAP','MZWORKSPACE'],                categoria:'Comunicação'},
+  {nome:'n8n',                   palavras_chave:['N8N'],                                         categoria:'Automação'},
+  {nome:'Supabase',              palavras_chave:['SUPABASE'],                                    categoria:'Infraestrutura'},
+  {nome:'GitHub',                palavras_chave:['GITHUB','MICROSOFT*GITHUB'],                   categoria:'Infraestrutura'},
+  {nome:'Contabo (VPS)',         palavras_chave:['CONTABO'],                                     categoria:'Infraestrutura'},
+  {nome:'Hetzner',               palavras_chave:['HETZNER'],                                     categoria:'Infraestrutura'},
+  {nome:'Hostinger',             palavras_chave:['HOSTINGER'],                                   categoria:'Infraestrutura'},
+  {nome:'Vercel',                palavras_chave:['VERCEL'],                                      categoria:'Infraestrutura'},
+  {nome:'Cloudflare',            palavras_chave:['CLOUDFLARE'],                                  categoria:'Infraestrutura'},
+  {nome:'Registro.br',           palavras_chave:['REGISTRO.BR','REGISTRO BR'],                   categoria:'Infraestrutura'},
+  {nome:'GoDaddy',               palavras_chave:['GODADDY'],                                     categoria:'Infraestrutura'},
+  {nome:'Certisign',             palavras_chave:['CERTISIGN'],                                   categoria:'Certificação'},
+  {nome:'Serasa (Certificado)',  palavras_chave:['SERASA'],                                      categoria:'Certificação'},
+  {nome:'Valid (Certificado)',   palavras_chave:['VALID CERTIFICADORA','VALID'],                 categoria:'Certificação'},
+  {nome:'SafeWeb',               palavras_chave:['SAFEWEB'],                                     categoria:'Certificação'}
+];
 function _fcSetupDrop(){const dz=document.getElementById('fc-drop');if(!dz)return;['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('drag');}));['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('drag');}));dz.addEventListener('drop',e=>{if(e.dataTransfer?.files?.length)fcProcessarArquivo(e.dataTransfer.files);});}
-async function _fcCarregarServicos(){if(_fcServicos)return _fcServicos;const{data}=await sb.from('fin_servicos_empresa').select('*').eq('ativo',true);_fcServicos=data||[];return _fcServicos;}
+async function _fcCarregarServicos(){
+  if(_fcServicos)return _fcServicos;
+  let doBanco=[];
+  try{ const{data}=await sb.from('fin_servicos_empresa').select('*').eq('ativo',true); doBanco=data||[]; }
+  catch(e){ console.warn('fin_servicos_empresa indisponível, usando catálogo embutido:',e.message); }
+  // Mescla: serviços do banco têm prioridade; embutidos preenchem o que faltar (por nome).
+  const nomesBanco=new Set(doBanco.map(s=>(s.nome||'').toUpperCase()));
+  const extras=_FC_CATALOGO_BUILTIN.filter(s=>!nomesBanco.has(s.nome.toUpperCase()));
+  _fcServicos=[...doBanco,...extras];
+  return _fcServicos;
+}
 function _fcMatchServico(d,servicos){const up=(d||'').toUpperCase();for(const s of servicos){for(const kw of(s.palavras_chave||[])){if(up.includes(kw.toUpperCase()))return s;}}return null;}
 function _fcParseFaturaVisa(pages){const txns=[];let comp=null;for(const items of pages){const sorted=items.slice().sort((a,b)=>a.top-b.top||a.x0-b.x0);const ft=sorted.map(i=>i.text).join(' ');if(!comp){const m=ft.match(/Vencimento[:\s]*(\d{2})\/(\d{2})\/(\d{4})/i);if(m){const mesN=parseInt(m[2])<=12?parseInt(m[2]):parseInt(m[1]);const nomes=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];comp=nomes[mesN-1]+'/'+String(parseInt(m[3])).slice(2);}}if(!comp){const m2=ft.match(/FATURA\s+(?:DE\s+)?(\w+)\s*[\/\s]*(\d{2,4})/i);if(m2)comp=(m2[1].slice(0,3).toLowerCase())+'/'+m2[2].slice(-2);}const dateRe=/^\d{2}\/\d{2}\/\d{4}$/;const valRe=/^-?\s*\d{1,3}(?:\.\d{3})*,\d{2}$/;for(let i=0;i<sorted.length;i++){const it=sorted[i];if(!dateRe.test(it.text))continue;const nearY=sorted.filter(w=>Math.abs(w.top-it.top)<4&&w!==it).sort((a,b)=>a.x0-b.x0);if(nearY.length<2)continue;const descParts=nearY.filter(w=>!valRe.test(w.text)&&!dateRe.test(w.text));const valParts=nearY.filter(w=>valRe.test(w.text));if(!valParts.length)continue;const desc=descParts.map(w=>w.text).join(' ').trim();if(!desc||/SALDO|PAGAMENTO|TOTAL|CR[EÉ]DITO/i.test(desc))continue;const valStr=valParts[valParts.length-1].text.replace(/\s/g,'');const neg=valStr.startsWith('-');const num=valStr.replace('-','').replace(/\./g,'').replace(',','.');const centavos=Math.round(Math.abs(parseFloat(num))*100);if(isNaN(centavos)||centavos===0)continue;const p=it.text.split('/');txns.push({data:p[2]+'-'+p[1]+'-'+p[0],dataBR:it.text.slice(0,5),descricao:desc.slice(0,120),valorCentavos:neg?-centavos:centavos,isCredito:neg});}}if(!comp){const now=new Date();const nomes=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];comp=nomes[now.getMonth()]+'/'+String(now.getFullYear()).slice(2);}return{txns:txns.filter(t=>t.valorCentavos>0),competencia:comp};}
 async function fcProcessarArquivo(files){if(!window.pdfjsLib){toast('PDF.js carregando...',true);return;}const f=files[0];if(!f||!/\.pdf$/i.test(f.name)){toast('Selecione um PDF.',true);return;}const st=document.getElementById('fc-status');st.innerHTML='<span style="color:var(--turq)">⏳ Lendo fatura...</span>';try{const pages=await _exLerPdf(f);const{txns,competencia}=_fcParseFaturaVisa(pages);if(!txns.length){st.innerHTML='<span style="color:var(--red)">Nenhuma transação encontrada.</span>';return;}const servicos=await _fcCarregarServicos();const itens=txns.map((t,i)=>{const svc=_fcMatchServico(t.descricao,servicos);return{...t,idx:i,servicoId:svc?svc.id:null,servicoNome:svc?svc.nome:null,categoria:svc?svc.categoria:null,reembolsavel:!!svc,checked:!!svc};});const raw=txns.map(t=>t.data+t.descricao+t.valorCentavos).join('|');const hash=_fcHash(f.name+'|'+raw);const{data:existe}=await sb.from('fin_faturas_cartao').select('id').eq('hash',hash).maybeSingle();if(existe){st.innerHTML='<span style="color:var(--warn)">⚠ Fatura já importada.</span>';return;}_fcItensPreview=itens;_fcFaturaTemp={competencia,arquivoNome:f.name,totalFaturaCentavos:txns.reduce((s,t)=>s+t.valorCentavos,0),hash};st.innerHTML='<span style="color:var(--green)">✓ '+esc(String(txns.length))+' transações · '+esc(String(itens.filter(t=>t.reembolsavel).length))+' reconhecidos</span>';fcAbrirPreview();}catch(e){st.innerHTML='<span style="color:var(--red)">Erro: '+esc(e.message)+'</span>';}}

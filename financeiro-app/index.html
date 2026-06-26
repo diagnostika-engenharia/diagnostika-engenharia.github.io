@@ -933,6 +933,10 @@ body.capturing .rel-acao{display:none!important}
             <label style="font-size:12px;color:var(--text2);font-weight:600">Até:</label>
             <input type="date" id="ex2-per-ate" onchange="_dreOnAte(this.value)" style="font-size:13px;padding:3px 6px;border-radius:8px;border:1px solid var(--gray3)">
             <button class="btn btn-outline btn-sm" onclick="_dreLimparPeriodo()">Limpar</button>
+            <span style="color:var(--gray3)">|</span>
+            <label style="font-size:12px;color:var(--text2);font-weight:600">Projeto:</label>
+            <input id="ex2-projeto" list="ex2-projetos-list" onchange="_dreSetProjeto(this.value)" placeholder="todos" style="font-size:13px;padding:4px 8px;border-radius:8px;border:1px solid var(--gray3);max-width:170px">
+            <datalist id="ex2-projetos-list"></datalist>
             <label style="display:flex;gap:5px;align-items:center;font-size:12px;color:var(--text2);cursor:pointer;font-weight:600"><input type="checkbox" id="ex-so-pendentes" onchange="renderExtratoDRE()"> Só pendentes (a classificar / a conciliar)</label>
           </div>
         </div>
@@ -1145,7 +1149,11 @@ body.capturing .rel-acao{display:none!important}
         <option>Anexação</option><option>Laudo</option><option>Parecer</option><option>Outros</option>
       </select>
       <label style="font-size:12px;font-weight:600">Categoria</label>
-      <input id="cl-categoria" placeholder="ex: Receita de ART" style="width:100%;box-sizing:border-box;margin:4px 0 4px;padding:7px 9px;border:1px solid var(--gray3);border-radius:8px">
+      <input id="cl-categoria" placeholder="ex: Receita de ART" style="width:100%;box-sizing:border-box;margin:4px 0 10px;padding:7px 9px;border:1px solid var(--gray3);border-radius:8px">
+      <label style="font-size:12px;font-weight:600">Projeto (agrupa receitas e despesas do mesmo trabalho)</label>
+      <input id="cl-projeto" list="cl-projetos-list" onchange="_clCheckDup()" placeholder="ex: Projeto casa João da Silva" style="width:100%;box-sizing:border-box;margin:4px 0 4px;padding:7px 9px;border:1px solid var(--gray3);border-radius:8px">
+      <datalist id="cl-projetos-list"></datalist>
+      <div id="cl-dup-warn" style="display:none;font-size:12px;color:#E65100;background:#FFF3E0;border-radius:6px;padding:6px 8px;margin:4px 0"></div>
       <small style="color:var(--text2)">A sincronização automática não altera o que você classificar aqui.</small>
       <div id="cl-concil-box" style="display:none;border-top:1px solid var(--gray3);margin-top:12px;padding-top:10px">
         <label style="font-size:12px;font-weight:700;color:var(--teal)">🔗 Conciliação</label>
@@ -4513,7 +4521,7 @@ function _exTabela(txns,preview){
     txns.map(t=>`<tr>
       <td style="white-space:nowrap">${esc(t.dataBR||(t.data?t.data.slice(8,10)+'/'+t.data.slice(5,7):''))}${t.hora?' <small style="color:var(--text2)">'+esc(t.hora)+'</small>':''}</td>
       <td>${esc(t.historico||t.descricao||'')}</td>
-      <td>${esc(t.categoria||'—')}${t.categoria==='Não classificado'?' <span class="nfse-flag" style="background:#FFF3E0;color:#E65100">revisar</span>':''}${t.condominio?'<br><small style="color:var(--teal)">🏢 '+esc(t.condominio)+(t.tipo_servico?' · '+esc(t.tipo_servico):'')+'</small>':''}</td>
+      <td>${esc(t.categoria||'—')}${t.categoria==='Não classificado'?' <span class="nfse-flag" style="background:#FFF3E0;color:#E65100">revisar</span>':''}${t.condominio?'<br><small style="color:var(--teal)">🏢 '+esc(t.condominio)+(t.tipo_servico?' · '+esc(t.tipo_servico):'')+'</small>':''}${t.projeto?'<br><small style="color:var(--turq)">📁 '+esc(t.projeto)+'</small>':''}</td>
       <td><span class="ex-tag ${t.tipo==='C'?'cred':'deb'}">${t.tipo==='C'?'crédito':'débito'}</span></td>
       <td style="text-align:right;color:${t.tipo==='C'?'var(--green)':'var(--red)'}">${t.tipo==='C'?'+':'−'} R$ ${(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
       ${preview?'':`<td style="white-space:nowrap;font-size:11px;line-height:1.5">${(t.categoria&&t.categoria!=='Não classificado')?'<span style="color:var(--green)">🏷️ classif.</span>':'<span style="color:#E65100">⚠️ a classif.</span>'}<br>${(t.status==='conciliado'||t.conta_receber_id||t.conta_pagar_id)?'<span style="color:var(--green)">🔗 conciliado</span>':'<span style="color:var(--text2)">○ a conciliar</span>'}</td>`}
@@ -4604,7 +4612,7 @@ function _cofreComoTxns(rows){
 let _cofreCache=null, _dreBankCache=null;
 // meses selecionados na DRE (vazio = todos). Permite escolher vários períodos.
 let _dreMeses=new Set();
-let _dreTipo='todos', _dreDe='', _dreAte='';
+let _dreTipo='todos', _dreDe='', _dreAte='', _dreProjeto='';
 function _dreToggleMes(m){
   if(!m){ _dreMeses.clear(); }            // chip "Todos"
   else { _dreMeses.has(m)?_dreMeses.delete(m):_dreMeses.add(m); }
@@ -4615,7 +4623,9 @@ function _dreSyncInputs(){
   ['ex-tipo-filtro','ex2-tipo-filtro'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=_dreTipo;});
   ['ex-per-de','ex2-per-de'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=_dreDe;});
   ['ex-per-ate','ex2-per-ate'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=_dreAte;});
+  const pe=document.getElementById('ex2-projeto'); if(pe)pe.value=_dreProjeto;
 }
+function _dreSetProjeto(v){ _dreProjeto=v||''; _dreAplicar(); }
 function _dreAplicar(){
   _dreSyncInputs();
   renderExtratoDRE();
@@ -4656,6 +4666,8 @@ async function renderExtratoDRE(force){
   if(_dreDe||_dreAte){ txns = all.filter(t=> t.data && (!_dreDe||String(t.data)>=_dreDe) && (!_dreAte||String(t.data)<=_dreAte)); }
   else { txns = _dreMeses.size ? all.filter(t=>_dreMeses.has(_txComp(t))) : all.slice(); }
   if(_dreTipo && _dreTipo!=='todos'){ txns = txns.filter(t=> t.tipo===_dreTipo); }
+  if(_dreProjeto){ const pj=_dreProjeto.trim().toLowerCase(); txns = txns.filter(t=> (t.projeto||'').trim().toLowerCase()===pj); }
+  const _pdl=document.getElementById('ex2-projetos-list'); if(_pdl){ const _pj=[...new Set(all.map(t=>t.projeto).filter(Boolean))].sort(); _pdl.innerHTML=_pj.map(p=>'<option value="'+esc(p)+'">').join(''); }
   if(document.getElementById('ex-so-pendentes')?.checked){
     txns = txns.filter(t=>{
       const naoClass=(!t.categoria||t.categoria==='Não classificado');
@@ -4687,6 +4699,10 @@ async function abrirClassificar(id){
   document.getElementById('cl-condominio').value=t.condominio||'';
   document.getElementById('cl-tiposervico').value=t.tipo_servico||'';
   document.getElementById('cl-categoria').value=(t.categoria&&t.categoria!=='Não classificado')?t.categoria:'';
+  document.getElementById('cl-projeto').value=t.projeto||'';
+  document.getElementById('cl-dup-warn').style.display='none';
+  try{ const dp=document.getElementById('cl-projetos-list'); const projs=[...new Set((_dreBankCache||[]).map(x=>x.projeto).filter(Boolean))].sort(); dp.innerHTML=projs.map(p=>'<option value="'+esc(p)+'">').join(''); }catch(e){}
+  _clCheckDup();
   try{ const dl=document.getElementById('cl-clientes-list'); if(dl && !dl.dataset.loaded){ const {data}=await sb.from('fin_clientes').select('nome').order('nome'); dl.innerHTML=(data||[]).map(c=>'<option value="'+esc(c.nome)+'">').join(''); dl.dataset.loaded='1'; } }catch(e){}
   // conciliação dentro do mesmo modal
   const box=document.getElementById('cl-concil-box'), content=document.getElementById('cl-concil-content');
@@ -4715,17 +4731,28 @@ function _clTipoServ(v){
   else if(v==='Assessoria')cat.value='Serviços de Engenharia';
   else if(v==='Vistoria')cat.value='Receita de Vistoria';
 }
+function _clCheckDup(){
+  const warn=document.getElementById('cl-dup-warn');
+  const proj=(document.getElementById('cl-projeto').value||'').trim().toLowerCase();
+  const t=(_dreBankCache||[]).find(x=>x.id===_clTxId);
+  if(!proj||!t){ warn.style.display='none'; return; }
+  const val=(+t.valor).toFixed(2);
+  const dups=(_dreBankCache||[]).filter(x=>x.id!==_clTxId && x.projeto && x.projeto.trim().toLowerCase()===proj && (+x.valor).toFixed(2)===val);
+  if(dups.length){ warn.style.display=''; warn.innerHTML='⚠️ Esse projeto já tem '+dups.length+' lançamento(s) de R$ '+(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})+' ('+dups.map(d=>d.data?String(d.data).split('-').reverse().join('/'):'?').join(', ')+'). Confira se não é pagamento duplicado.'; }
+  else { warn.style.display='none'; }
+}
 async function salvarClassificacao(){
   if(!_clTxId)return;
   const t=(_dreBankCache||[]).find(x=>x.id===_clTxId);
   const condominio=document.getElementById('cl-condominio').value.trim()||null;
   const tipo_servico=document.getElementById('cl-tiposervico').value||null;
   const categoria=document.getElementById('cl-categoria').value.trim()||(tipo_servico?'Receita de '+tipo_servico:'Classificado');
+  const projeto=document.getElementById('cl-projeto').value.trim()||null;
   const tipo_categoria=(t&&t.tipo==='credito')?'Receita':'Despesa';
   const jaConc=(t&&(t.status==='conciliado'||t.conta_receber_id||t.conta_pagar_id));
   const btn=document.getElementById('cl-salvar-btn'); btn.disabled=true; btn.textContent='Salvando…';
   try{
-    const upd={condominio,tipo_servico,categoria,tipo_categoria};
+    const upd={condominio,tipo_servico,categoria,tipo_categoria,projeto};
     if(!jaConc) upd.status='classificado';
     const {error}=await sb.from('fin_transacoes_bancarias').update(upd).eq('id',_clTxId);
     if(error)throw error;

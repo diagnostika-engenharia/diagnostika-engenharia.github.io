@@ -926,42 +926,26 @@ body.capturing .rel-acao{display:none!important}
             <label style="font-size:12px;color:var(--text2);font-weight:600">Até:</label>
             <input type="date" id="ex2-per-ate" onchange="_dreOnAte(this.value)" style="font-size:13px;padding:3px 6px;border-radius:8px;border:1px solid var(--gray3)">
             <button class="btn btn-outline btn-sm" onclick="_dreLimparPeriodo()">Limpar</button>
-            <small style="color:var(--text2)">Aplica nos lançamentos e na conciliação</small>
+            <label style="display:flex;gap:5px;align-items:center;font-size:12px;color:var(--text2);cursor:pointer;font-weight:600"><input type="checkbox" id="ex-so-pendentes" onchange="renderExtratoDRE()"> Só pendentes (a classificar / a conciliar)</label>
           </div>
         </div>
 
-        <!-- Lançamentos importados do extrato -->
+        <!-- Extrato unificado: classificar + conciliar na mesma lista -->
         <div class="card" style="margin-top:16px">
-          <div class="card-hd"><h3>Lançamentos importados</h3>
-            <button class="btn btn-outline btn-sm" onclick="renderExtratoDRE(true)">↺ Atualizar</button>
+          <div class="card-hd"><h3>Lançamentos do extrato</h3>
+            <div style="display:flex;gap:8px;align-items:center"><small style="color:var(--text2)">classifique e concilie pelo ✏️</small>
+            <button class="btn btn-outline btn-sm" onclick="renderExtratoDRE(true);loadConciliacao()">↺ Atualizar</button></div>
           </div>
-          <div class="card-bd"><div id="ex-txns" style="max-height:420px;overflow:auto"></div></div>
+          <div class="card-bd"><div id="ex-txns" style="max-height:600px;overflow:auto"></div></div>
         </div>
 
-        <!-- Conciliação bancária (junto com os extratos) -->
-        <div style="margin-top:24px;display:flex;align-items:center;justify-content:space-between">
-          <h3 style="font-size:16px;color:var(--teal)">Conciliação bancária</h3>
-          <button class="btn btn-outline btn-sm" onclick="loadConciliacao()">↺ Atualizar</button>
-        </div>
-        <p style="font-size:12.5px;color:var(--text2);margin:4px 2px 12px">Cruza os lançamentos do extrato com as contas a receber e a pagar — confirme cada baixa</p>
-
-        <div class="ex-dre-grid">
+        <!-- Resumo da conciliação (a lista virou parte do extrato acima) -->
+        <div style="margin-top:20px;font-size:13px;color:var(--teal);font-weight:700">Resumo da conciliação</div>
+        <div class="ex-dre-grid" style="margin-top:8px">
           <div class="card ex-kpi"><span>A conciliar</span><b id="cc-kpi-pend">0</b></div>
           <div class="card ex-kpi"><span>Conciliados</span><b class="val-green" id="cc-kpi-ok">0</b></div>
           <div class="card ex-kpi"><span>Créditos sem baixa</span><b id="cc-kpi-cred">R$ 0,00</b></div>
           <div class="card ex-kpi"><span>Débitos sem baixa</span><b id="cc-kpi-deb">R$ 0,00</b></div>
-        </div>
-
-        <div class="card" style="margin-top:16px">
-          <div class="card-hd"><h3>Lançamentos do extrato a conciliar</h3>
-            <small style="color:var(--text2)">verde = sugestão automática encontrada</small>
-          </div>
-          <div class="card-bd"><div id="cc-lista"><p class="empty">Carregando…</p></div></div>
-        </div>
-
-        <div class="card" style="margin-top:16px">
-          <div class="card-hd"><h3>Já conciliados</h3></div>
-          <div class="card-bd"><div id="cc-feitos" style="max-height:420px;overflow:auto"><p class="empty">—</p></div></div>
         </div>
       </div>
 
@@ -1156,6 +1140,10 @@ body.capturing .rel-acao{display:none!important}
       <label style="font-size:12px;font-weight:600">Categoria</label>
       <input id="cl-categoria" placeholder="ex: Receita de ART" style="width:100%;box-sizing:border-box;margin:4px 0 4px;padding:7px 9px;border:1px solid var(--gray3);border-radius:8px">
       <small style="color:var(--text2)">A sincronização automática não altera o que você classificar aqui.</small>
+      <div id="cl-concil-box" style="display:none;border-top:1px solid var(--gray3);margin-top:12px;padding-top:10px">
+        <label style="font-size:12px;font-weight:700;color:var(--teal)">🔗 Conciliação</label>
+        <div id="cl-concil-content"></div>
+      </div>
     </div>
     <div class="modal-ft">
       <button class="btn btn-outline" onclick="closeModal('modal-classificar')">Cancelar</button>
@@ -4508,14 +4496,15 @@ async function extratoArquivos(files){
 }
 
 function _exTabela(txns,preview){
-  return `<table class="nfse-hist-tbl"><thead><tr><th>Data</th><th>Histórico</th><th>Categoria / Condomínio</th><th>Tipo</th><th style="text-align:right">Valor</th>${preview?'':'<th></th>'}</tr></thead><tbody>`+
+  return `<table class="nfse-hist-tbl"><thead><tr><th>Data</th><th>Histórico</th><th>Categoria / Condomínio</th><th>Tipo</th><th style="text-align:right">Valor</th>${preview?'':'<th>Status</th><th></th>'}</tr></thead><tbody>`+
     txns.map(t=>`<tr>
       <td style="white-space:nowrap">${esc(t.dataBR||(t.data?t.data.slice(8,10)+'/'+t.data.slice(5,7):''))}${t.hora?' <small style="color:var(--text2)">'+esc(t.hora)+'</small>':''}</td>
       <td>${esc(t.historico||t.descricao||'')}</td>
       <td>${esc(t.categoria||'—')}${t.categoria==='Não classificado'?' <span class="nfse-flag" style="background:#FFF3E0;color:#E65100">revisar</span>':''}${t.condominio?'<br><small style="color:var(--teal)">🏢 '+esc(t.condominio)+(t.tipo_servico?' · '+esc(t.tipo_servico):'')+'</small>':''}</td>
       <td><span class="ex-tag ${t.tipo==='C'?'cred':'deb'}">${t.tipo==='C'?'crédito':'débito'}</span></td>
       <td style="text-align:right;color:${t.tipo==='C'?'var(--green)':'var(--red)'}">${t.tipo==='C'?'+':'−'} R$ ${(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
-      ${preview?'':`<td style="text-align:right">${t.id?'<button title="Classificar" onclick="abrirClassificar('+t.id+')" style="cursor:pointer;border:none;background:none;font-size:15px">✏️</button>':''}</td>`}
+      ${preview?'':`<td style="white-space:nowrap;font-size:11px;line-height:1.5">${(t.categoria&&t.categoria!=='Não classificado')?'<span style="color:var(--green)">🏷️ classif.</span>':'<span style="color:#E65100">⚠️ a classif.</span>'}<br>${(t.status==='conciliado'||t.conta_receber_id||t.conta_pagar_id)?'<span style="color:var(--green)">🔗 conciliado</span>':'<span style="color:var(--text2)">○ a conciliar</span>'}</td>`}
+      ${preview?'':`<td style="text-align:right">${t.id?'<button title="Classificar / conciliar" onclick="abrirClassificar('+t.id+')" style="cursor:pointer;border:none;background:none;font-size:15px">✏️</button>':''}</td>`}
     </tr>`).join('')+`</tbody></table>`;
 }
 function cancelarExtrato(){ _exPendentes=null; document.getElementById('ex-preview-card').style.display='none'; document.getElementById('ex-status').textContent=''; }
@@ -4654,6 +4643,14 @@ async function renderExtratoDRE(force){
   if(_dreDe||_dreAte){ txns = all.filter(t=> t.data && (!_dreDe||String(t.data)>=_dreDe) && (!_dreAte||String(t.data)<=_dreAte)); }
   else { txns = _dreMeses.size ? all.filter(t=>_dreMeses.has(_txComp(t))) : all.slice(); }
   if(_dreTipo && _dreTipo!=='todos'){ txns = txns.filter(t=> t.tipo===_dreTipo); }
+  if(document.getElementById('ex-so-pendentes')?.checked){
+    txns = txns.filter(t=>{
+      const naoClass=(!t.categoria||t.categoria==='Não classificado');
+      const conciliado=(t.status==='conciliado'||t.conta_receber_id||t.conta_pagar_id);
+      const temConta=!conciliado && (typeof _ccMatch==='function') && _ccMatch(t,(t.tipo==='credito')?(_ccReceber||[]):(_ccPagar||[]));
+      return naoClass||!!temConta;
+    });
+  }
   const rec=txns.filter(t=>t.tipo==='credito').reduce((s,t)=>s+(+t.valor),0);
   const desp=txns.filter(t=>t.tipo==='debito').reduce((s,t)=>s+(+t.valor),0);
   document.getElementById('ex-kpi-rec').textContent='R$ '+rec.toLocaleString('pt-BR',{minimumFractionDigits:2});
@@ -4678,8 +4675,26 @@ async function abrirClassificar(id){
   document.getElementById('cl-tiposervico').value=t.tipo_servico||'';
   document.getElementById('cl-categoria').value=(t.categoria&&t.categoria!=='Não classificado')?t.categoria:'';
   try{ const dl=document.getElementById('cl-clientes-list'); if(dl && !dl.dataset.loaded){ const {data}=await sb.from('fin_clientes').select('nome').order('nome'); dl.innerHTML=(data||[]).map(c=>'<option value="'+esc(c.nome)+'">').join(''); dl.dataset.loaded='1'; } }catch(e){}
+  // conciliação dentro do mesmo modal
+  const box=document.getElementById('cl-concil-box'), content=document.getElementById('cl-concil-content');
+  const conciliado=(t.status==='conciliado'||t.conta_receber_id||t.conta_pagar_id);
+  const ehCred=t.tipo==='credito';
+  box.style.display='';
+  if(conciliado){
+    content.innerHTML='<div style="font-size:13px;color:var(--green);margin:6px 0">✓ Já conciliado'+(t.conta_receber_id?' (vinculado a conta a receber)':t.conta_pagar_id?' (vinculado a conta a pagar)':' (conferido sem vínculo)')+'</div><button class="btn btn-outline btn-sm" onclick="_desfazerConcDoModal()">Desfazer conciliação</button>';
+  } else {
+    const contas=(ehCred?(_ccReceber||[]):(_ccPagar||[]));
+    const sug=(typeof _ccMatch==='function')?_ccMatch(t,contas):null;
+    if(contas.length){
+      const opts='<option value="">Não vincular agora</option>'+contas.slice().sort((a,b)=>_ccDias(a.data_vencimento,t.data)-_ccDias(b.data_vencimento,t.data)).map(c=>'<option value="'+c.id+'" '+(sug&&c.id===sug.id?'selected':'')+'>'+esc((ehCred?c.cliente:c.fornecedor)||'—')+' · '+fmt(c.valor)+' · venc '+formatData(c.data_vencimento)+'</option>').join('');
+      content.innerHTML='<div style="font-size:11.5px;color:var(--text2);margin:4px 0">Vincule a uma '+(ehCred?'conta a receber':'conta a pagar')+' e dê baixa:</div><select id="cl-conta" style="width:100%;box-sizing:border-box;margin:0 0 8px;padding:7px 9px;border:1px solid var(--gray3);border-radius:8px">'+opts+'</select><label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--text2)"><input type="checkbox" id="cl-semvinculo"> Conferido sem vínculo (tarifa/imposto)</label>';
+    } else {
+      content.innerHTML='<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--text2);margin-top:6px"><input type="checkbox" id="cl-semvinculo"> Marcar como conferido (sem conta '+(ehCred?'a receber':'a pagar')+' correspondente)</label>';
+    }
+  }
   document.getElementById('modal-classificar').classList.add('open');
 }
+async function _desfazerConcDoModal(){ if(!_clTxId)return; try{ await desconciliarTxn(_clTxId); }catch(e){} closeModal('modal-classificar'); await renderExtratoDRE(true); }
 function _clTipoServ(v){
   const cat=document.getElementById('cl-categoria'); if(!cat||cat.value) return;
   if(v==='ART')cat.value='Receita de ART';
@@ -4694,12 +4709,21 @@ async function salvarClassificacao(){
   const tipo_servico=document.getElementById('cl-tiposervico').value||null;
   const categoria=document.getElementById('cl-categoria').value.trim()||(tipo_servico?'Receita de '+tipo_servico:'Classificado');
   const tipo_categoria=(t&&t.tipo==='credito')?'Receita':'Despesa';
+  const jaConc=(t&&(t.status==='conciliado'||t.conta_receber_id||t.conta_pagar_id));
   const btn=document.getElementById('cl-salvar-btn'); btn.disabled=true; btn.textContent='Salvando…';
   try{
-    const {error}=await sb.from('fin_transacoes_bancarias').update({condominio,tipo_servico,categoria,tipo_categoria,status:'classificado'}).eq('id',_clTxId);
+    const upd={condominio,tipo_servico,categoria,tipo_categoria};
+    if(!jaConc) upd.status='classificado';
+    const {error}=await sb.from('fin_transacoes_bancarias').update(upd).eq('id',_clTxId);
     if(error)throw error;
-    closeModal('modal-classificar'); toast('Lançamento classificado!');
-    await renderExtratoDRE(true);
+    // conciliação opcional, na mesma janela
+    const selConta=document.getElementById('cl-conta');
+    const semVinc=document.getElementById('cl-semvinculo');
+    const ehCred=(t&&t.tipo==='credito');
+    if(selConta && selConta.value){ await conciliarTxn(_clTxId, selConta.value, ehCred?'r':'p'); }
+    else if(semVinc && semVinc.checked){ await conciliarTxn(_clTxId, '', ehCred?'r':'p'); }
+    closeModal('modal-classificar'); toast('Lançamento salvo!');
+    await renderExtratoDRE(true); if(typeof loadConciliacao==='function') loadConciliacao();
   }catch(e){ toast('Erro ao salvar: '+e.message,true); }
   finally{ btn.disabled=false; btn.textContent='Salvar'; }
 }
@@ -4782,61 +4806,26 @@ function _ccMatch(txn,contas){
   return cands.slice().sort((a,b)=>_ccDias(a.data_vencimento,txn.data)-_ccDias(b.data_vencimento,txn.data))[0];
 }
 async function loadConciliacao(){
-  const lista=document.getElementById('cc-lista'); lista.innerHTML='<p class="empty">Carregando…</p>';
   const [tx,rc,pg]=await Promise.all([
     sb.from('fin_transacoes_bancarias').select('*').order('data',{ascending:false}).limit(1000),
     sb.from('fin_contas_receber').select('id,cliente,categoria,valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false),
     sb.from('fin_contas_pagar').select('id,fornecedor,categoria,valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false)
   ]);
-  if(tx.error){ const msg=/relation|does not exist/i.test(tx.error.message)?'Tabelas ainda não criadas — rode _setup_tabelas_financeiro.sql.':esc(tx.error.message);
-    lista.innerHTML='<p class="empty">'+msg+'</p>'; document.getElementById('cc-feitos').innerHTML=''; return; }
+  if(tx.error){ return; }
   _ccReceber=rc.data||[]; _ccPagar=pg.data||[];
   let txns=tx.data||[];
-  // aplica os mesmos filtros de período/tipo da aba
   if(_dreDe||_dreAte) txns=txns.filter(t=> t.data && (!_dreDe||String(t.data)>=_dreDe) && (!_dreAte||String(t.data)<=_dreAte));
   if(_dreTipo && _dreTipo!=='todos') txns=txns.filter(t=> t.tipo===_dreTipo);
   _ccTxnDatas={}; txns.forEach(t=>{ _ccTxnDatas[t.id]=t.data; });
-  const conciliados=txns.filter(t=>t.status==='conciliado'||t.conta_receber_id||t.conta_pagar_id);
-  const pendentes=txns.filter(t=>!(t.status==='conciliado'||t.conta_receber_id||t.conta_pagar_id));
-  // KPIs
-  document.getElementById('cc-kpi-pend').textContent=pendentes.length;
-  document.getElementById('cc-kpi-ok').textContent=conciliados.length;
-  document.getElementById('cc-kpi-cred').textContent='R$ '+pendentes.filter(t=>t.tipo==='credito').reduce((s,t)=>s+(+t.valor),0).toLocaleString('pt-BR',{minimumFractionDigits:2});
-  document.getElementById('cc-kpi-deb').textContent='R$ '+pendentes.filter(t=>t.tipo==='debito').reduce((s,t)=>s+(+t.valor),0).toLocaleString('pt-BR',{minimumFractionDigits:2});
-  // lista pendentes
-  if(!pendentes.length){ lista.innerHTML='<p class="empty">Tudo conciliado 🎉 — nenhum lançamento pendente.</p>'; }
-  else lista.innerHTML=pendentes.map(t=>{
-    const ehCred=t.tipo==='credito';
-    const contas=ehCred?_ccReceber:_ccPagar;
-    const sug=_ccMatch(t,contas);
-    const nome=c=>ehCred?c.cliente:c.fornecedor;
-    const opts=contas.slice().sort((a,b)=>_ccDias(a.data_vencimento,t.data)-_ccDias(b.data_vencimento,t.data))
-      .map(c=>`<option value="${c.id}" ${sug&&c.id===sug.id?'selected':''}>${esc(nome(c)||'—')} · ${fmt(c.valor)} · venc ${formatData(c.data_vencimento)}</option>`).join('');
-    return `<div class="cc-row ${sug?'cc-has':''}">
-      <div class="cc-info">
-        <div class="cc-top"><span class="ex-tag ${ehCred?'cred':'deb'}">${ehCred?'crédito':'débito'}</span>
-          <b>${ehCred?'+':'−'} R$ ${(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</b>
-          <span class="cc-data">${esc(t.dataBR||formatData(t.data))}</span></div>
-        <div class="cc-hist">${esc(t.historico||t.descricao||'')} <span style="color:var(--text2)">· ${esc(t.categoria||'')}</span></div>
-      </div>
-      <div class="cc-actions">
-        ${contas.length?`<select class="ano-select cc-sel" id="cc-sel-${t.id}">${opts}</select>
-          <button class="btn btn-green btn-sm" onclick="conciliarTxn(${t.id},document.getElementById('cc-sel-${t.id}').value,'${ehCred?'r':'p'}')">${sug?'✓ Conciliar (baixa)':'Vincular & baixar'}</button>`
-          :`<span style="font-size:12px;color:var(--text2)">sem ${ehCred?'conta a receber':'conta a pagar'} pendente igual</span>`}
-        <button class="btn btn-outline btn-sm" onclick="conciliarTxn(${t.id},'','${ehCred?'r':'p'}')" title="Marca como conferido sem dar baixa em conta (tarifas, impostos, etc.)">Sem vínculo</button>
-      </div>
-    </div>`;
-  }).join('');
-  // já conciliados
-  const fb=document.getElementById('cc-feitos');
-  fb.innerHTML=conciliados.length?`<table class="nfse-hist-tbl"><thead><tr><th>Data</th><th>Histórico</th><th>Vínculo</th><th style="text-align:right">Valor</th><th></th></tr></thead><tbody>`+
-    conciliados.map(t=>`<tr>
-      <td>${esc(t.dataBR||formatData(t.data))}</td>
-      <td>${esc(t.historico||t.descricao||'')}</td>
-      <td>${t.conta_receber_id?'<span class="ex-tag cred">a receber</span>':t.conta_pagar_id?'<span class="ex-tag deb">a pagar</span>':'<span style="font-size:12px;color:var(--text2)">sem vínculo</span>'}</td>
-      <td style="text-align:right;color:${t.tipo==='credito'?'var(--green)':'var(--red)'}">${t.tipo==='credito'?'+':'−'} R$ ${(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
-      <td><button class="btn btn-outline btn-sm" onclick="desconciliarTxn(${t.id})" title="Desfazer conciliação">↶</button></td>
-    </tr>`).join('')+`</tbody></table>`:'<p class="empty">Nenhum lançamento conciliado ainda.</p>';
+  const conc=t=>(t.status==='conciliado'||t.conta_receber_id||t.conta_pagar_id);
+  const pendentes=txns.filter(t=>!conc(t));
+  const setK=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  setK('cc-kpi-pend',pendentes.length);
+  setK('cc-kpi-ok',txns.filter(conc).length);
+  setK('cc-kpi-cred','R$ '+pendentes.filter(t=>t.tipo==='credito').reduce((s,t)=>s+(+t.valor),0).toLocaleString('pt-BR',{minimumFractionDigits:2}));
+  setK('cc-kpi-deb','R$ '+pendentes.filter(t=>t.tipo==='debito').reduce((s,t)=>s+(+t.valor),0).toLocaleString('pt-BR',{minimumFractionDigits:2}));
+  // a conciliação agora vive na tabela unificada do extrato (status + ✏️)
+  if(typeof renderExtratoDRE==='function') renderExtratoDRE();
 }
 
 async function conciliarTxn(txnId, contaId, tipo){

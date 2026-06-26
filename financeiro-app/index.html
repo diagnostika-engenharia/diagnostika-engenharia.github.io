@@ -518,6 +518,13 @@ body.capturing .rel-acao{display:none!important}
           <div><h2>Dashboard</h2><p id="dash-subtitle">Visão geral financeira</p></div>
           <button class="btn btn-outline btn-sm" onclick="loadDash()">↺ Atualizar</button>
         </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:-4px 2px 12px">
+          <span style="font-size:12px;color:var(--text2);font-weight:600">Vencimento de:</span>
+          <input type="date" id="dash-de" onchange="loadDash()" style="padding:4px 6px;border-radius:8px;border:1px solid var(--gray3)">
+          <span style="font-size:12px;color:var(--text2);font-weight:600">até:</span>
+          <input type="date" id="dash-ate" onchange="loadDash()" style="padding:4px 6px;border-radius:8px;border:1px solid var(--gray3)">
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('dash-de').value='';document.getElementById('dash-ate').value='';loadDash()">Limpar período</button>
+        </div>
         <div class="kpi-row" id="kpi-row">
           <div class="kpi green"><label>Entradas Previstas</label><div class="val" id="kpi-entrada">—</div></div>
           <div class="kpi red"><label>Saídas Previstas</label><div class="val" id="kpi-saida">—</div></div>
@@ -1713,9 +1720,13 @@ function nav(page){
 
 // ── Dashboard ─────────────────────────────────────────────────
 async function loadDash(){
+  const de=document.getElementById('dash-de')?.value, ate=document.getElementById('dash-ate')?.value;
+  let qr=sb.from('fin_contas_receber').select('valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false);
+  let qp=sb.from('fin_contas_pagar').select('valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false);
+  if(de){qr=qr.gte('data_vencimento',de);qp=qp.gte('data_vencimento',de);}
+  if(ate){qr=qr.lte('data_vencimento',ate);qp=qp.lte('data_vencimento',ate);}
   const[{data:receber},{data:pagar},{data:bancos}]=await Promise.all([
-    sb.from('fin_contas_receber').select('valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false),
-    sb.from('fin_contas_pagar').select('valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false),
+    qr, qp,
     sb.from('fin_contas_bancarias').select('saldo,nome').eq('ativa',true),
   ]);
   const sumR=(receber||[]).reduce((s,r)=>s+r.valor,0);
@@ -1744,10 +1755,12 @@ async function loadDash(){
 }
 
 async function loadDashFull(){
-  const[{data:receber},{data:pagar}]=await Promise.all([
-    sb.from('fin_contas_receber').select('cliente,categoria,valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false).order('data_vencimento').limit(5),
-    sb.from('fin_contas_pagar').select('fornecedor,categoria,valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false).order('data_vencimento').limit(5),
-  ]);
+  const de=document.getElementById('dash-de')?.value, ate=document.getElementById('dash-ate')?.value;
+  let qr=sb.from('fin_contas_receber').select('cliente,categoria,valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false).order('data_vencimento').limit(5);
+  let qp=sb.from('fin_contas_pagar').select('fornecedor,categoria,valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false).order('data_vencimento').limit(5);
+  if(de){qr=qr.gte('data_vencimento',de);qp=qp.gte('data_vencimento',de);}
+  if(ate){qr=qr.lte('data_vencimento',ate);qp=qp.lte('data_vencimento',ate);}
+  const[{data:receber},{data:pagar}]=await Promise.all([qr,qp]);
   document.getElementById('dash-receber').innerHTML=(receber||[]).length?(receber).map(r=>`<tr>
     <td>${esc(r.cliente)}</td><td>${esc(r.categoria)}</td><td>${formatData(r.data_vencimento)}</td>
     <td>${fmt(r.valor)}</td><td>${badgeSt(r.status,r.data_vencimento)}</td></tr>`).join('')

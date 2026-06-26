@@ -544,13 +544,18 @@ body.capturing .rel-acao{display:none!important}
           <div class="kpi green"><label>Total a Receber</label><div class="val" id="kr-total">—</div></div>
           <div class="kpi gray"><label>Recebido no Mês</label><div class="val" id="kr-mes">—</div></div>
         </div>
-        <div class="filters">
+        <div class="filters" style="flex-wrap:wrap;align-items:center;gap:8px">
           <select id="fr-status" onchange="loadReceber()"><option value="">Todos</option><option value="Pendente">Pendente</option><option value="Recebido">Recebido</option></select>
           <select id="fr-cat" onchange="loadReceber()">
             <option value="">Todas as categorias</option>
             <option>ART</option><option>Vistoria</option><option>Projetos</option>
             <option>Assessoria Condomínio</option><option>Laudos</option><option>Outros</option>
           </select>
+          <span style="font-size:12px;color:var(--text2);font-weight:600">Venc. de:</span>
+          <input type="date" id="fr-de" onchange="loadReceber()" style="padding:4px 6px;border-radius:8px;border:1px solid var(--gray3)">
+          <span style="font-size:12px;color:var(--text2);font-weight:600">até:</span>
+          <input type="date" id="fr-ate" onchange="loadReceber()" style="padding:4px 6px;border-radius:8px;border:1px solid var(--gray3)">
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('fr-de').value='';document.getElementById('fr-ate').value='';loadReceber()">Limpar período</button>
         </div>
         <div class="card">
           <div class="card-bd"><table class="tbl"><thead><tr>
@@ -570,7 +575,7 @@ body.capturing .rel-acao{display:none!important}
           <div class="kpi" style="border-color:var(--warn)"><label>A Vencer</label><div class="val" id="kp-avenc">—</div></div>
           <div class="kpi gray"><label>Pago no Mês</label><div class="val" id="kp-mes">—</div></div>
         </div>
-        <div class="filters">
+        <div class="filters" style="flex-wrap:wrap;align-items:center;gap:8px">
           <select id="fp-status" onchange="loadPagar()"><option value="">Todos</option><option value="Pendente">Pendente</option><option value="Pago">Pago</option></select>
           <select id="fp-cat" onchange="loadPagar()">
             <option value="">Todas as categorias</option>
@@ -578,6 +583,11 @@ body.capturing .rel-acao{display:none!important}
             <option>Telefone</option><option>Água</option><option>Fornecedor</option>
             <option>Serviços</option><option>Impostos</option><option>Reembolsos</option><option>Outros</option>
           </select>
+          <span style="font-size:12px;color:var(--text2);font-weight:600">Venc. de:</span>
+          <input type="date" id="fp-de" onchange="loadPagar()" style="padding:4px 6px;border-radius:8px;border:1px solid var(--gray3)">
+          <span style="font-size:12px;color:var(--text2);font-weight:600">até:</span>
+          <input type="date" id="fp-ate" onchange="loadPagar()" style="padding:4px 6px;border-radius:8px;border:1px solid var(--gray3)">
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('fp-de').value='';document.getElementById('fp-ate').value='';loadPagar()">Limpar período</button>
         </div>
         <div class="card">
           <div class="card-bd"><table class="tbl"><thead><tr>
@@ -1781,8 +1791,11 @@ async function loadReceber(){
   let q=sb.from('fin_contas_receber').select('*').order('data_vencimento');
   const st=document.getElementById('fr-status').value;
   const cat=document.getElementById('fr-cat').value;
+  const de=document.getElementById('fr-de')?.value, ate=document.getElementById('fr-ate')?.value;
   if(st)q=q.eq('status',st);
   if(cat)q=q.eq('categoria',cat);
+  if(de)q=q.gte('data_vencimento',de);
+  if(ate)q=q.lte('data_vencimento',ate);
   const{data,error}=await q;
   if(error){toast('Erro ao carregar',true);return;}
   const rows=data||[];
@@ -1914,8 +1927,11 @@ async function loadPagar(){
   let q=sb.from('fin_contas_pagar').select('*').order('data_vencimento');
   const st=document.getElementById('fp-status').value;
   const cat=document.getElementById('fp-cat').value;
+  const de=document.getElementById('fp-de')?.value, ate=document.getElementById('fp-ate')?.value;
   if(st)q=q.eq('status',st);
   if(cat)q=q.eq('categoria',cat);
+  if(de)q=q.gte('data_vencimento',de);
+  if(ate)q=q.lte('data_vencimento',ate);
   const{data,error}=await q;
   if(error){toast('Erro ao carregar',true);return;}
   const rows=data||[];

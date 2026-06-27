@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0f2a30">
+<title>BI Financeiro · Diagnóstika (mockup)</title>
+<style>
+  :root{
+    --teal:#155B67; --teal-d:#0f2a30; --turq:#00B4AC; --lima:#8DB72A;
+    --green:#27AE60; --red:#C0392B; --warn:#E67E22; --blue:#2D9CDB;
+    --bg:#0f2a30; --card:#16363d; --card2:#1b3f47; --line:#244b54;
+    --text:#EAF3F4; --text2:#9CC0C5; --text3:#6f989e;
+    --shadow:0 8px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    background:#0a1417;
+    color:var(--text);
+    display:flex;justify-content:center;align-items:flex-start;
+    min-height:100vh;
+  }
+  /* moldura de celular só aparece em telas grandes */
+  .phone{
+    width:100%;max-width:430px;min-height:100vh;
+    background:linear-gradient(180deg,#0f2a30 0%,#0b2024 100%);
+    position:relative;overflow:hidden;
+  }
+  @media(min-width:520px){
+    body{align-items:center;padding:24px 0}
+    .phone{
+      min-height:auto;height:900px;border-radius:42px;
+      border:10px solid #05090b;box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    .scroll{height:100%;overflow-y:auto}
+  }
+  .scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:84px}
+
+  /* ===== header ===== */
+  .hdr{
+    position:sticky;top:0;z-index:10;
+    background:linear-gradient(135deg,#13474f 0%,#0f2a30 100%);
+    padding:16px 18px 14px;
+    border-bottom:1px solid var(--line);
+  }
+  .hdr-top{display:flex;align-items:center;justify-content:space-between}
+  .brand{display:flex;align-items:center;gap:10px}
+  .logo{
+    width:34px;height:34px;border-radius:9px;
+    background:linear-gradient(135deg,var(--turq),var(--lima));
+    display:flex;align-items:center;justify-content:center;
+    font-weight:800;color:#0f2a30;font-size:17px;letter-spacing:-1px;
+    box-shadow:0 2px 10px rgba(0,180,172,.4);
+  }
+  .brand b{font-size:15px;font-weight:700;letter-spacing:.2px}
+  .brand span{display:block;font-size:10.5px;color:var(--text3);margin-top:1px}
+  .avatar{width:34px;height:34px;border-radius:50%;background:#1b3f47;border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--turq)}
+  .period{
+    display:flex;gap:6px;margin-top:14px;overflow-x:auto;scrollbar-width:none;
+  }
+  .period::-webkit-scrollbar{display:none}
+  .chip{
+    flex:0 0 auto;padding:6px 13px;border-radius:20px;font-size:12.5px;font-weight:600;
+    background:rgba(255,255,255,.06);color:var(--text2);border:1px solid transparent;white-space:nowrap;
+  }
+  .chip.on{background:var(--turq);color:#06222a;border-color:var(--turq)}
+
+  /* ===== content ===== */
+  .pad{padding:16px 16px 0}
+  .sec-t{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);
+    margin:22px 4px 11px;font-weight:700;display:flex;justify-content:space-between;align-items:center}
+  .sec-t a{color:var(--turq);font-size:11.5px;text-transform:none;letter-spacing:0;text-decoration:none;font-weight:600}
+
+  /* KPI grid */
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  .kpi{
+    background:var(--card);border:1px solid var(--line);border-radius:16px;padding:13px 14px;
+    position:relative;overflow:hidden;
+  }
+  .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--turq)}
+  .kpi.r::before{background:var(--red)} .kpi.w::before{background:var(--warn)} .kpi.g::before{background:var(--green)}
+  .kpi .lbl{font-size:11.5px;color:var(--text2);font-weight:600;display:flex;align-items:center;gap:5px}
+  .kpi .val{font-size:21px;font-weight:800;margin:7px 0 4px;letter-spacing:-.5px}
+  .kpi .sub{font-size:11px;font-weight:600;display:flex;align-items:center;gap:4px}
+  .up{color:#37d67a} .down{color:#ff7a6b}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px}
+  .card-h{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}
+  .card-h .t{font-size:14.5px;font-weight:700}
+  .card-h .s{font-size:11.5px;color:var(--text3);margin-top:2px}
+  .big{font-size:25px;font-weight:800;letter-spacing:-.5px;margin:8px 0 2px}
+
+  .legend{display:flex;gap:16px;margin-top:12px;flex-wrap:wrap}
+  .legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:middle}
+  .legend span{font-size:11.5px;color:var(--text2);font-weight:600}
+
+  /* donut */
+  .donut-wrap{display:flex;align-items:center;gap:18px;margin-top:6px}
+  .dlist{flex:1}
+  .drow{display:flex;align-items:center;gap:8px;margin:9px 0;font-size:12.5px}
+  .drow i{width:9px;height:9px;border-radius:3px;flex:0 0 auto}
+  .drow .nm{flex:1;color:var(--text2);font-weight:600}
+  .drow .vl{font-weight:700}
+
+  /* aging bars */
+  .bar-row{margin:13px 0}
+  .bar-row .top{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px}
+  .bar-row .top b{font-weight:700}
+  .bar-row .top span{color:var(--text3);font-weight:600}
+  .track{height:8px;border-radius:6px;background:rgba(255,255,255,.07);overflow:hidden}
+  .fill{height:100%;border-radius:6px}
+
+  /* list */
+  .li{display:flex;align-items:center;gap:12px;padding:12px 2px;border-bottom:1px solid var(--line)}
+  .li:last-child{border-bottom:none}
+  .ic{width:38px;height:38px;border-radius:11px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:16px}
+  .ic.in{background:rgba(39,174,96,.16);color:#37d67a}
+  .ic.out{background:rgba(192,57,43,.16);color:#ff7a6b}
+  .ic.due{background:rgba(230,126,34,.16);color:#ffb061}
+  .li .mid{flex:1;min-width:0}
+  .li .mid b{font-size:13.5px;font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .li .mid small{font-size:11px;color:var(--text3)}
+  .li .amt{font-size:13.5px;font-weight:700;text-align:right;white-space:nowrap}
+  .li .amt small{display:block;font-size:10px;color:var(--text3);font-weight:600;margin-top:2px}
+
+  .tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px}
+  .tag.atraso{background:rgba(192,57,43,.18);color:#ff8d7d}
+  .tag.hoje{background:rgba(230,126,34,.18);color:#ffb061}
+
+  /* bottom nav */
+  .nav{
+    position:absolute;left:0;right:0;bottom:0;z-index:20;
+    background:rgba(11,32,36,.94);backdrop-filter:blur(12px);
+    border-top:1px solid var(--line);
+    display:flex;justify-content:space-around;padding:9px 8px calc(9px + env(safe-area-inset-bottom));
+  }
+  .nav a{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:var(--text3);font-weight:600;text-decoration:none}
+  .nav a.on{color:var(--turq)}
+  .nav .gly{font-size:19px;line-height:1}
+
+  .note{font-size:10.5px;color:var(--text3);text-align:center;padding:14px 24px 4px;line-height:1.5}
+  .note b{color:var(--text2)}
+</style>
+</head>
+<body>
+<div class="phone">
+ <div class="scroll">
+
+  <!-- HEADER -->
+  <div class="hdr">
+    <div class="hdr-top">
+      <div class="brand">
+        <div class="logo">D</div>
+        <div><b>Diagnóstika</b><span>BI Financeiro</span></div>
+      </div>
+      <div class="avatar">RR</div>
+    </div>
+    <div class="period">
+      <div class="chip">Hoje</div>
+      <div class="chip">7 dias</div>
+      <div class="chip on">Junho/26</div>
+      <div class="chip">Trimestre</div>
+      <div class="chip">Ano</div>
+      <div class="chip">Personalizado</div>
+    </div>
+  </div>
+
+  <div class="pad">
+
+    <!-- KPIs -->
+    <div class="sec-t">Visão geral · Junho/2026</div>
+    <div class="kpis">
+      <div class="kpi g">
+        <div class="lbl">💰 Saldo em caixa</div>
+        <div class="val">R$ 184.720</div>
+        <div class="sub up">▲ 12,4% <span style="color:var(--text3);font-weight:600">vs. maio</span></div>
+      </div>
+      <div class="kpi">
+        <div class="lbl">📈 A receber</div>
+        <div class="val">R$ 96.430</div>
+        <div class="sub" style="color:var(--text3)">14 títulos abertos</div>
+      </div>
+      <div class="kpi r">
+        <div class="lbl">📉 A pagar</div>
+        <div class="val">R$ 61.180</div>
+        <div class="sub down">▲ 4,1% <span style="color:var(--text3);font-weight:600">vs. maio</span></div>
+      </div>
+      <div class="kpi w">
+        <div class="lbl">⚖️ Resultado do mês</div>
+        <div class="val">R$ 35.250</div>
+        <div class="sub up">margem 27,8%</div>
+      </div>
+    </div>
+
+    <!-- FLUXO DE CAIXA -->
+    <div class="sec-t">Fluxo de caixa <a href="#">ver detalhe ›</a></div>
+    <div class="card">
+      <div class="card-h">
+        <div>
+          <div class="t">Entradas × Saídas</div>
+          <div class="s">Últimos 6 meses · R$ mil</div>
+        </div>
+      </div>
+      <svg viewBox="0 0 340 170" width="100%" height="170" role="img" aria-label="Gráfico de fluxo de caixa">
+        <!-- grid -->
+        <g stroke="#244b54" stroke-width="1">
+          <line x1="30" y1="20" x2="335" y2="20"/>
+          <line x1="30" y1="58" x2="335" y2="58"/>
+          <line x1="30" y1="96" x2="335" y2="96"/>
+          <line x1="30" y1="134" x2="335" y2="134"/>
+        </g>
+        <g fill="#6f989e" font-size="9" font-family="Segoe UI">
+          <text x="4" y="23">150</text><text x="4" y="61">100</text><text x="4" y="99">50</text><text x="10" y="137">0</text>
+        </g>
+        <!-- bars: jan..jun, in/out pairs -->
+        <g>
+          <!-- jan -->
+          <rect x="40"  y="74" width="13" height="60" rx="2.5" fill="#27AE60"/>
+          <rect x="55"  y="92" width="13" height="42" rx="2.5" fill="#C0392B" opacity=".85"/>
+          <!-- fev -->
+          <rect x="89"  y="66" width="13" height="68" rx="2.5" fill="#27AE60"/>
+          <rect x="104" y="88" width="13" height="46" rx="2.5" fill="#C0392B" opacity=".85"/>
+          <!-- mar -->
+          <rect x="138" y="58" width="13" height="76" rx="2.5" fill="#27AE60"/>
+          <rect x="153" y="84" width="13" height="50" rx="2.5" fill="#C0392B" opacity=".85"/>
+          <!-- abr -->
+          <rect x="187" y="70" width="13" height="64" rx="2.5" fill="#27AE60"/>
+          <rect x="202" y="90" width="13" height="44" rx="2.5" fill="#C0392B" opacity=".85"/>
+          <!-- mai -->
+          <rect x="236" y="50" width="13" height="84" rx="2.5" fill="#27AE60"/>
+          <rect x="251" y="80" width="13" height="54" rx="2.5" fill="#C0392B" opacity=".85"/>
+          <!-- jun -->
+          <rect x="285" y="40" width="13" height="94" rx="2.5" fill="#00B4AC"/>
+          <rect x="300" y="86" width="13" height="48" rx="2.5" fill="#E67E22" opacity=".9"/>
+        </g>
+        <!-- saldo line -->
+        <polyline points="53,86 102,80 151,70 200,82 249,60 311,46"
+          fill="none" stroke="#8DB72A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <g fill="#8DB72A">
+          <circle cx="53" cy="86" r="3"/><circle cx="102" cy="80" r="3"/><circle cx="151" cy="70" r="3"/>
+          <circle cx="200" cy="82" r="3"/><circle cx="249" cy="60" r="3"/><circle cx="311" cy="46" r="3.5" stroke="#0f2a30" stroke-width="1.5"/>
+        </g>
+        <g fill="#9CC0C5" font-size="9.5" font-family="Segoe UI" text-anchor="middle">
+          <text x="53" y="148">Jan</text><text x="102" y="148">Fev</text><text x="151" y="148">Mar</text>
+          <text x="200" y="148">Abr</text><text x="249" y="148">Mai</text><text x="311" y="148" fill="#00B4AC" font-weight="700">Jun</text>
+        </g>
+      </svg>
+      <div class="legend">
+        <span><i style="background:#27AE60"></i>Entradas</span>
+        <span><i style="background:#C0392B"></i>Saídas</span>
+        <span><i style="background:#8DB72A"></i>Saldo acumulado</span>
+      </div>
+    </div>
+
+    <!-- DRE / categorias -->
+    <div class="sec-t">Despesas por categoria</div>
+    <div class="card">
+      <div class="donut-wrap">
+        <svg viewBox="0 0 120 120" width="118" height="118" role="img" aria-label="Donut de despesas">
+          <circle cx="60" cy="60" r="46" fill="none" stroke="#1b3f47" stroke-width="16"/>
+          <!-- segments: total 61180; stroke-dasharray on circumference ~289 -->
+          <circle cx="60" cy="60" r="46" fill="none" stroke="#00B4AC" stroke-width="16"
+            stroke-dasharray="98 191" stroke-dashoffset="0" transform="rotate(-90 60 60)" stroke-linecap="butt"/>
+          <circle cx="60" cy="60" r="46" fill="none" stroke="#2D9CDB" stroke-width="16"
+            stroke-dasharray="66 223" stroke-dashoffset="-98" transform="rotate(-90 60 60)"/>
+          <circle cx="60" cy="60" r="46" fill="none" stroke="#8DB72A" stroke-width="16"
+            stroke-dasharray="52 237" stroke-dashoffset="-164" transform="rotate(-90 60 60)"/>
+          <circle cx="60" cy="60" r="46" fill="none" stroke="#E67E22" stroke-width="16"
+            stroke-dasharray="40 249" stroke-dashoffset="-216" transform="rotate(-90 60 60)"/>
+          <circle cx="60" cy="60" r="46" fill="none" stroke="#6f989e" stroke-width="16"
+            stroke-dasharray="33 256" stroke-dashoffset="-256" transform="rotate(-90 60 60)"/>
+          <text x="60" y="56" text-anchor="middle" font-size="10" fill="#9CC0C5" font-family="Segoe UI">Total</text>
+          <text x="60" y="72" text-anchor="middle" font-size="14" font-weight="800" fill="#EAF3F4" font-family="Segoe UI">61,2k</text>
+        </svg>
+        <div class="dlist">
+          <div class="drow"><i style="background:#00B4AC"></i><span class="nm">Folha & pró-labore</span><span class="vl">34%</span></div>
+          <div class="drow"><i style="background:#2D9CDB"></i><span class="nm">Impostos / NFS-e</span><span class="vl">23%</span></div>
+          <div class="drow"><i style="background:#8DB72A"></i><span class="nm">Equipamentos</span><span class="vl">18%</span></div>
+          <div class="drow"><i style="background:#E67E22"></i><span class="nm">Deslocamento</span><span class="vl">14%</span></div>
+          <div class="drow"><i style="background:#6f989e"></i><span class="nm">Outros</span><span class="vl">11%</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AGING recebíveis -->
+    <div class="sec-t">Recebíveis em atraso (aging)</div>
+    <div class="card">
+      <div class="card-h">
+        <div><div class="t">R$ 23.840 vencidos</div><div class="s">4 clientes · 38% do total a receber</div></div>
+      </div>
+      <div class="bar-row">
+        <div class="top"><b>1–15 dias</b><span>R$ 8.900</span></div>
+        <div class="track"><div class="fill" style="width:62%;background:#E67E22"></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="top"><b>16–30 dias</b><span>R$ 6.540</span></div>
+        <div class="track"><div class="fill" style="width:46%;background:#d9622a"></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="top"><b>31–60 dias</b><span>R$ 5.200</span></div>
+        <div class="track"><div class="fill" style="width:36%;background:#C0392B"></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="top"><b>+60 dias</b><span>R$ 3.200</span></div>
+        <div class="track"><div class="fill" style="width:22%;background:#8e2820"></div></div>
+      </div>
+    </div>
+
+    <!-- Próximos vencimentos -->
+    <div class="sec-t">Próximos vencimentos <a href="#">tudo ›</a></div>
+    <div class="card" style="padding:6px 14px">
+      <div class="li">
+        <div class="ic due">⏰</div>
+        <div class="mid"><b>Condomínio Solar das Águas</b><small>Laudo estrutural · NF 1042</small></div>
+        <div class="amt">+R$ 18.500<small><span class="tag hoje">vence hoje</span></small></div>
+      </div>
+      <div class="li">
+        <div class="ic out">🏦</div>
+        <div class="mid"><b>Fatura cartão Itaú</b><small>Equipamentos + combustível</small></div>
+        <div class="amt" style="color:#ff8d7d">−R$ 7.240<small>amanhã</small></div>
+      </div>
+      <div class="li">
+        <div class="ic in">📥</div>
+        <div class="mid"><b>Eng. Costa &amp; Filhos</b><small>Vistoria cautelar · NF 1039</small></div>
+        <div class="amt">+R$ 9.800<small><span class="tag atraso">12d atraso</span></small></div>
+      </div>
+      <div class="li">
+        <div class="ic out">📄</div>
+        <div class="mid"><b>DAS · Simples Nacional</b><small>Competência 05/2026</small></div>
+        <div class="amt" style="color:#ff8d7d">−R$ 4.910<small>em 3 dias</small></div>
+      </div>
+    </div>
+
+    <div class="note">
+      📊 <b>Mockup ilustrativo</b> — valores fictícios. Em produção, estes números viriam direto das tabelas
+      <b>fin_contas_receber</b>, <b>fin_contas_pagar</b> e <b>fin_transacoes_bancarias</b> do seu Supabase,
+      com atualização automática.
+    </div>
+
+  </div>
+ </div>
+
+ <!-- BOTTOM NAV -->
+ <div class="nav">
+   <a class="on"><span class="gly">▦</span>Painel</a>
+   <a><span class="gly">↻</span>Fluxo</a>
+   <a><span class="gly">◔</span>DRE</a>
+   <a><span class="gly">▤</span>Títulos</a>
+   <a><span class="gly">⚙</span>Ajustes</a>
+ </div>
+</div>
+</body>
+</html>

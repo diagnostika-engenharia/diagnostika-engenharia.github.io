@@ -938,12 +938,18 @@ body.capturing .rel-acao{display:none!important}
             <input id="ex2-projeto" list="ex2-projetos-list" onchange="_dreSetProjeto(this.value)" placeholder="todos" style="font-size:13px;padding:4px 8px;border-radius:8px;border:1px solid var(--gray3);max-width:170px">
             <datalist id="ex2-projetos-list"></datalist>
             <label style="display:flex;gap:5px;align-items:center;font-size:12px;color:var(--text2);cursor:pointer;font-weight:600"><input type="checkbox" id="ex-so-pendentes" onchange="renderExtratoDRE()"> Só pendentes (a classificar / a conciliar)</label>
+            <span style="color:var(--gray3)">|</span>
+            <label style="font-size:12px;color:var(--text2);font-weight:600">Movimentação:</label>
+            <div style="display:inline-flex;gap:4px">
+              <button class="mes-chip" data-inccofre="0" onclick="_setIncCofre(false)" title="Apenas lançamentos do banco (Sicoob)">Só Banco</button>
+              <button class="mes-chip on" data-inccofre="1" onclick="_setIncCofre(true)" title="Banco + dinheiro do Cofre, em uma só visão">🔒 Banco + Cofre</button>
+            </div>
           </div>
         </div>
 
         <!-- Extrato unificado: classificar + conciliar na mesma lista -->
         <div class="card" style="margin-top:16px">
-          <div class="card-hd"><h3>Lançamentos do extrato</h3>
+          <div class="card-hd"><h3>Lançamentos do extrato <span id="ex-modo-selo" style="font-size:11px;font-weight:700;color:var(--teal);background:var(--gray);border:1px solid var(--gray2);border-radius:999px;padding:2px 9px;margin-left:6px;vertical-align:middle">Banco + Cofre</span></h3>
             <div style="display:flex;gap:8px;align-items:center"><small style="color:var(--text2)">classifique e concilie pelo ✏️</small>
             <button class="btn btn-outline btn-sm" onclick="renderExtratoDRE(true);loadConciliacao()">↺ Atualizar</button></div>
           </div>
@@ -966,7 +972,7 @@ body.capturing .rel-acao{display:none!important}
           <div><h2>DRE — Demonstração do Resultado</h2><p>Resultado consolidado (Banco + Cofre) por plano de contas, com análise vertical (AV%) e horizontal (AH%)</p></div>
           <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
             <label style="display:flex;gap:6px;align-items:center;font-size:13px;color:var(--text2);cursor:pointer;user-select:none">
-              <input type="checkbox" id="ex-inc-cofre" checked onchange="renderExtratoDRE()" style="cursor:pointer"> 🔒 Incluir Cofre (dinheiro)
+              <input type="checkbox" id="ex-inc-cofre" checked onchange="_setIncCofre(this.checked)" style="cursor:pointer"> 🔒 Incluir Cofre (dinheiro)
             </label>
           </div>
         </div>
@@ -4524,7 +4530,7 @@ function _exTabela(txns,preview){
       <td>${esc(t.categoria||'—')}${t.categoria==='Não classificado'?' <span class="nfse-flag" style="background:#FFF3E0;color:#E65100">revisar</span>':''}${t.condominio?'<br><small style="color:var(--teal)">🏢 '+esc(t.condominio)+(t.tipo_servico?' · '+esc(t.tipo_servico):'')+'</small>':''}${t.projeto?'<br><small style="color:var(--turq)">📁 '+esc(t.projeto)+'</small>':''}</td>
       <td><span class="ex-tag ${t.tipo==='C'?'cred':'deb'}">${t.tipo==='C'?'crédito':'débito'}</span></td>
       <td style="text-align:right;color:${t.tipo==='C'?'var(--green)':'var(--red)'}">${t.tipo==='C'?'+':'−'} R$ ${(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
-      ${preview?'':`<td style="white-space:nowrap;font-size:11px;line-height:1.5">${(t.categoria&&t.categoria!=='Não classificado')?'<span style="color:var(--green)">🏷️ classif.</span>':'<span style="color:#E65100">⚠️ a classif.</span>'}<br>${(t.status==='conciliado'||t.conta_receber_id||t.conta_pagar_id)?'<span style="color:var(--green)">🔗 conciliado</span>':'<span style="color:var(--text2)">○ a conciliar</span>'}</td>`}
+      ${preview?'':`<td style="white-space:nowrap;font-size:11px;line-height:1.5">${(t.categoria&&t.categoria!=='Não classificado')?'<span style="color:var(--green)">🏷️ classif.</span>':'<span style="color:#E65100">⚠️ a classif.</span>'}<br>${t._cofre?'<span style="color:var(--teal)">🔒 cofre</span>':(t.status==='conciliado'||t.conta_receber_id||t.conta_pagar_id)?'<span style="color:var(--green)">🔗 conciliado</span>':'<span style="color:var(--text2)">○ a conciliar</span>'}</td>`}
       ${preview?'':`<td style="text-align:right">${t.id?'<button title="Classificar / conciliar" onclick="abrirClassificar('+t.id+')" style="cursor:pointer;border:none;background:none;font-size:15px">✏️</button>':''}</td>`}
     </tr>`).join('')+`</tbody></table>`;
 }
@@ -4613,6 +4619,13 @@ let _cofreCache=null, _dreBankCache=null;
 // meses selecionados na DRE (vazio = todos). Permite escolher vários períodos.
 let _dreMeses=new Set();
 let _dreTipo='todos', _dreDe='', _dreAte='', _dreProjeto='';
+let _incCofre=true;   // incluir Cofre (dinheiro) na visão consolidada — compartilhado DRE + Extrato
+function _setIncCofre(v){
+  _incCofre=!!v;
+  const dre=document.getElementById('ex-inc-cofre'); if(dre)dre.checked=_incCofre;
+  document.querySelectorAll('[data-inccofre]').forEach(b=>b.classList.toggle('on', (b.dataset.inccofre==='1')===_incCofre));
+  renderExtratoDRE();
+}
 function _dreToggleMes(m){
   if(!m){ _dreMeses.clear(); }            // chip "Todos"
   else { _dreMeses.has(m)?_dreMeses.delete(m):_dreMeses.add(m); }
@@ -4637,7 +4650,11 @@ function _dreOnAte(v){ _dreAte=v||''; _dreAplicar(); }
 function _dreLimparPeriodo(){ _dreDe=''; _dreAte=''; _dreAplicar(); }
 async function renderExtratoDRE(force){
   if(force){ _dreBankCache=null; _cofreCache=null; }
-  const incCofre=document.getElementById('ex-inc-cofre')?.checked!==false;
+  const incCofre=_incCofre;
+  // mantém os controles (checkbox do DRE + botão-segmento do Extrato) em sincronia
+  const _dreChk=document.getElementById('ex-inc-cofre'); if(_dreChk)_dreChk.checked=incCofre;
+  document.querySelectorAll('[data-inccofre]').forEach(b=>b.classList.toggle('on', (b.dataset.inccofre==='1')===incCofre));
+  const _selo=document.getElementById('ex-modo-selo'); if(_selo)_selo.textContent=incCofre?'Banco + Cofre':'Só Banco';
   const cats=document.getElementById('ex-dre-cats'), txnsBox=document.getElementById('ex-txns');
   let data=_dreBankCache;
   if(data===null){
@@ -4670,6 +4687,7 @@ async function renderExtratoDRE(force){
   const _pdl=document.getElementById('ex2-projetos-list'); if(_pdl){ const _pj=[...new Set(all.map(t=>t.projeto).filter(Boolean))].sort(); _pdl.innerHTML=_pj.map(p=>'<option value="'+esc(p)+'">').join(''); }
   if(document.getElementById('ex-so-pendentes')?.checked){
     txns = txns.filter(t=>{
+      if(t._cofre) return false;   // cofre não concilia (sem contraparte externa) — nunca "pendente"
       const naoClass=(!t.categoria||t.categoria==='Não classificado');
       const conciliado=(t.status==='conciliado'||t.conta_receber_id||t.conta_pagar_id);
       const temConta=!conciliado && (typeof _ccMatch==='function') && _ccMatch(t,(t.tipo==='credito')?(_ccReceber||[]):(_ccPagar||[]));

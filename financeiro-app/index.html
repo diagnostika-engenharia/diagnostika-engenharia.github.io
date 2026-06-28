@@ -875,17 +875,21 @@ body.capturing .rel-acao{display:none!important}
 
         <!-- Sicoob Sync -->
         <div class="sicoob-sync-card" id="sicoob-card">
-          <div class="sicoob-header">
+          <div class="sicoob-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
             <div class="sicoob-status">
               <span class="sicoob-dot green" id="sicoob-dot"></span>
               <span class="sicoob-label" id="sicoob-label">Sincronização automática ativa</span>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:11px;color:var(--text2);text-transform:uppercase;font-weight:700">Saldo atual — Sicoob</div>
+              <b id="ex-saldo-val" style="font-size:22px;color:var(--teal)">—</b><span id="ex-saldo-quando" style="font-size:11px;color:var(--text2)"></span>
             </div>
           </div>
           <div class="sicoob-actions">
             <button class="btn btn-primary btn-sm" id="btn-sicoob-sync" onclick="sicoobSync()">🔄 Atualizar dados</button>
             <span class="sicoob-last-sync" id="sicoob-last-sync"></span>
           </div>
-          <div id="sicoob-msg" style="font-size:12.5px;margin-top:6px;color:var(--text2)">O extrato do Sicoob é sincronizado automaticamente a cada 5 minutos (7h–22h).</div>
+          <div id="sicoob-msg" style="font-size:12.5px;margin-top:6px;color:var(--text2)">O extrato do Sicoob é sincronizado automaticamente a cada 5 minutos (7h à meia-noite).</div>
         </div>
 
         <!-- Fallback: Upload PDF manual -->
@@ -4889,6 +4893,7 @@ function _ccMatch(txn,contas){
   return cands.slice().sort((a,b)=>_ccDias(a.data_vencimento,txn.data)-_ccDias(b.data_vencimento,txn.data))[0];
 }
 async function loadConciliacao(){
+  try{ const sr=await sb.from('fin_contas_bancarias').select('saldo,updated_at').eq('nome','Sicoob - Diagnóstika').maybeSingle(); const el=document.getElementById('ex-saldo-val'); if(el&&sr.data){ el.textContent=fmt(sr.data.saldo); const q=document.getElementById('ex-saldo-quando'); if(q&&sr.data.updated_at){ const d=new Date(sr.data.updated_at); q.textContent=' · '+d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); } } }catch(e){}
   const [tx,rc,pg]=await Promise.all([
     sb.from('fin_transacoes_bancarias').select('*').order('data',{ascending:false}).limit(1000),
     sb.from('fin_contas_receber').select('id,cliente,categoria,valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false),

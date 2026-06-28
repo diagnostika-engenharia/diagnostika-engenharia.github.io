@@ -4530,7 +4530,7 @@ function _exTabela(txns,preview){
   return `<table class="nfse-hist-tbl"><thead><tr><th>Data</th><th>Histórico</th><th>Categoria / Condomínio</th><th>Tipo</th><th style="text-align:right">Valor</th>${preview?'':'<th>Status</th><th></th>'}</tr></thead><tbody>`+
     txns.map(t=>`<tr>
       <td style="white-space:nowrap">${esc(t.dataBR||(t.data?t.data.slice(8,10)+'/'+t.data.slice(5,7):''))}${t.hora?' <small style="color:var(--text2)">'+esc(t.hora)+'</small>':''}</td>
-      <td>${t._cofre?'<span style="color:var(--teal)">'+COFRE_ICO+'</span> ':''}${esc(t.historico||t.descricao||'')}</td>
+      <td>${t._cofre?'<span style="display:inline-flex;align-items:center;gap:3px;background:var(--teal);color:#fff;border-radius:6px;padding:2px 7px;margin-right:6px;font-size:10px;font-weight:800;letter-spacing:.3px;vertical-align:middle">'+COFRE_ICO+' COFRE</span>':''}${esc(t.historico||t.descricao||'')}</td>
       <td>${esc(t.categoria||'—')}${t.categoria==='Não classificado'?' <span class="nfse-flag" style="background:#FFF3E0;color:#E65100">revisar</span>':''}${t.condominio?'<br><small style="color:var(--teal)">🏢 '+esc(t.condominio)+(t.tipo_servico?' · '+esc(t.tipo_servico):'')+'</small>':''}${t.projeto?'<br><small style="color:var(--turq)">📁 '+esc(t.projeto)+'</small>':''}</td>
       <td><span class="ex-tag ${t.tipo==='C'?'cred':'deb'}">${t.tipo==='C'?'crédito':'débito'}</span></td>
       <td style="text-align:right;color:${t.tipo==='C'?'var(--green)':'var(--red)'}">${t.tipo==='C'?'+':'−'} R$ ${(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
@@ -4730,7 +4730,9 @@ async function renderExtratoDRE(force){
   document.getElementById('ex-kpi-n').textContent=txns.length;
   // ── DRE contábil: plano de contas × meses + AV%/AH% ──
   cats.innerHTML = _dreRender(txns);
-  txnsBox.innerHTML = txns.length? _exTabela(txns.map(t=>({...t,tipo:t.tipo==='credito'?'C':'D'})),false) : '<p class="empty">Nenhum lançamento importado.</p>';
+  // ordena a LISTA cronologicamente (banco + cofre juntos), mais recente no topo
+  const txnsOrd = txns.slice().sort((a,b)=>{ const ka=(a.data||'')+' '+(a.hora||''); const kb=(b.data||'')+' '+(b.hora||''); return kb.localeCompare(ka); });
+  txnsBox.innerHTML = txnsOrd.length? _exTabela(txnsOrd.map(t=>({...t,tipo:t.tipo==='credito'?'C':'D'})),false) : '<p class="empty">Nenhum lançamento importado.</p>';
 }
 
 // ── Classificação manual de lançamento ──

@@ -941,8 +941,9 @@ body.capturing .rel-acao{display:none!important}
             <span style="color:var(--gray3)">|</span>
             <label style="font-size:12px;color:var(--text2);font-weight:600">Movimentação:</label>
             <div style="display:inline-flex;gap:4px">
-              <button class="mes-chip" data-inccofre="0" onclick="_setIncCofre(false)" title="Apenas lançamentos do banco (Sicoob)">Só Banco</button>
-              <button class="mes-chip on" data-inccofre="1" onclick="_setIncCofre(true)" title="Banco + dinheiro do Cofre, em uma só visão">🔒 Banco + Cofre</button>
+              <button class="mes-chip" data-modomov="banco" onclick="_setModoMov('banco')" title="Apenas lançamentos do banco (Sicoob)">Só Banco</button>
+              <button class="mes-chip" data-modomov="cofre" onclick="_setModoMov('cofre')" title="Apenas dinheiro em espécie do Cofre">🔒 Só Cofre</button>
+              <button class="mes-chip on" data-modomov="ambos" onclick="_setModoMov('ambos')" title="Banco + dinheiro do Cofre, em uma só visão">Banco + Cofre</button>
             </div>
           </div>
         </div>
@@ -950,7 +951,7 @@ body.capturing .rel-acao{display:none!important}
         <!-- Extrato unificado: classificar + conciliar na mesma lista -->
         <div class="card" style="margin-top:16px">
           <div class="card-hd"><h3>Lançamentos do extrato <span id="ex-modo-selo" style="font-size:11px;font-weight:700;color:var(--teal);background:var(--gray);border:1px solid var(--gray2);border-radius:999px;padding:2px 9px;margin-left:6px;vertical-align:middle">Banco + Cofre</span></h3>
-            <div style="display:flex;gap:8px;align-items:center"><small style="color:var(--text2)">classifique e concilie pelo ✏️</small>
+            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span id="ex-saldo-empresa" style="font-size:13px;color:var(--text2);font-weight:600"></span><small style="color:var(--text2)">classifique e concilie pelo ✏️</small>
             <button class="btn btn-outline btn-sm" onclick="renderExtratoDRE(true);loadConciliacao()">↺ Atualizar</button></div>
           </div>
           <div class="card-bd"><div id="ex-txns" style="max-height:600px;overflow:auto"></div></div>
@@ -972,7 +973,7 @@ body.capturing .rel-acao{display:none!important}
           <div><h2>DRE — Demonstração do Resultado</h2><p>Resultado consolidado (Banco + Cofre) por plano de contas, com análise vertical (AV%) e horizontal (AH%)</p></div>
           <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
             <label style="display:flex;gap:6px;align-items:center;font-size:13px;color:var(--text2);cursor:pointer;user-select:none">
-              <input type="checkbox" id="ex-inc-cofre" checked onchange="_setIncCofre(this.checked)" style="cursor:pointer"> 🔒 Incluir Cofre (dinheiro)
+              <input type="checkbox" id="ex-inc-cofre" checked onchange="_setModoMov(this.checked?'ambos':'banco')" style="cursor:pointer"> 🔒 Incluir Cofre (dinheiro)
             </label>
           </div>
         </div>
@@ -4619,12 +4620,31 @@ let _cofreCache=null, _dreBankCache=null;
 // meses selecionados na DRE (vazio = todos). Permite escolher vários períodos.
 let _dreMeses=new Set();
 let _dreTipo='todos', _dreDe='', _dreAte='', _dreProjeto='';
-let _incCofre=true;   // incluir Cofre (dinheiro) na visão consolidada — compartilhado DRE + Extrato
-function _setIncCofre(v){
-  _incCofre=!!v;
-  const dre=document.getElementById('ex-inc-cofre'); if(dre)dre.checked=_incCofre;
-  document.querySelectorAll('[data-inccofre]').forEach(b=>b.classList.toggle('on', (b.dataset.inccofre==='1')===_incCofre));
+let _modoMov='ambos';   // 'banco' | 'cofre' | 'ambos' — visão da movimentação (compartilhado DRE + Extrato)
+let _saldoBancoCents=null;   // cache do saldo das contas bancárias ativas
+const _MODO_SELO={banco:'Só Banco', cofre:'Só Cofre', ambos:'Banco + Cofre'};
+function _setModoMov(m){
+  _modoMov=['banco','cofre','ambos'].includes(m)?m:'ambos';
+  const dre=document.getElementById('ex-inc-cofre'); if(dre)dre.checked=(_modoMov!=='banco');
+  document.querySelectorAll('[data-modomov]').forEach(b=>b.classList.toggle('on', b.dataset.modomov===_modoMov));
   renderExtratoDRE();
+}
+// saldo atual da empresa conforme o modo (Banco / Cofre / Banco+Cofre)
+async function _renderSaldoEmpresa(modo){
+  const el=document.getElementById('ex-saldo-empresa'); if(!el) return;
+  let cents=0; const partes=[];
+  if(modo!=='cofre'){
+    if(_saldoBancoCents===null){
+      try{ const{data:bk}=await sb.from('fin_contas_bancarias').select('saldo').eq('ativa',true); _saldoBancoCents=(bk||[]).reduce((s,r)=>s+(+r.saldo||0),0); }
+      catch(e){ _saldoBancoCents=0; }
+    }
+    cents+=_saldoBancoCents; partes.push('Banco '+fmt(_saldoBancoCents));
+  }
+  if(modo!=='banco'){
+    const cofreCents=(_cofreCache||[]).reduce((s,r)=>s+(r.tipo==='Entrada'?(+r.valor):-(+r.valor)),0);
+    cents+=cofreCents; partes.push('🔒 Cofre '+fmt(cofreCents));
+  }
+  el.innerHTML='Saldo atual da empresa: <b style="color:'+(cents<0?'var(--red)':'var(--teal)')+';font-size:15px">'+fmt(cents)+'</b>'+(partes.length>1?' <small style="color:var(--text2)">('+partes.join(' + ')+')</small>':'');
 }
 function _dreToggleMes(m){
   if(!m){ _dreMeses.clear(); }            // chip "Todos"
@@ -4649,12 +4669,13 @@ function _dreOnDe(v){ _dreDe=v||''; _dreAplicar(); }
 function _dreOnAte(v){ _dreAte=v||''; _dreAplicar(); }
 function _dreLimparPeriodo(){ _dreDe=''; _dreAte=''; _dreAplicar(); }
 async function renderExtratoDRE(force){
-  if(force){ _dreBankCache=null; _cofreCache=null; }
-  const incCofre=_incCofre;
+  if(force){ _dreBankCache=null; _cofreCache=null; _saldoBancoCents=null; }
+  const modo=_modoMov;                 // 'banco' | 'cofre' | 'ambos'
+  const incCofre=modo!=='banco';
   // mantém os controles (checkbox do DRE + botão-segmento do Extrato) em sincronia
   const _dreChk=document.getElementById('ex-inc-cofre'); if(_dreChk)_dreChk.checked=incCofre;
-  document.querySelectorAll('[data-inccofre]').forEach(b=>b.classList.toggle('on', (b.dataset.inccofre==='1')===incCofre));
-  const _selo=document.getElementById('ex-modo-selo'); if(_selo)_selo.textContent=incCofre?'Banco + Cofre':'Só Banco';
+  document.querySelectorAll('[data-modomov]').forEach(b=>b.classList.toggle('on', b.dataset.modomov===modo));
+  const _selo=document.getElementById('ex-modo-selo'); if(_selo)_selo.textContent=_MODO_SELO[modo];
   const cats=document.getElementById('ex-dre-cats'), txnsBox=document.getElementById('ex-txns');
   let data=_dreBankCache;
   if(data===null){
@@ -4669,7 +4690,9 @@ async function renderExtratoDRE(force){
     catch(e){ _cofreCache=[]; }
   }
   const cofreTxns = incCofre ? _cofreComoTxns(_cofreCache) : [];
-  let all=(data||[]).concat(cofreTxns);
+  const bankTxns = modo==='cofre' ? [] : (data||[]);   // 'Só Cofre' esconde o banco
+  let all=bankTxns.concat(cofreTxns);
+  _renderSaldoEmpresa(modo);            // KPI de saldo atual da empresa conforme o modo
   // chips de meses (do mais antigo para o mais recente) + chip "Todos"
   const comps=[...new Set(all.map(_txComp).filter(Boolean))].sort();
   [..._dreMeses].forEach(m=>{ if(!comps.includes(m)) _dreMeses.delete(m); });  // limpa meses sumidos

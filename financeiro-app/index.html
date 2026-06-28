@@ -942,7 +942,7 @@ body.capturing .rel-acao{display:none!important}
             <label style="font-size:12px;color:var(--text2);font-weight:600">Movimentação:</label>
             <div style="display:inline-flex;gap:4px">
               <button class="mes-chip" data-modomov="banco" onclick="_setModoMov('banco')" title="Apenas lançamentos do banco (Sicoob)">Só Banco</button>
-              <button class="mes-chip" data-modomov="cofre" onclick="_setModoMov('cofre')" title="Apenas dinheiro em espécie do Cofre">🔒 Só Cofre</button>
+              <button class="mes-chip" data-modomov="cofre" onclick="_setModoMov('cofre')" title="Apenas dinheiro em espécie do Cofre"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="vertical-align:-2px"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="10.5" cy="12" r="3"/><path d="M10.5 12v-2.2"/><path d="M17 9.4v5.2"/></svg> Só Cofre</button>
               <button class="mes-chip on" data-modomov="ambos" onclick="_setModoMov('ambos')" title="Banco + dinheiro do Cofre, em uma só visão">Banco + Cofre</button>
             </div>
           </div>
@@ -973,7 +973,7 @@ body.capturing .rel-acao{display:none!important}
           <div><h2>DRE — Demonstração do Resultado</h2><p>Resultado consolidado (Banco + Cofre) por plano de contas, com análise vertical (AV%) e horizontal (AH%)</p></div>
           <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
             <label style="display:flex;gap:6px;align-items:center;font-size:13px;color:var(--text2);cursor:pointer;user-select:none">
-              <input type="checkbox" id="ex-inc-cofre" checked onchange="_setModoMov(this.checked?'ambos':'banco')" style="cursor:pointer"> 🔒 Incluir Cofre (dinheiro)
+              <input type="checkbox" id="ex-inc-cofre" checked onchange="_setModoMov(this.checked?'ambos':'banco')" style="cursor:pointer"> <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="vertical-align:-2px"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="10.5" cy="12" r="3"/><path d="M10.5 12v-2.2"/><path d="M17 9.4v5.2"/></svg> Incluir Cofre (dinheiro)
             </label>
           </div>
         </div>
@@ -1329,7 +1329,7 @@ body.capturing .rel-acao{display:none!important}
             <input type="radio" name="mpag-fonte" value="banco" checked> 🏦 Banco Sicoob
           </label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600">
-            <input type="radio" name="mpag-fonte" value="cofre"> 🔒 Cofre (dinheiro)
+            <input type="radio" name="mpag-fonte" value="cofre"> <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="vertical-align:-2px"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="10.5" cy="12" r="3"/><path d="M10.5 12v-2.2"/><path d="M17 9.4v5.2"/></svg> Cofre (dinheiro)
           </label>
         </div>
       </div>
@@ -1566,6 +1566,8 @@ const ST_AGUARDANDO='Aguardando aprovação';
 
 // ── Helpers ──────────────────────────────────────────────────
 const fmt=v=>'R$ '+(v/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+// ícone de cofre (safe) — usado como marcador do Cofre no lugar do cadeado
+const COFRE_ICO='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="vertical-align:-2px;flex:none"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="10.5" cy="12" r="3"/><path d="M10.5 12v-2.2"/><path d="M17 9.4v5.2"/></svg>';
 const hoje=()=>new Date().toISOString().slice(0,10);
 function parseData(s){if(!s)return null;const[d,m,a]=s.split('/');return`${a}-${m}-${d}`;}
 function formatData(iso){if(!iso)return'—';const[a,m,d]=iso.split('-');return`${d}/${m}/${a}`;}
@@ -4527,11 +4529,11 @@ function _exTabela(txns,preview){
   return `<table class="nfse-hist-tbl"><thead><tr><th>Data</th><th>Histórico</th><th>Categoria / Condomínio</th><th>Tipo</th><th style="text-align:right">Valor</th>${preview?'':'<th>Status</th><th></th>'}</tr></thead><tbody>`+
     txns.map(t=>`<tr>
       <td style="white-space:nowrap">${esc(t.dataBR||(t.data?t.data.slice(8,10)+'/'+t.data.slice(5,7):''))}${t.hora?' <small style="color:var(--text2)">'+esc(t.hora)+'</small>':''}</td>
-      <td>${esc(t.historico||t.descricao||'')}</td>
+      <td>${t._cofre?'<span style="color:var(--teal)">'+COFRE_ICO+'</span> ':''}${esc(t.historico||t.descricao||'')}</td>
       <td>${esc(t.categoria||'—')}${t.categoria==='Não classificado'?' <span class="nfse-flag" style="background:#FFF3E0;color:#E65100">revisar</span>':''}${t.condominio?'<br><small style="color:var(--teal)">🏢 '+esc(t.condominio)+(t.tipo_servico?' · '+esc(t.tipo_servico):'')+'</small>':''}${t.projeto?'<br><small style="color:var(--turq)">📁 '+esc(t.projeto)+'</small>':''}</td>
       <td><span class="ex-tag ${t.tipo==='C'?'cred':'deb'}">${t.tipo==='C'?'crédito':'débito'}</span></td>
       <td style="text-align:right;color:${t.tipo==='C'?'var(--green)':'var(--red)'}">${t.tipo==='C'?'+':'−'} R$ ${(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
-      ${preview?'':`<td style="white-space:nowrap;font-size:11px;line-height:1.5">${(t.categoria&&t.categoria!=='Não classificado')?'<span style="color:var(--green)">🏷️ classif.</span>':'<span style="color:#E65100">⚠️ a classif.</span>'}<br>${t._cofre?'<span style="color:var(--teal)">🔒 cofre</span>':(t.status==='conciliado'||t.conta_receber_id||t.conta_pagar_id)?'<span style="color:var(--green)">🔗 conciliado</span>':'<span style="color:var(--text2)">○ a conciliar</span>'}</td>`}
+      ${preview?'':`<td style="white-space:nowrap;font-size:11px;line-height:1.5">${(t.categoria&&t.categoria!=='Não classificado')?'<span style="color:var(--green)">🏷️ classif.</span>':'<span style="color:#E65100">⚠️ a classif.</span>'}<br>${t._cofre?'<span style="color:var(--teal)">'+COFRE_ICO+' cofre</span>':(t.status==='conciliado'||t.conta_receber_id||t.conta_pagar_id)?'<span style="color:var(--green)">🔗 conciliado</span>':'<span style="color:var(--text2)">○ a conciliar</span>'}</td>`}
       ${preview?'':`<td style="text-align:right">${t.id?'<button title="Classificar / conciliar" onclick="abrirClassificar('+t.id+')" style="cursor:pointer;border:none;background:none;font-size:15px">✏️</button>':''}</td>`}
     </tr>`).join('')+`</tbody></table>`;
 }
@@ -4609,7 +4611,7 @@ function _cofreComoTxns(rows){
     .filter(r=>!/saldo anterior/i.test(r.descricao||''))
     .map(r=>({
       data:r.data, competencia:String(r.data||'').slice(0,7),
-      historico:'🔒 Cofre · '+(r.descricao||'Movimentação'),
+      historico:'Cofre · '+(r.descricao||'Movimentação'),
       categoria:_cofreCat(r.descricao,r.tipo),
       tipo: r.tipo==='Entrada'?'credito':'debito',
       tipo_categoria: r.tipo==='Entrada'?'Receita':'Despesa',
@@ -4642,7 +4644,7 @@ async function _renderSaldoEmpresa(modo){
   }
   if(modo!=='banco'){
     const cofreCents=(_cofreCache||[]).reduce((s,r)=>s+(r.tipo==='Entrada'?(+r.valor):-(+r.valor)),0);
-    cents+=cofreCents; partes.push('🔒 Cofre '+fmt(cofreCents));
+    cents+=cofreCents; partes.push(COFRE_ICO+' Cofre '+fmt(cofreCents));
   }
   el.innerHTML='Saldo atual da empresa: <b style="color:'+(cents<0?'var(--red)':'var(--teal)')+';font-size:15px">'+fmt(cents)+'</b>'+(partes.length>1?' <small style="color:var(--text2)">('+partes.join(' + ')+')</small>':'');
 }

@@ -880,10 +880,7 @@ body.capturing .rel-acao{display:none!important}
               <span class="sicoob-dot green" id="sicoob-dot"></span>
               <span class="sicoob-label" id="sicoob-label">Sincronização automática ativa</span>
             </div>
-            <div style="text-align:right">
-              <div style="font-size:11px;color:var(--text2);text-transform:uppercase;font-weight:700">Saldo atual — Sicoob</div>
-              <b id="ex-saldo-val" style="font-size:22px;color:var(--teal)">—</b><span id="ex-saldo-quando" style="font-size:11px;color:var(--text2)"></span>
-            </div>
+            <div style="text-align:right"><span id="ex-saldo-empresa" style="font-size:15px;color:var(--text2);font-weight:600">Saldo atual da empresa: —</span></div>
           </div>
           <div class="sicoob-actions">
             <button class="btn btn-primary btn-sm" id="btn-sicoob-sync" onclick="sicoobSync()">🔄 Atualizar dados</button>
@@ -955,7 +952,7 @@ body.capturing .rel-acao{display:none!important}
         <!-- Extrato unificado: classificar + conciliar na mesma lista -->
         <div class="card" style="margin-top:16px">
           <div class="card-hd"><h3>Lançamentos do extrato <span id="ex-modo-selo" style="font-size:11px;font-weight:700;color:var(--teal);background:var(--gray);border:1px solid var(--gray2);border-radius:999px;padding:2px 9px;margin-left:6px;vertical-align:middle">Banco + Cofre</span></h3>
-            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span id="ex-saldo-empresa" style="font-size:13px;color:var(--text2);font-weight:600"></span><small style="color:var(--text2)">classifique e concilie pelo ✏️</small>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><small style="color:var(--text2)">classifique e concilie pelo ✏️</small>
             <button class="btn btn-outline btn-sm" onclick="renderExtratoDRE(true);loadConciliacao()">↺ Atualizar</button></div>
           </div>
           <div class="card-bd"><div id="ex-txns" style="max-height:600px;overflow:auto"></div></div>
@@ -4893,7 +4890,7 @@ function _ccMatch(txn,contas){
   return cands.slice().sort((a,b)=>_ccDias(a.data_vencimento,txn.data)-_ccDias(b.data_vencimento,txn.data))[0];
 }
 async function loadConciliacao(){
-  try{ const sr=await sb.from('fin_contas_bancarias').select('saldo,updated_at').eq('nome','Sicoob - Diagnóstika').maybeSingle(); const el=document.getElementById('ex-saldo-val'); if(el&&sr.data){ el.textContent=fmt(sr.data.saldo); const q=document.getElementById('ex-saldo-quando'); if(q&&sr.data.updated_at){ const d=new Date(sr.data.updated_at); q.textContent=' · '+d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); } } }catch(e){}
+  _saldoBancoCents=null; // forca reler o saldo do banco (sync atualiza a cada 5 min)
   const [tx,rc,pg]=await Promise.all([
     sb.from('fin_transacoes_bancarias').select('*').order('data',{ascending:false}).limit(1000),
     sb.from('fin_contas_receber').select('id,cliente,categoria,valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false),

@@ -3882,7 +3882,7 @@ async function initNfse(){
   ms.value=String(new Date().getMonth()+1);
   ms.onchange=renderNfse; anoSel.onchange=renderNfse;
   // estado inicial
-  NFSE_CONDOS.forEach(c=>{_nfseEstado[c.id]={sel:true,valor:c.valor,descricao:c.descricao,parcela:c.parcelamento?.parcela_atual||null,resultado:null};});
+  NFSE_CONDOS.forEach(c=>{_nfseEstado[c.id]={sel:false,valor:c.valor,descricao:c.descricao,parcela:c.parcelamento?.parcela_atual||null,resultado:null};});
   renderNfse();
   loadNfseHist();
 }

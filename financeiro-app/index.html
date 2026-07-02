@@ -4032,11 +4032,16 @@ async function _nfseCriarContaReceber(nome,valorNum,descricao,vencISO){
   }catch(e){ console.warn(e); return null; }
 }
 
-// Grava o histórico da nota emitida.
+// Grava o histórico da nota emitida. Falha NÃO pode ser silenciosa:
+// a nota já saiu na Prefeitura; se o registro local falhar, o usuário precisa saber.
 async function _nfseGravarHistorico(row){
   try{ const{error}=await sb.from('fin_nfse_emitidas').insert(row);
-    if(error) console.warn('hist nfse',error.message);
-  }catch(e){ console.warn(e); }
+    if(error){ console.warn('hist nfse',error);
+      toast('⚠ Nota emitida na Prefeitura, mas FALHOU ao registrar no histórico: '+error.message,true);
+    }
+  }catch(e){ console.warn('hist nfse',e);
+    toast('⚠ Nota emitida, mas falhou ao registrar no histórico: '+(e.message||e),true);
+  }
 }
 
 async function emitirNfse(){

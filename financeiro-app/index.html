@@ -3847,7 +3847,7 @@ function _dbToNfseCondo(r){
   return {
     id:r.id, nome:r.nome, db_id:r.id,
     faturamento_ativo:r.faturamento_ativo,
-    tomador:{cnpj:r.cnpj,inscricao_municipal:r.inscricao_municipal||'',razao_social:r.razao_social||r.nome.toUpperCase(),municipio:r.cidade||'',cod_municipio:r.cod_municipio||'',cep:r.cep||'',uf:r.uf||'SP',email:r.email_financeiro||''},
+    tomador:{cnpj:r.cnpj,inscricao_municipal:r.inscricao_municipal||'',razao_social:r.razao_social||r.nome.toUpperCase(),endereco:r.endereco||'',numero:r.endereco_numero||'',bairro:r.bairro||'',municipio:r.cidade||'',cod_municipio:r.cod_municipio||'',cep:r.cep||'',uf:r.uf||'SP',email:r.email_financeiro||''},
     valor:valorReais, iss_retido:r.iss_retido?'1':'2',
     parcelamento:r.parcelas_total?{ativo:true,parcela_atual:r.parcelas_emitidas||1,total:r.parcelas_total}:null,
     descricao:r.descricao_padrao||'Prestação de serviços técnicos de engenharia condominial, conforme contrato.\nPIX CNPJ: 54.027.948/0001-60\nVencimento {{vencimento}}',

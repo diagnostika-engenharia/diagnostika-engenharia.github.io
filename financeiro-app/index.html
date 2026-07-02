@@ -3860,6 +3860,26 @@ async function _nfseCarregarClientes(){
     NFSE_CONDOS=data.map(_dbToNfseCondo);
   }catch(e){ console.warn('fin_clientes load',e); }
 }
+
+// última nota emitida por condomínio (produção tem prioridade sobre teste)
+let _nfseUltimas={};
+async function _nfseCarregarUltimas(){
+  try{
+    const{data,error}=await sb.from('fin_nfse_emitidas')
+      .select('condominio_id,numero_nfse,codigo_verificacao,competencia,valor,descricao,ambiente,status,created_at')
+      .order('created_at',{ascending:false}).limit(300);
+    if(error){ console.warn('nfse ultimas',error.message); return; }
+    _nfseUltimas={};
+    // data vem em ordem decrescente: a 1ª de cada condomínio é a mais recente.
+    // Nota de PRODUÇÃO tem prioridade sobre teste de homologação.
+    (data||[]).forEach(n=>{
+      if(!n.condominio_id) return;
+      const atual=_nfseUltimas[n.condominio_id];
+      if(!atual){ _nfseUltimas[n.condominio_id]=n; return; }
+      if(atual.ambiente!=='producao' && n.ambiente==='producao') _nfseUltimas[n.condominio_id]=n;
+    });
+  }catch(e){ console.warn('nfse ultimas load',e); }
+}
 const _MESES_NF=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 let _nfseAmbiente='homologacao';
 let _nfseInit=false;
@@ -3872,7 +3892,7 @@ const _nfseEstado={};
 async function initNfse(){
   if(_nfseInit){ renderNfse(); return; }
   _nfseInit=true;
-  await _nfseCarregarClientes();
+  await Promise.all([_nfseCarregarClientes(),_nfseCarregarUltimas()]);
   // popular mês/ano
   const ms=document.getElementById('nfse-mes'); ms.innerHTML='';
   _MESES_NF.forEach((m,i)=>{const o=document.createElement('option');o.value=i+1;o.textContent=m;ms.appendChild(o);});
@@ -3898,6 +3918,20 @@ function _nfseDescFinal(c){
     .replace(/\{\{vencimento\}\}/g, _nfseVencimento())
     .replace(/\{\{parcela\}\}/g, st.parcela!=null?st.parcela:'');
   return d;
+}
+
+// Bloco "Última nota emitida" exibido no card expandido de cada condomínio.
+function _nfseUltimaHtml(c){
+  const u=_nfseUltimas[c.id];
+  if(!u) return `<div class="nfse-tom" style="margin-top:8px;color:var(--text2)">📄 <b>Última nota:</b> nenhuma nota emitida ainda por aqui.</div>`;
+  const dt=u.created_at?new Date(u.created_at):null;
+  const venc=((u.descricao||'').match(/Vencimento:?\s*([\d\/]{8,10})/i)||[])[1];
+  const prod=u.ambiente==='producao';
+  return `<div class="nfse-tom" style="margin-top:8px">
+    <b>📄 Última nota emitida:</b> nº <b>${esc(u.numero_nfse||'—')}</b>${u.codigo_verificacao?' · cód. <b>'+esc(u.codigo_verificacao)+'</b>':''} · ${esc(u.competencia||'—')} · R$ ${(+u.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})} <span class="nfse-amb-pill ${prod?'prod':'teste'}">${prod?'produção':'teste'}</span><br>
+    <b>Emitida em:</b> ${dt?dt.toLocaleDateString('pt-BR')+' às '+dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'—'}${venc?' · <b>Vencimento:</b> '+esc(venc):''}
+    <details style="margin-top:4px"><summary style="cursor:pointer;font-size:12px;color:var(--text2)">ver descrição completa da nota</summary><div style="white-space:pre-wrap;font-size:12px;margin-top:4px;color:var(--text2)">${esc(u.descricao||'(sem descrição registrada)')}</div></details>
+  </div>`;
 }
 
 function renderNfse(){
@@ -3947,7 +3981,8 @@ function renderNfse(){
           <b>Envio:</b> ${esc(c.envio)}${c.obs?'<br><b>⚠ '+esc(c.obs)+'</b>':''}
           <br><button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="removerClienteCustom('${c.id}')">Desativar cliente</button>
         </div>
-        ${st.resultado?`<div class="nfse-resultado ${st.resultado.ok?'ok':'erro'}">${esc(st.resultado.msg)}</div>`:''}
+        ${_nfseUltimaHtml(c)}
+        ${st.resultado?`<div class="nfse-resultado ${st.resultado.ok?'ok':'erro'}">${st.resultado.msg}</div>`:''}
       </div>`;
     cont.appendChild(card);
   });
@@ -4066,6 +4101,7 @@ async function emitirNfse(){
   statusEl.textContent=`Concluído: ${ok} emitida(s)${fail?', '+fail+' com erro':''}.`;
   toast(`${ok} nota(s) emitida(s)${fail?', '+fail+' falha(s)':''}`, fail>0);
   if(prod){ loadReceber&&loadReceber(); loadDash&&loadDash(); }
+  await _nfseCarregarUltimas();
   renderNfse(); loadNfseHist();
 }
 

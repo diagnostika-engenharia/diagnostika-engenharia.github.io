@@ -1701,6 +1701,8 @@ async function initApp(){
   loadDash();
   loadContasBancarias();
   _fcSetupDrop();
+  // Restaura a última aba aberta (sobrevive ao F5). Dashboard é o padrão.
+  try{const last=localStorage.getItem('fin_nav'); if(last && last!=='dash' && document.getElementById('page-'+last)) nav(last);}catch(e){}
 }
 
 // Gate: exige a sessão do login central. Esconde a tela de login antiga.
@@ -1743,6 +1745,7 @@ function nav(page){
   if(page==='nfse')initNfse();
   if(page==='extrato'){ initExtrato(); loadConciliacao(); }
   if(page==='dre')renderExtratoDRE();
+  try{localStorage.setItem('fin_nav',page);}catch(e){}
 }
 
 // ── Dashboard ─────────────────────────────────────────────────
@@ -3992,7 +3995,17 @@ function renderNfse(){
   _nfseTotais();
 }
 function toggleNfseSel(id,v){ _nfseEstado[id].sel=v; renderNfse(); }
-function setNfseCampo(id,campo,v){ _nfseEstado[id][campo]=v; if(campo==='descricao')_nfseEstado[id].dirty=true; if(campo==='valor'||campo==='parcela')renderNfse(); }
+function setNfseCampo(id,campo,v){
+  _nfseEstado[id][campo]=v;
+  if(campo==='descricao')_nfseEstado[id].dirty=true;
+  if(campo==='parcela'){
+    const st=_nfseEstado[id];
+    // Se a descrição já foi editada à mão (dirty), o token {{parcela}} não existe mais no texto;
+    // então atualiza a parcela direto no corpo ("Parcela N/…" -> nova parcela).
+    if(st.dirty && st.descricao) st.descricao=st.descricao.replace(/(Parcela\s*)(\d+)(\s*\/)/gi,'$1'+(v==null?'':v)+'$3');
+  }
+  if(campo==='valor'||campo==='parcela')renderNfse();
+}
 function _nfseTotais(){
   let qtd=0,total=0;
   NFSE_CONDOS.forEach(c=>{const st=_nfseEstado[c.id];if(st.sel&&c.faturamento_ativo!==false){qtd++;total+=(+st.valor||0);}});

@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Financeiro · Diagnóstika</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -491,6 +492,9 @@ body.capturing .rel-acao{display:none!important}
       <button class="sn-btn" id="sn-nfse" onclick="nav('nfse')">
         <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>Notas Fiscais
       </button>
+      <button class="sn-btn" id="sn-prolabore" onclick="nav('prolabore')">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Pró-Labore
+      </button>
 
       <div class="sn-section">EM BREVE</div>
       <button class="sn-btn" id="sn-reembolsos" onclick="nav('reembolsos')"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Reembolsos</button>
@@ -532,6 +536,20 @@ body.capturing .rel-acao{display:none!important}
           <div class="kpi gray"><label>Contas Bancárias</label><div class="val" id="kpi-banco">—</div></div>
         </div>
         <div class="card">
+          <div class="card-hd" style="flex-wrap:wrap;gap:8px">
+            <h3>Receita por categoria</h3>
+            <div id="dashcat-seg" style="display:inline-flex;border:1px solid var(--gray3);border-radius:8px;overflow:hidden;font-size:12px">
+              <button type="button" data-m="ambos" onclick="_setDashCat('ambos')" style="border:0;background:var(--turq);color:#fff;padding:5px 12px;cursor:pointer;font-weight:600">Ambos</button>
+              <button type="button" data-m="realizado" onclick="_setDashCat('realizado')" style="border:0;background:#fff;color:var(--text2);padding:5px 12px;cursor:pointer;font-weight:600">Realizado</button>
+              <button type="button" data-m="previsto" onclick="_setDashCat('previsto')" style="border:0;background:#fff;color:var(--text2);padding:5px 12px;cursor:pointer;font-weight:600">Previsto</button>
+            </div>
+          </div>
+          <div class="card-bd">
+            <div style="position:relative;height:260px"><canvas id="dash-cat-chart"></canvas></div>
+            <div id="dash-cat-empty" class="empty" style="display:none">Sem receitas no período/critério selecionado.</div>
+          </div>
+        </div>
+        <div class="card">
           <div class="card-hd"><h3>Contas a Receber — Pendentes</h3><a onclick="nav('receber')" style="font-size:12px;color:var(--turq);cursor:pointer">Ver todas →</a></div>
           <div class="card-bd"><table class="tbl"><thead><tr><th>Cliente</th><th>Categoria</th><th>Vencimento</th><th>Valor</th><th>Status</th></tr></thead><tbody id="dash-receber"></tbody></table></div>
         </div>
@@ -555,8 +573,8 @@ body.capturing .rel-acao{display:none!important}
           <select id="fr-status" onchange="loadReceber()"><option value="">Todos</option><option value="Pendente">Pendente</option><option value="Recebido">Recebido</option></select>
           <select id="fr-cat" onchange="loadReceber()">
             <option value="">Todas as categorias</option>
-            <option>ART</option><option>Vistoria</option><option>Projetos</option>
-            <option>Assessoria Condomínio</option><option>Laudos</option><option>Outros</option>
+            <option>ART</option><option>Assessoria</option><option>Projeto</option>
+            <option>Vistoria</option><option>Laudo/Parecer</option><option>Outros</option>
           </select>
           <span style="font-size:12px;color:var(--text2);font-weight:600">Venc. de:</span>
           <input type="date" id="fr-de" onchange="loadReceber()" style="padding:4px 6px;border-radius:8px;border:1px solid var(--gray3)">
@@ -1113,7 +1131,107 @@ body.capturing .rel-acao{display:none!important}
         </div>
       </div>
 
+      <!-- PRÓ-LABORE -->
+      <div class="page" id="page-prolabore">
+        <div class="page-header">
+          <div><h2>Pró-Labore</h2><p>Retiradas mensais dos sócios</p></div>
+          <button class="btn btn-primary" onclick="openModalPL()">+ Novo Lançamento</button>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filters" style="flex-wrap:wrap;align-items:center;gap:8px">
+          <select id="fpl-socio" onchange="loadProLabore()">
+            <option value="">Todos os sócios</option>
+          </select>
+          <select id="fpl-status" onchange="loadProLabore()">
+            <option value="">Todos os status</option>
+            <option>Rascunho</option><option>Aprovado</option><option>Pago</option><option>Estornado</option>
+          </select>
+          <select id="fpl-ano" onchange="loadProLabore()"></select>
+        </div>
+
+        <!-- KPIs -->
+        <div class="kpi-row">
+          <div class="kpi blue"><label>Bruto no Período</label><div class="val" id="kpl-bruto">—</div></div>
+          <div class="kpi red"><label>Descontos</label><div class="val" id="kpl-desc">—</div></div>
+          <div class="kpi green"><label>Líquido a Receber</label><div class="val" id="kpl-liq">—</div></div>
+          <div class="kpi gray"><label>Pago</label><div class="val" id="kpl-pago">—</div></div>
+        </div>
+
+        <!-- Tabela -->
+        <div class="card">
+          <div class="card-hd"><h3>Lançamentos</h3></div>
+          <div class="card-bd">
+            <table class="tbl"><thead><tr>
+              <th class="sortable" data-plcol="nr_controle">Controle</th>
+              <th class="sortable" data-plcol="socio_nome">Sócio</th>
+              <th class="sortable" data-plcol="competencia">Competência</th>
+              <th class="sortable" data-plcol="valor_bruto">Bruto</th>
+              <th>Descontos</th>
+              <th>Líquido</th>
+              <th class="sortable" data-plcol="status">Status</th>
+              <th></th>
+            </tr></thead><tbody id="tbl-prolabore"><tr><td colspan="8" class="empty">Carregando…</td></tr></tbody></table>
+          </div>
+        </div>
+
+        <!-- Detalhe expandido -->
+        <div class="card" id="pl-detalhe-card" style="display:none">
+          <div class="card-hd">
+            <h3 id="pl-detalhe-titulo">Detalhes</h3>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-outline btn-sm" onclick="fecharDetalhePL()">✕ Fechar</button>
+            </div>
+          </div>
+          <div class="card-bd" style="padding:16px">
+            <div id="pl-detalhe-body"></div>
+          </div>
+        </div>
+      </div>
+
     </main>
+  </div>
+</div>
+
+<!-- MODAL: PRÓ-LABORE -->
+<div class="modal-bg" id="modal-prolabore">
+  <div class="modal" style="width:540px">
+    <div class="modal-hd"><h3 id="mpl-title">Novo Lançamento de Pró-Labore</h3><button onclick="closeModal('modal-prolabore')">×</button></div>
+    <div class="modal-bd">
+      <input type="hidden" id="mpl-id">
+      <div class="form-2col">
+        <div class="form-row"><label>Sócio *</label>
+          <select id="mpl-socio"></select>
+        </div>
+        <div class="form-row"><label>Competência *</label>
+          <input id="mpl-comp" type="month">
+        </div>
+      </div>
+      <div class="form-2col">
+        <div class="form-row"><label>Valor Bruto (R$) *</label>
+          <input id="mpl-valor" type="number" min="0" step="0.01" placeholder="0,00">
+        </div>
+        <div class="form-row"><label>Forma de Pagamento</label>
+          <select id="mpl-forma">
+            <option value="">—</option><option>Pix</option><option>Espécie</option><option>Transferência</option><option>Misto</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row"><label>Observação</label><input id="mpl-obs" placeholder="Opcional"></div>
+
+      <!-- Itens (créditos e débitos) -->
+      <div style="margin-top:16px;border-top:1px solid var(--gray2);padding-top:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <label style="font-size:13px;font-weight:700;color:var(--teal)">Itens (descontos e adicionais)</label>
+          <button class="btn btn-outline btn-sm" type="button" onclick="addItemPL()">+ Item</button>
+        </div>
+        <div id="mpl-itens"></div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('modal-prolabore')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveProLabore()">Salvar</button>
+    </div>
   </div>
 </div>
 
@@ -1127,8 +1245,8 @@ body.capturing .rel-acao{display:none!important}
       <div class="form-2col">
         <div class="form-row"><label>Categoria *</label>
           <select id="mr-cat">
-            <option>ART</option><option>Vistoria</option><option>Projetos</option>
-            <option>Assessoria Condomínio</option><option>Laudos</option><option selected>Outros</option>
+            <option>ART</option><option>Assessoria</option><option>Projeto</option>
+            <option>Vistoria</option><option>Laudo/Parecer</option><option selected>Outros</option>
           </select>
         </div>
         <div class="form-row"><label>Valor (R$) *</label><input id="mr-valor" type="number" min="0" step="0.01" placeholder="0,00"></div>
@@ -1166,7 +1284,7 @@ body.capturing .rel-acao{display:none!important}
         <option>Anexação</option><option>Laudo</option><option>Parecer</option><option>Outros</option>
       </select>
       <label style="font-size:12px;font-weight:600">Categoria</label>
-      <input id="cl-categoria" placeholder="ex: Receita de ART" style="width:100%;box-sizing:border-box;margin:4px 0 10px;padding:7px 9px;border:1px solid var(--gray3);border-radius:8px">
+      <input id="cl-categoria" placeholder="ex: ART, Assessoria, Projeto…" style="width:100%;box-sizing:border-box;margin:4px 0 10px;padding:7px 9px;border:1px solid var(--gray3);border-radius:8px">
       <label style="font-size:12px;font-weight:600">Projeto (agrupa receitas e despesas do mesmo trabalho)</label>
       <input id="cl-projeto" list="cl-projetos-list" onchange="_clCheckDup()" placeholder="ex: Projeto casa João da Silva" style="width:100%;box-sizing:border-box;margin:4px 0 4px;padding:7px 9px;border:1px solid var(--gray3);border-radius:8px">
       <datalist id="cl-projetos-list"></datalist>
@@ -1743,6 +1861,7 @@ function nav(page){
   if(page==='pagar')loadPagar();
   if(page==='reembolsos')loadReembolsos();
   if(page==='cofre')loadCofre();
+  if(page==='prolabore')loadProLabore();
   if(page==='nfse')initNfse();
   if(page==='extrato'){ initExtrato(); loadConciliacao(); }
   if(page==='dre')renderExtratoDRE();
@@ -1783,6 +1902,7 @@ async function loadDash(){
 
   // dashboard completo precisa de cliente/fornecedor - recarrega com mais dados
   loadDashFull();
+  loadDashCategorias();
 }
 
 async function loadDashFull(){
@@ -1800,6 +1920,50 @@ async function loadDashFull(){
     <td>${esc(r.fornecedor)}</td><td>${esc(r.categoria)}</td><td>${formatData(r.data_vencimento)}</td>
     <td>${fmt(r.valor)}</td><td>${badgeSt(r.status,r.data_vencimento)}</td></tr>`).join('')
     :'<tr><td colspan="5" class="empty">Nenhuma conta pendente</td></tr>';
+}
+
+// ── Dashboard: Receita por categoria ──────────────────────────
+let _dashCatModo='ambos', _dashCatChart=null;
+const _DASH_CAT_CORES={'ART':'#155B67','Assessoria':'#00B4AC','Projeto':'#16A34A','Vistoria':'#1565C0','Laudo/Parecer':'#E65100','Outros':'#6B7B83'};
+function _setDashCat(m){
+  _dashCatModo=m;
+  document.querySelectorAll('#dashcat-seg button').forEach(b=>{
+    const on=b.dataset.m===m;
+    b.style.background=on?'var(--turq)':'#fff';
+    b.style.color=on?'#fff':'var(--text2)';
+  });
+  loadDashCategorias();
+}
+async function loadDashCategorias(){
+  const canvas=document.getElementById('dash-cat-chart'), empty=document.getElementById('dash-cat-empty');
+  if(!canvas) return;
+  if(typeof Chart==='undefined'){ if(empty){empty.style.display='';empty.textContent='Biblioteca de gráficos não carregou.';} return; }
+  const de=document.getElementById('dash-de')?.value, ate=document.getElementById('dash-ate')?.value;
+  let q=sb.from('fin_contas_receber').select('categoria,valor,status,data_vencimento,estornado').eq('estornado',false);
+  if(_dashCatModo==='realizado') q=q.eq('status','Recebido');
+  else if(_dashCatModo==='previsto') q=q.eq('status','Pendente');
+  if(de) q=q.gte('data_vencimento',de);
+  if(ate) q=q.lte('data_vencimento',ate);
+  const{data,error}=await q;
+  if(error){ if(empty){empty.style.display='';empty.textContent='Erro ao carregar receitas.';} return; }
+  // agrupa pela categoria canônica (une variantes históricas)
+  const acc={};
+  (data||[]).forEach(r=>{ const c=catCanonica(r.categoria); acc[c]=(acc[c]||0)+(r.valor||0); });
+  const cats=Object.keys(acc).filter(k=>acc[k]>0).sort((a,b)=>acc[b]-acc[a]);
+  if(!cats.length){
+    if(_dashCatChart){_dashCatChart.destroy();_dashCatChart=null;}
+    canvas.style.display='none'; if(empty){empty.style.display='';empty.textContent='Sem receitas no período/critério selecionado.';}
+    return;
+  }
+  canvas.style.display=''; if(empty)empty.style.display='none';
+  const valores=cats.map(c=>acc[c]/100), cores=cats.map(c=>_DASH_CAT_CORES[c]||'#6B7B83');
+  const total=valores.reduce((s,v)=>s+v,0);
+  if(_dashCatChart)_dashCatChart.destroy();
+  _dashCatChart=new Chart(canvas,{type:'doughnut',
+    data:{labels:cats,datasets:[{data:valores,backgroundColor:cores,borderWidth:2,borderColor:'#fff'}]},
+    options:{maintainAspectRatio:false,cutout:'58%',
+      plugins:{legend:{position:'right',labels:{usePointStyle:true,boxWidth:8,font:{size:12},padding:10}},
+        tooltip:{callbacks:{label:c=>{const v=c.raw,pct=total?Math.round(v/total*100):0;return ` ${c.label}: R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2})} (${pct}%)`;}}}}}});
 }
 
 function badgeSt(status,venc){
@@ -4031,10 +4195,10 @@ function _nfseVencISO(){
 }
 
 // Cria a Conta a Receber (PRODUÇÃO) e devolve o id, ou null.
-async function _nfseCriarContaReceber(nome,valorNum,descricao,vencISO){
+async function _nfseCriarContaReceber(nome,valorNum,descricao,vencISO,categoria){
   try{
     const payload={
-      cliente:nome, categoria:'Serviços de Engenharia',
+      cliente:nome, categoria:categoria||'Outros',
       valor:Math.round((+valorNum)*100),
       descricao:(descricao||'').slice(0,500),
       data_vencimento:vencISO, dia_vencimento:NFSE_PRESTADOR.vencimento_dia,
@@ -4218,7 +4382,7 @@ async function emitirAvulsa(){
     const txt=await r.text(); let j={}; try{j=JSON.parse(txt);}catch(e){}
     if(r.ok && j.ok && j.numero_nfse){
       let crId=null;
-      if(prod){ crId=await _nfseCriarContaReceber(razao,valor,(servico?servico+' — ':'')+desc,_nfseVencISO()); }
+      if(prod){ crId=await _nfseCriarContaReceber(razao,valor,(servico?servico+' — ':'')+desc,_nfseVencISO(),catCanonica(servico)); }
       await _nfseGravarHistorico({
         condominio_id:'avulsa', nome:razao, tomador_doc:doc, tomador_tipo:tipo, tomador_razao:razao,
         competencia:comp, valor:valor, iss_retido:iss, descricao:payload.descricao, parcela:null,
@@ -4856,12 +5020,23 @@ async function abrirClassificar(id){
   document.getElementById('modal-classificar').classList.add('open');
 }
 async function _desfazerConcDoModal(){ if(!_clTxId)return; try{ await desconciliarTxn(_clTxId); }catch(e){} closeModal('modal-classificar'); await renderExtratoDRE(true); }
+// Fonte única da verdade: normaliza qualquer rótulo de serviço (atual ou histórico)
+// para uma das categorias canônicas — ART, Assessoria, Projeto, Vistoria, Laudo/Parecer, Outros.
+// Usada no cadastro de cliente, na nota avulsa e no gráfico de receita por categoria.
+function catCanonica(v){
+  const s=(v||'').toString().trim().toLowerCase();
+  if(!s) return 'Outros';
+  if(/\bart\b/.test(s)) return 'ART';
+  if(s.includes('assessor')||s.includes('engenharia')) return 'Assessoria';
+  if(s.includes('projeto')||s.includes('averb')||s.includes('anexa')||s.includes('regulariza')) return 'Projeto';
+  if(s.includes('vistoria')) return 'Vistoria';
+  if(s.includes('laudo')||s.includes('parecer')) return 'Laudo/Parecer';
+  return 'Outros';
+}
 function _clTipoServ(v){
   const cat=document.getElementById('cl-categoria'); if(!cat||cat.value) return;
-  if(v==='ART')cat.value='Receita de ART';
-  else if(['Projeto','Averbação','Regularização','Anexação'].includes(v))cat.value='Receita de Projetos';
-  else if(v==='Assessoria')cat.value='Serviços de Engenharia';
-  else if(v==='Vistoria')cat.value='Receita de Vistoria';
+  const c=catCanonica(v);
+  cat.value = c==='Outros' ? '' : c;
 }
 function _clCheckDup(){
   const warn=document.getElementById('cl-dup-warn');
@@ -5039,6 +5214,279 @@ async function desconciliarTxn(txnId){
   if(Object.keys(upd).length) await sb.from('fin_transacoes_bancarias').update(upd).eq('id',txnId);
   toast('Conciliação desfeita'); loadConciliacao();
 }
+
+// ── PRÓ-LABORE ───────────────────────────────────────────────
+const PL_SOCIOS=[
+  {id:'bc85944b-5b89-4710-886c-1717e8309e24',nome:'Rogério Conceição'},
+  {id:'a71d23f8-0b1f-4dc5-ae44-829a5c1073a3',nome:'Claudemir Scaranello'},
+];
+let _plRows=[], _plItensCache={};
+
+function _initPLFiltros(){
+  const sel=document.getElementById('fpl-socio');
+  if(sel.options.length<=1){
+    PL_SOCIOS.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=s.nome;sel.appendChild(o);});
+  }
+  const anoSel=document.getElementById('fpl-ano');
+  if(!anoSel.options.length){
+    const a=new Date().getFullYear();
+    for(let y=a+1;y>=a-2;y--){const o=document.createElement('option');o.value=y;o.textContent=y;if(y===a)o.selected=true;anoSel.appendChild(o);}
+  }
+  const mSel=document.getElementById('mpl-socio');
+  if(!mSel.options.length){
+    PL_SOCIOS.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=s.nome;mSel.appendChild(o);});
+  }
+}
+
+async function loadProLabore(){
+  _initPLFiltros();
+  const socio=document.getElementById('fpl-socio').value;
+  const status=document.getElementById('fpl-status').value;
+  const ano=document.getElementById('fpl-ano').value;
+  let q=sb.from('fin_pro_labore').select('*').order('competencia',{ascending:false});
+  if(socio)q=q.eq('socio_id',socio);
+  if(status)q=q.eq('status',status);
+  if(ano)q=q.gte('competencia',ano+'-01').lte('competencia',ano+'-12');
+  const{data,error}=await q;
+  if(error){toast('Erro ao carregar pró-labore',true);return;}
+  _plRows=data||[];
+  // carregar itens de todos os relatórios de uma vez
+  const ids=_plRows.map(r=>r.id);
+  _plItensCache={};
+  if(ids.length){
+    const{data:itens}=await sb.from('fin_pro_labore_itens').select('*').in('pro_labore_id',ids);
+    (itens||[]).forEach(it=>{
+      if(!_plItensCache[it.pro_labore_id])_plItensCache[it.pro_labore_id]=[];
+      _plItensCache[it.pro_labore_id].push(it);
+    });
+  }
+  renderProLabore();
+}
+
+function _plCalc(r){
+  const itens=_plItensCache[r.id]||[];
+  const creditos=itens.filter(i=>i.tipo==='credito').reduce((s,i)=>s+i.valor,0);
+  const debitos=itens.filter(i=>i.tipo==='debito').reduce((s,i)=>s+i.valor,0);
+  return{creditos,debitos,liquido:r.valor_bruto+creditos-debitos};
+}
+
+const _sortPL={col:null,asc:true};
+const _accPL={
+  nr_controle:{get:r=>r.nr_controle||'',type:'text'},
+  socio_nome:{get:r=>r.socio_nome,type:'text'},
+  competencia:{get:r=>r.competencia,type:'text'},
+  valor_bruto:{get:r=>r.valor_bruto,type:'num'},
+  status:{get:r=>r.status,type:'text'},
+};
+
+function renderProLabore(){
+  if(typeof _sortRegistry!=='undefined')_sortRegistry['tbl-prolabore']={state:_sortPL,render:()=>renderProLabore()};
+  const rows=typeof _sortRows==='function'?_sortRows(_plRows,_sortPL,_accPL):_plRows;
+  if(typeof _applySortHeaders==='function')_applySortHeaders('tbl-prolabore','plcol',_sortPL);
+
+  let totBruto=0,totDesc=0,totLiq=0,totPago=0;
+  _plRows.forEach(r=>{
+    const c=_plCalc(r);
+    totBruto+=r.valor_bruto+c.creditos;
+    totDesc+=c.debitos;
+    totLiq+=c.liquido;
+    if(r.status==='Pago')totPago+=c.liquido;
+  });
+  document.getElementById('kpl-bruto').textContent=fmt(totBruto);
+  document.getElementById('kpl-desc').textContent=fmt(totDesc);
+  document.getElementById('kpl-liq').textContent=fmt(totLiq);
+  document.getElementById('kpl-pago').textContent=fmt(totPago);
+
+  const MESES=['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const fmtComp=c=>{if(!c)return'—';const[a,m]=c.split('-');return MESES[parseInt(m)]+'/'+a;};
+
+  const badgePL=s=>{
+    if(s==='Pago')return'<span class="badge ok">Pago</span>';
+    if(s==='Aprovado')return'<span class="badge" style="background:#E8F4FD;color:#1565C0">Aprovado</span>';
+    if(s==='Estornado')return'<span class="badge venc">Estornado</span>';
+    return'<span class="badge pend">Rascunho</span>';
+  };
+
+  document.getElementById('tbl-prolabore').innerHTML=rows.length?rows.map(r=>{
+    const c=_plCalc(r);
+    return`<tr style="cursor:pointer" onclick="verDetalhePL(${r.id})">
+      <td><span style="font-family:monospace;font-size:12px;color:var(--teal)">${esc(r.nr_controle||'—')}</span></td>
+      <td>${esc(r.socio_nome)}</td>
+      <td>${fmtComp(r.competencia)}</td>
+      <td>${fmt(r.valor_bruto)}</td>
+      <td style="color:var(--red)">${c.debitos?'-'+fmt(c.debitos):'—'}</td>
+      <td style="font-weight:700">${fmt(c.liquido)}</td>
+      <td>${badgePL(r.status)}</td>
+      <td style="white-space:nowrap" onclick="event.stopPropagation()">
+        ${r.status==='Rascunho'?`<button class="btn btn-sm" style="background:#1565C0;color:#fff" onclick="aprovarPL(${r.id})">✓ Aprovar</button> `:''}
+        ${r.status==='Aprovado'?`<button class="btn btn-green btn-sm" onclick="pagarPL(${r.id})">💰 Pagar</button> `:''}
+        ${r.status==='Pago'&&!r.estornado?`<button class="btn btn-danger btn-sm" onclick="estornarPL(${r.id})">Estornar</button> `:''}
+        ${r.status!=='Pago'?`<button class="btn btn-outline btn-sm" onclick="editPL(${r.id})">✎</button>
+        <button class="btn btn-danger btn-sm" onclick="delPL(${r.id})">✕</button>`:''}
+      </td>
+    </tr>`}).join(''):'<tr><td colspan="8" class="empty">Nenhum lançamento encontrado</td></tr>';
+}
+
+function openModalPL(item=null){
+  _initPLFiltros();
+  document.getElementById('mpl-title').textContent=item?'Editar Pró-Labore':'Novo Lançamento de Pró-Labore';
+  document.getElementById('mpl-id').value=item?.id||'';
+  document.getElementById('mpl-socio').value=item?.socio_id||PL_SOCIOS[0].id;
+  document.getElementById('mpl-comp').value=item?.competencia||new Date().toISOString().slice(0,7);
+  document.getElementById('mpl-valor').value=item?item.valor_bruto/100:'';
+  document.getElementById('mpl-forma').value=item?.forma_pagamento||'';
+  document.getElementById('mpl-obs').value=item?.observacao||'';
+  // itens
+  const box=document.getElementById('mpl-itens');
+  box.innerHTML='';
+  if(item&&_plItensCache[item.id]){
+    _plItensCache[item.id].forEach(it=>_addItemRow(box,it));
+  }
+  document.getElementById('modal-prolabore').classList.add('open');
+}
+
+let _plItemIdx=0;
+function addItemPL(){_addItemRow(document.getElementById('mpl-itens'));}
+function _addItemRow(box,it=null){
+  const idx=_plItemIdx++;
+  const div=document.createElement('div');
+  div.className='form-2col';
+  div.style.cssText='align-items:end;gap:6px;margin-bottom:8px';
+  div.innerHTML=`
+    <div class="form-row" style="margin-bottom:0;flex:0 0 100px"><label>Tipo</label>
+      <select id="pli-tipo-${idx}"><option value="debito" ${it?.tipo==='debito'||!it?'selected':''}>Débito</option><option value="credito" ${it?.tipo==='credito'?'selected':''}>Crédito</option></select>
+    </div>
+    <div class="form-row" style="margin-bottom:0;flex:1"><label>Descrição</label><input id="pli-desc-${idx}" value="${esc(it?.descricao||'')}" placeholder="Cartão, INSS, adiantamento…"></div>
+    <div class="form-row" style="margin-bottom:0;flex:0 0 110px"><label>Valor (R$)</label><input id="pli-val-${idx}" type="number" min="0" step="0.01" value="${it?it.valor/100:''}"></div>
+    <div class="form-row" style="margin-bottom:0;flex:0 0 130px"><label>Data</label><input id="pli-data-${idx}" type="date" value="${it?.data||''}"></div>
+    <button class="btn btn-danger btn-sm" style="margin-bottom:0;height:34px" onclick="this.parentElement.remove()">✕</button>`;
+  div.dataset.itemId=it?.id||'';
+  box.appendChild(div);
+}
+
+async function saveProLabore(){
+  const id=document.getElementById('mpl-id').value;
+  const socioId=document.getElementById('mpl-socio').value;
+  const socioNome=PL_SOCIOS.find(s=>s.id===socioId)?.nome||'';
+  const comp=document.getElementById('mpl-comp').value;
+  const valorBruto=Math.round(parseFloat(document.getElementById('mpl-valor').value||0)*100);
+  const forma=document.getElementById('mpl-forma').value||null;
+  const obs=document.getElementById('mpl-obs').value.trim()||null;
+
+  if(!socioId||!comp||!valorBruto){toast('Preencha sócio, competência e valor bruto',true);return;}
+
+  const payload={socio_id:socioId,socio_nome:socioNome,competencia:comp,valor_bruto:valorBruto,forma_pagamento:forma,observacao:obs,updated_at:new Date().toISOString()};
+  let plId=id?parseInt(id):null;
+  let error;
+
+  if(plId){
+    ({error}=await sb.from('fin_pro_labore').update(payload).eq('id',plId));
+  } else {
+    // gerar nr_controle
+    const{data:seqD}=await sb.rpc('nextval',{seq_name:'fin_pro_labore_nr_seq'}).single();
+    let nrCtrl;
+    if(seqD!==null&&seqD!==undefined){nrCtrl=String(typeof seqD==='object'?Object.values(seqD)[0]:seqD);}
+    else{nrCtrl=Date.now().toString().slice(-6);}
+    payload.nr_controle=nrCtrl;
+    payload.status='Rascunho';
+    const res=await sb.from('fin_pro_labore').insert(payload).select('id').single();
+    error=res.error;
+    if(res.data)plId=res.data.id;
+  }
+  if(error){toast('Erro ao salvar: '+error.message,true);return;}
+
+  // salvar itens: deletar antigos e reinserir
+  await sb.from('fin_pro_labore_itens').delete().eq('pro_labore_id',plId);
+  const itensDivs=document.getElementById('mpl-itens').children;
+  const novosItens=[];
+  for(const div of itensDivs){
+    const idx=div.querySelector('select')?.id?.split('-').pop();
+    if(!idx)continue;
+    const tipo=document.getElementById('pli-tipo-'+idx)?.value;
+    const desc=document.getElementById('pli-desc-'+idx)?.value?.trim();
+    const val=Math.round(parseFloat(document.getElementById('pli-val-'+idx)?.value||0)*100);
+    const data=document.getElementById('pli-data-'+idx)?.value||null;
+    if(desc&&val)novosItens.push({pro_labore_id:plId,tipo,descricao:desc,valor:val,data});
+  }
+  if(novosItens.length){
+    const{error:e2}=await sb.from('fin_pro_labore_itens').insert(novosItens);
+    if(e2)toast('Itens salvos com aviso: '+e2.message,true);
+  }
+
+  closeModal('modal-prolabore');
+  toast(id?'Pró-labore atualizado!':'Pró-labore criado!');
+  loadProLabore();
+}
+
+async function editPL(id){
+  const{data}=await sb.from('fin_pro_labore').select('*').eq('id',id).single();
+  const{data:itens}=await sb.from('fin_pro_labore_itens').select('*').eq('pro_labore_id',id);
+  _plItensCache[id]=itens||[];
+  openModalPL(data);
+}
+
+async function delPL(id){
+  if(!confirm('Excluir este lançamento?'))return;
+  await sb.from('fin_pro_labore_itens').delete().eq('pro_labore_id',id);
+  const{error}=await sb.from('fin_pro_labore').delete().eq('id',id);
+  if(error){toast('Erro ao excluir',true);return;}
+  toast('Lançamento excluído');loadProLabore();
+}
+
+async function aprovarPL(id){
+  const{error}=await sb.from('fin_pro_labore').update({status:'Aprovado',data_aprovacao:hoje()}).eq('id',id);
+  if(error){toast('Erro',true);return;}
+  toast('Pró-labore aprovado');loadProLabore();
+}
+
+async function pagarPL(id){
+  const dt=prompt('Data do pagamento (AAAA-MM-DD):',hoje());
+  if(!dt)return;
+  const{error}=await sb.from('fin_pro_labore').update({status:'Pago',data_pagamento:dt}).eq('id',id);
+  if(error){toast('Erro',true);return;}
+  toast('Pagamento registrado!');loadProLabore();
+}
+
+async function estornarPL(id){
+  if(!confirm('Estornar este pagamento?'))return;
+  const{error}=await sb.from('fin_pro_labore').update({status:'Estornado',data_pagamento:null}).eq('id',id);
+  if(error){toast('Erro',true);return;}
+  toast('Pagamento estornado');loadProLabore();
+}
+
+function verDetalhePL(id){
+  const r=_plRows.find(x=>x.id===id);
+  if(!r)return;
+  const itens=_plItensCache[id]||[];
+  const c=_plCalc(r);
+  const MESES=['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const fmtComp=c=>{if(!c)return'—';const[a,m]=c.split('-');return MESES[parseInt(m)]+'/'+a;};
+
+  document.getElementById('pl-detalhe-titulo').textContent=`${r.socio_nome} — ${fmtComp(r.competencia)} [${r.nr_controle||'—'}]`;
+
+  let html=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+    <div><span style="font-size:11px;color:var(--text2);font-weight:600">STATUS</span><div style="margin-top:4px">${r.status}</div></div>
+    <div><span style="font-size:11px;color:var(--text2);font-weight:600">FORMA</span><div style="margin-top:4px">${r.forma_pagamento||'—'}</div></div>
+    <div><span style="font-size:11px;color:var(--text2);font-weight:600">DATA PAGAMENTO</span><div style="margin-top:4px">${r.data_pagamento?formatData(r.data_pagamento):'—'}</div></div>
+    <div><span style="font-size:11px;color:var(--text2);font-weight:600">OBSERVAÇÃO</span><div style="margin-top:4px">${esc(r.observacao||'—')}</div></div>
+  </div>`;
+
+  html+=`<table class="tbl" style="margin-bottom:12px"><thead><tr><th>Tipo</th><th>Descrição</th><th>Data</th><th style="text-align:right">Valor</th></tr></thead><tbody>`;
+  html+=`<tr style="background:var(--green-lt)"><td><span class="badge ok">Crédito</span></td><td>Pró-Labore Bruto</td><td>—</td><td style="text-align:right;font-weight:700;color:var(--green)">${fmt(r.valor_bruto)}</td></tr>`;
+  itens.filter(i=>i.tipo==='credito').forEach(i=>{
+    html+=`<tr style="background:var(--green-lt)"><td><span class="badge ok">Crédito</span></td><td>${esc(i.descricao)}</td><td>${i.data?formatData(i.data):'—'}</td><td style="text-align:right;color:var(--green)">${fmt(i.valor)}</td></tr>`;
+  });
+  itens.filter(i=>i.tipo==='debito').forEach(i=>{
+    html+=`<tr style="background:var(--red-lt)"><td><span class="badge venc">Débito</span></td><td>${esc(i.descricao)}</td><td>${i.data?formatData(i.data):'—'}</td><td style="text-align:right;color:var(--red)">-${fmt(i.valor)}</td></tr>`;
+  });
+  html+=`</tbody><tfoot><tr style="border-top:2px solid var(--teal)"><td colspan="3" style="font-weight:800;color:var(--teal)">TOTAL A RECEBER</td><td style="text-align:right;font-weight:800;font-size:16px;color:var(--teal)">${fmt(c.liquido)}</td></tr></tfoot></table>`;
+
+  document.getElementById('pl-detalhe-body').innerHTML=html;
+  document.getElementById('pl-detalhe-card').style.display='block';
+  document.getElementById('pl-detalhe-card').scrollIntoView({behavior:'smooth'});
+}
+
+function fecharDetalhePL(){document.getElementById('pl-detalhe-card').style.display='none';}
 
 </script>
 </body>

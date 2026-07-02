@@ -657,7 +657,10 @@ body.capturing .rel-acao{display:none!important}
         <div class="nfse-hist-panel" id="nfse-hist-panel">
           <div class="nfse-hist-hd" onclick="toggleNfseHist()">
             <b>📂 Histórico de notas emitidas <span class="nfse-hist-badge" id="nfse-hist-count">0</span></b>
-            <span class="nfse-hist-toggle">ver / ocultar</span>
+            <span>
+              <a href="https://novanfse.campinas.sp.gov.br" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:12px;margin-right:14px;color:var(--primary,#0d7a6f);text-decoration:none">⬇ Baixar PDF/XML no portal da Prefeitura</a>
+              <span class="nfse-hist-toggle">ver / ocultar</span>
+            </span>
           </div>
           <div class="nfse-hist-body">
             <div id="nfse-hist-lista"><div class="nfse-hist-empty">Carregando…</div></div>

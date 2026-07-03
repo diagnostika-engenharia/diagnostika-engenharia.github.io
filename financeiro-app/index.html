@@ -1164,7 +1164,10 @@ body.capturing .rel-acao{display:none!important}
       <div class="page" id="page-prolabore">
         <div class="page-header">
           <div><h2>Pró-Labore</h2><p>Retiradas mensais dos sócios</p></div>
-          <button class="btn btn-primary" onclick="openModalPL()">+ Novo Lançamento</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-outline" onclick="gerarPLMes()" title="Gera rascunhos com varredura automática do banco e cofre">⚡ Gerar Mês</button>
+            <button class="btn btn-primary" onclick="openModalPL()">+ Novo Lançamento</button>
+          </div>
         </div>
 
         <!-- Filtros -->
@@ -5616,6 +5619,179 @@ function verDetalhePL(id){
 }
 
 function fecharDetalhePL(){document.getElementById('pl-detalhe-card').style.display='none';}
+
+// ── GERAÇÃO AUTOMÁTICA DE PRÓ-LABORE ─────────────────────────
+const PL_BRUTO=750000; // R$7.500 em centavos
+const PL_CLAUDEMIR=PL_SOCIOS.find(s=>s.nome.startsWith('Claudemir'));
+const PL_ROGERIO=PL_SOCIOS.find(s=>s.nome.startsWith('Rogério'));
+
+async function gerarPLMes(){
+  const comp=prompt('Competência (AAAA-MM):',new Date().toISOString().slice(0,7));
+  if(!comp||!/^\d{4}-\d{2}$/.test(comp))return;
+
+  const[ano,mes]=comp.split('-').map(Number);
+  const mesIni=`${ano}-${String(mes).padStart(2,'0')}-01`;
+  const mesFim=`${ano}-${String(mes+1>12?1:mes+1).padStart(2,'0')}-${mes+1>12?ano+1:ano}-01`;
+  const diaFimMes=new Date(ano,mes,0).getDate();
+  const mesFimStr=`${ano}-${String(mes).padStart(2,'0')}-${diaFimMes}`;
+
+  // Verificar se já existe para essa competência
+  const{data:existe}=await sb.from('fin_pro_labore').select('id,socio_nome').eq('competencia',comp);
+  if(existe&&existe.length){
+    const nomes=existe.map(e=>e.socio_nome).join(', ');
+    if(!confirm(`Já existe lançamento para ${comp}: ${nomes}.\nDeseja gerar novamente? (os existentes NÃO serão alterados)`))return;
+  }
+
+  toast('Varrendo banco e cofre…');
+
+  // Buscar transações do banco no mês (apenas débitos)
+  const{data:txBanco}=await sb.from('fin_transacoes_bancarias')
+    .select('*')
+    .gte('data',mesIni)
+    .lte('data',mesFimStr)
+    .eq('tipo','debito')
+    .order('data');
+
+  // Buscar movimentações do cofre no mês (saídas)
+  const{data:txCofre}=await sb.from('fin_livro_caixa_cofre')
+    .select('*')
+    .gte('data',mesIni)
+    .lte('data',mesFimStr)
+    .eq('tipo','Saída')
+    .order('data');
+
+  const banco=txBanco||[];
+  const cofre=txCofre||[];
+
+  const resultados=[];
+
+  for(const socio of PL_SOCIOS){
+    // Verificar se já existe para este sócio nesta competência
+    if(existe&&existe.find(e=>e.socio_nome===socio.nome))continue;
+
+    const itens=[];
+    const alertas=[];
+
+    // Crédito: bruto fixo
+    itens.push({tipo:'credito',descricao:`Pró labore ref ${String(mes).padStart(2,'0')}/${ano}`,valor:PL_BRUTO,data:null});
+
+    if(socio.id===PL_CLAUDEMIR.id){
+      // === CLAUDEMIR: padrões conhecidos ===
+
+      // 1. Depósito R$1.621 (dia ~10, PIX)
+      const dep=banco.find(t=>Math.round(t.valor*100)===162100&&t.descricao&&t.descricao.toUpperCase().includes('PIX'));
+      if(dep){
+        itens.push({tipo:'debito',descricao:'Depósito em conta',valor:162100,data:dep.data});
+      } else {
+        alertas.push('Depósito R$1.621 NÃO encontrado no banco');
+      }
+
+      // 2. Cartão de crédito (DÉB.CONV, valor variável)
+      const cartao=banco.find(t=>t.descricao&&(t.descricao.toUpperCase().includes('DÉB.CONV')||t.descricao.toUpperCase().includes('DEB.CONV')));
+      if(cartao){
+        const valCartao=Math.round(cartao.valor*100);
+        itens.push({tipo:'debito',descricao:'Cartão de crédito',valor:valCartao,data:cartao.data});
+      } else {
+        alertas.push('Fatura do cartão NÃO encontrada no banco');
+      }
+
+      // 3. Financiamento carro R$1.985,81 (dia ~23, DÉB.TIT)
+      const financ=banco.find(t=>Math.round(t.valor*100)===198581);
+      if(financ){
+        itens.push({tipo:'debito',descricao:'Financiamento carro (confirmar)',valor:198581,data:financ.data});
+        alertas.push('Financiamento carro R$1.985,81 encontrado em '+financ.data+' — CONFIRMAR desconto');
+      } else {
+        alertas.push('Financiamento carro R$1.985,81 NÃO localizado no banco');
+      }
+
+      // Buscar saídas do cofre referentes ao Claudemir
+      const cofreClaud=cofre.filter(t=>t.descricao&&(t.descricao.toLowerCase().includes('claudemir')||t.descricao.toLowerCase().includes('pró labore claudemir')||t.descricao.toLowerCase().includes('pro labore claudemir')));
+      cofreClaud.forEach(t=>{
+        const val=Math.abs(t.valor);
+        if(t.descricao.toLowerCase().includes('reembolso'))return; // reembolsos não são pró-labore
+        itens.push({tipo:'debito',descricao:`Cofre: ${t.descricao}`,valor:val,data:t.data});
+      });
+
+    } else if(socio.id===PL_ROGERIO.id){
+      // === ROGÉRIO: buscar adiantamentos/pagamentos no cofre e banco ===
+
+      // Cofre: qualquer saída com "Rogério", "adiantamento", "pro labore"
+      const cofreRog=cofre.filter(t=>{
+        if(!t.descricao)return false;
+        const d=t.descricao.toLowerCase();
+        return d.includes('rogério')||d.includes('rogerio')||d.includes('adiantamento pro labore')||d.includes('pró labore rog');
+      });
+      cofreRog.forEach(t=>{
+        const val=Math.abs(t.valor);
+        if(t.descricao.toLowerCase().includes('reembolso'))return;
+        itens.push({tipo:'debito',descricao:`Cofre: ${t.descricao}`,valor:val,data:t.data});
+      });
+
+      // Banco: transações com observação contendo "ROG" ou classificadas como dele
+      const bancoRog=banco.filter(t=>{
+        if(!t.observacao)return false;
+        const o=t.observacao.toUpperCase();
+        return o.includes('ROG')||o.includes('ROGÉRIO')||o.includes('ROGERIO');
+      });
+      bancoRog.forEach(t=>{
+        const val=Math.round(t.valor*100);
+        itens.push({tipo:'debito',descricao:`Banco: ${t.descricao} (${t.observacao||''})`,valor:val,data:t.data});
+      });
+
+      // Cartão do Rogério (se houver DÉB.TIT que não seja financiamento do Claudemir)
+      const cartaoRog=banco.filter(t=>{
+        if(!t.descricao)return false;
+        const d=t.descricao.toUpperCase();
+        return d.includes('DÉB.TIT')&&Math.round(t.valor*100)!==198581;
+      });
+      // Não adicionar automaticamente — pode ser de outra coisa
+      if(cartaoRog.length){
+        alertas.push(`${cartaoRog.length} débito(s) de título encontrado(s) no banco — verificar se algum é do Rogério`);
+      }
+
+      if(itens.filter(i=>i.tipo==='debito').length===0){
+        alertas.push('Nenhum adiantamento ou desconto encontrado para Rogério neste mês');
+      }
+    }
+
+    // Criar o registro no banco
+    const{data:seqD}=await sb.rpc('nextval',{seq_name:'fin_pro_labore_nr_seq'}).single();
+    let nrCtrl;
+    if(seqD!==null&&seqD!==undefined){nrCtrl=String(typeof seqD==='object'?Object.values(seqD)[0]:seqD);}
+    else{nrCtrl=Date.now().toString().slice(-6);}
+
+    const payload={
+      socio_id:socio.id,
+      socio_nome:socio.nome,
+      competencia:comp,
+      valor_bruto:PL_BRUTO,
+      status:'Rascunho',
+      nr_controle:nrCtrl,
+      observacao:alertas.length?'⚠ '+alertas.join(' | '):null,
+    };
+
+    const{data:plData,error}=await sb.from('fin_pro_labore').insert(payload).select('id').single();
+    if(error){toast(`Erro ao criar pró-labore ${socio.nome}: ${error.message}`,true);continue;}
+
+    const plId=plData.id;
+    const itensDB=itens.map(i=>({pro_labore_id:plId,tipo:i.tipo,descricao:i.descricao,valor:i.valor,data:i.data}));
+    await sb.from('fin_pro_labore_itens').insert(itensDB);
+
+    resultados.push({socio:socio.nome,debitos:itens.filter(i=>i.tipo==='debito').length,alertas});
+  }
+
+  if(!resultados.length){toast('Nenhum novo lançamento gerado (já existem para esta competência)');return;}
+
+  // Montar resumo
+  let msg='Pró-labore gerado:\n\n';
+  resultados.forEach(r=>{
+    msg+=`${r.socio}: ${r.debitos} desconto(s) encontrado(s)\n`;
+    r.alertas.forEach(a=>msg+=`  ⚠ ${a}\n`);
+  });
+  msg+='\nStatus: Rascunho — revise e aprove.';
+  alert(msg);
+  loadProLabore();
+}
 
 </script>
 <script>

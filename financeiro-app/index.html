@@ -5704,26 +5704,34 @@ async function gerarPLMes(){
         alertas.push('Financiamento carro R$1.985,81 NÃO localizado no banco');
       }
 
-      // Buscar saídas do cofre referentes ao Claudemir
-      const cofreClaud=cofre.filter(t=>t.descricao&&(t.descricao.toLowerCase().includes('claudemir')||t.descricao.toLowerCase().includes('pró labore claudemir')||t.descricao.toLowerCase().includes('pro labore claudemir')));
+      // Cofre: SOMENTE pró-labore/adiantamento do Claudemir (nunca reembolsos)
+      const cofreClaud=cofre.filter(t=>{
+        if(!t.descricao)return false;
+        const d=t.descricao.toLowerCase();
+        if(d.includes('reembolso'))return false;
+        const ehPL=d.includes('pro labore')&&d.includes('claudemir');
+        const ehAdiant=d.includes('adiantamento')&&d.includes('claudemir');
+        return ehPL||ehAdiant;
+      });
       cofreClaud.forEach(t=>{
         const val=Math.abs(t.valor);
-        if(t.descricao.toLowerCase().includes('reembolso'))return; // reembolsos não são pró-labore
         itens.push({tipo:'debito',descricao:`Cofre: ${t.descricao}`,valor:val,data:t.data});
       });
 
     } else if(socio.id===PL_ROGERIO.id){
       // === ROGÉRIO: buscar adiantamentos/pagamentos no cofre e banco ===
 
-      // Cofre: qualquer saída com "Rogério", "adiantamento", "pro labore"
+      // Cofre: SOMENTE adiantamentos/pró-labore do Rogério (nunca reembolsos)
       const cofreRog=cofre.filter(t=>{
         if(!t.descricao)return false;
         const d=t.descricao.toLowerCase();
-        return d.includes('rogério')||d.includes('rogerio')||d.includes('adiantamento pro labore')||d.includes('pró labore rog');
+        if(d.includes('reembolso'))return false;
+        const ehPL=d.includes('pro labore')&&(d.includes('rogério')||d.includes('rogerio'));
+        const ehAdiant=d.includes('adiantamento')&&(d.includes('rogério')||d.includes('rogerio')||d.includes('pro labore'));
+        return ehPL||ehAdiant;
       });
       cofreRog.forEach(t=>{
         const val=Math.abs(t.valor);
-        if(t.descricao.toLowerCase().includes('reembolso'))return;
         itens.push({tipo:'debito',descricao:`Cofre: ${t.descricao}`,valor:val,data:t.data});
       });
 

@@ -5416,7 +5416,7 @@ function renderProLabore(){
   let totBruto=0,totDesc=0,totLiq=0,totPago=0;
   _plRows.forEach(r=>{
     const c=_plCalc(r);
-    totBruto+=r.valor_bruto+c.creditos;
+    totBruto+=c.creditos;
     totDesc+=c.debitos;
     totLiq+=c.liquido;
     if(r.status==='Pago')totPago+=c.liquido;

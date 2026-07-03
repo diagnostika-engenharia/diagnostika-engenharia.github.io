@@ -5396,7 +5396,7 @@ function _plCalc(r){
   const itens=_plItensCache[r.id]||[];
   const creditos=itens.filter(i=>i.tipo==='credito').reduce((s,i)=>s+i.valor,0);
   const debitos=itens.filter(i=>i.tipo==='debito').reduce((s,i)=>s+i.valor,0);
-  return{creditos,debitos,liquido:r.valor_bruto+creditos-debitos};
+  return{creditos,debitos,liquido:creditos-debitos};
 }
 
 const _sortPL={col:null,asc:true};

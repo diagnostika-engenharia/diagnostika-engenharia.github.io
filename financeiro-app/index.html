@@ -4167,6 +4167,21 @@ async function _nfseCarregarUltimas(){
   }catch(e){ console.warn('nfse ultimas load',e); }
 }
 const _MESES_NF=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+// Conjunto "condominio_id|Competência" das notas de PRODUÇÃO já emitidas — base do alerta de pendências.
+let _nfseEmitidasSet=new Set();
+async function _nfseCarregarEmitidas(){
+  try{
+    const{data,error}=await sb.from('fin_nfse_emitidas')
+      .select('condominio_id,competencia').eq('ambiente','producao').eq('status','emitida');
+    if(error){ console.warn('nfse emitidas',error.message); return; }
+    _nfseEmitidasSet=new Set((data||[]).filter(n=>n.condominio_id).map(n=>n.condominio_id+'|'+n.competencia));
+  }catch(e){ console.warn('nfse emitidas load',e); }
+}
+function _nfseCompSel(){
+  return _MESES_NF[(+document.getElementById('nfse-mes').value)-1]+'/'+document.getElementById('nfse-ano').value;
+}
+
 let _nfseAmbiente='homologacao';
 let _nfseInit=false;
 // estado de edição por condomínio: {id:{sel,valor,descricao,parcela}}
@@ -4178,7 +4193,7 @@ const _nfseEstado={};
 async function initNfse(){
   if(_nfseInit){ renderNfse(); return; }
   _nfseInit=true;
-  await Promise.all([_nfseCarregarClientes(),_nfseCarregarUltimas()]);
+  await Promise.all([_nfseCarregarClientes(),_nfseCarregarUltimas(),_nfseCarregarEmitidas()]);
   // popular mês/ano
   const ms=document.getElementById('nfse-mes'); ms.innerHTML='';
   _MESES_NF.forEach((m,i)=>{const o=document.createElement('option');o.value=i+1;o.textContent=m;ms.appendChild(o);});
@@ -4234,10 +4249,24 @@ function renderNfse(){
     document.getElementById('nfse-amb-desc').textContent='As notas geradas aqui são de TESTE, sem valor fiscal. Use para conferir a tela. A emissão real (produção) só é liberada manualmente.';
     document.getElementById('nfse-emitir-btn').className='btn btn-primary';
   }
-  const cont=document.getElementById('nfse-lista'); cont.innerHTML='';
+  const cont=document.getElementById('nfse-lista');
+  // Alerta de pendências: condomínios ativos sem nota emitida na competência selecionada
+  const _comp=_nfseCompSel();
+  const _ativos=NFSE_CONDOS.filter(c=>c.faturamento_ativo!==false);
+  const _pend=_ativos.filter(c=>!_nfseEmitidasSet.has(c.id+'|'+_comp));
+  let _pendHtml='';
+  if(_ativos.length){
+    if(_pend.length){
+      _pendHtml=`<div class="nfse-amb" style="background:#fff4e5;border-left:4px solid #f0a500;margin-bottom:12px;display:block"><div><strong>⏳ ${_pend.length} nota(s) pendente(s) em ${esc(_comp)}</strong><br><span>Condomínios ativos sem nota emitida nesta competência: <b>${_pend.map(c=>esc(c.nome)).join(', ')}</b></span></div></div>`;
+    }else{
+      _pendHtml=`<div class="nfse-amb" style="background:#e8f7ee;border-left:4px solid #2ea44f;margin-bottom:12px;display:block"><div><strong>✅ Tudo em dia em ${esc(_comp)}</strong><br><span>Todos os ${_ativos.length} condomínios ativos já têm nota emitida nesta competência.</span></div></div>`;
+    }
+  }
+  cont.innerHTML=_pendHtml;
   NFSE_CONDOS.forEach(c=>{
     const st=_nfseEstado[c.id];
     const issRet=c.iss_retido==='1';
+    const jaEmitida=_nfseEmitidasSet.has(c.id+'|'+_comp);
     const card=document.createElement('div');
     const fatDesab=c.faturamento_ativo===false;
     card.className='nfse-card'+(st.sel&&!fatDesab?' sel':'')+(st.resultado?.ok?' emitida':'')+(fatDesab?' fat-desab':'');
@@ -4246,7 +4275,7 @@ function renderNfse(){
       <div class="nfse-card-hd" onclick="if(event.target.tagName!=='INPUT')this.parentNode.classList.toggle('open')">
         <input type="checkbox" class="nfse-chk" ${st.sel&&!fatDesab?'checked':''} ${fatDesab?'disabled':''} onclick="event.stopPropagation();toggleNfseSel('${c.id}',this.checked)">
         <div class="nfse-nome">
-          <b>${esc(c.nome)}${c.megazap?'<span class="nfse-flag">📲 MegaZap</span>':''}${fatDesab?'<span class="nfse-flag" style="background:#dc3545;color:#fff">Faturamento inativo</span>':''}</b>
+          <b>${esc(c.nome)}${c.megazap?'<span class="nfse-flag">📲 MegaZap</span>':''}${fatDesab?'<span class="nfse-flag" style="background:#dc3545;color:#fff">Faturamento inativo</span>':(jaEmitida?'<span class="nfse-flag" style="background:#e8f7ee;color:#1a7f37">✅ emitida</span>':'<span class="nfse-flag" style="background:#fff4e5;color:#b26a00">⏳ pendente</span>')}</b>
           <small>${esc(t.municipio)} · CNPJ ${esc(t.cnpj)}${c.parcelamento?' · Parcela '+st.parcela+'/'+c.parcelamento.total:''}</small>
         </div>
         <span class="nfse-iss ${issRet?'ret':'nret'}">${issRet?'ISS retido':'ISS não retido'}</span>
@@ -4328,25 +4357,10 @@ async function _nfseCriarContaReceber(nome,valorNum,descricao,vencISO,categoria)
 // Grava o histórico da nota emitida. Falha NÃO pode ser silenciosa:
 // a nota já saiu na Prefeitura; se o registro local falhar, o usuário precisa saber.
 async function _nfseGravarHistorico(row){
-  // limita o tamanho do XML gravado em raw (defensivo)
-  try{ var _r=row&&row.raw; if(_r&&typeof _r.raw==='string') _r.raw=_r.raw.slice(0,4000); }catch(e){}
-  const tentar=async r=> (await sb.from('fin_nfse_emitidas').insert(r)).error;
-  try{
-    let error=await tentar(row);
-    if(error){ // sessão longa pode ter expirado o token — renova e tenta de novo
-      try{ await sb.auth.refreshSession(); }catch(_){}
-      error=await tentar(row);
-    }
-    if(error){ // isola eventual problema no campo raw: grava sem ele
-      const{raw,...semRaw}=row;
-      const e2=await tentar(semRaw);
-      if(!e2){ console.warn('hist nfse: gravado sem raw',error); return; }
-      console.warn('hist nfse FALHOU',error,e2);
-      toast('⚠ Nota emitida na Prefeitura, mas FALHOU ao registrar no histórico: '+(error.message||error.code||JSON.stringify(error)),true);
-    }
-  }catch(e){ console.warn('hist nfse exceção',e);
-    toast('⚠ Nota emitida, mas erro ao registrar no histórico: '+(e.message||e),true);
-  }
+  // O histórico agora é gravado pelo MOTOR n8n (server-side), no momento da emissão,
+  // antes de responder ao painel — 100% confiável, independente do navegador.
+  // Mantido como no-op para NÃO duplicar o registro. A leitura continua via loadNfseHist().
+  return;
 }
 
 async function emitirNfse(){
@@ -4414,7 +4428,7 @@ async function emitirNfse(){
   statusEl.textContent=`Concluído: ${ok} emitida(s)${fail?', '+fail+' com erro':''}.`;
   toast(`${ok} nota(s) emitida(s)${fail?', '+fail+' falha(s)':''}`, fail>0);
   if(prod){ loadReceber&&loadReceber(); loadDash&&loadDash(); }
-  await _nfseCarregarUltimas();
+  await Promise.all([_nfseCarregarUltimas(),_nfseCarregarEmitidas()]);
   renderNfse(); loadNfseHist();
 }
 

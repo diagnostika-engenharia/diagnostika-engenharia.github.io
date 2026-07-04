@@ -5631,10 +5631,12 @@ async function gerarPLMes(compDefault){
   if(!comp||!/^\d{4}-\d{2}$/.test(comp))return;
 
   const[ano,mes]=comp.split('-').map(Number);
-  const mesIni=`${ano}-${String(mes).padStart(2,'0')}-01`;
-  const mesFim=`${ano}-${String(mes+1>12?1:mes+1).padStart(2,'0')}-${mes+1>12?ano+1:ano}-01`;
-  const diaFimMes=new Date(ano,mes,0).getDate();
-  const mesFimStr=`${ano}-${String(mes).padStart(2,'0')}-${diaFimMes}`;
+  // Pagamentos ocorrem no mês SEGUINTE à competência (~dia 21)
+  const mesPag=mes+1>12?1:mes+1;
+  const anoPag=mes+1>12?ano+1:ano;
+  const mesIni=`${anoPag}-${String(mesPag).padStart(2,'0')}-01`;
+  const diaFimMes=new Date(anoPag,mesPag,0).getDate();
+  const mesFimStr=`${anoPag}-${String(mesPag).padStart(2,'0')}-${diaFimMes}`;
 
   // Verificar se já existe para essa competência
   const{data:existe}=await sb.from('fin_pro_labore').select('id,socio_nome,status').eq('competencia',comp).neq('status','Estornado');

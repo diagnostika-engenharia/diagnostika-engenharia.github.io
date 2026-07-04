@@ -5573,17 +5573,66 @@ async function aprovarPL(id){
 }
 
 async function pagarPL(id){
-  const dt=prompt('Data do pagamento (AAAA-MM-DD):',hoje());
-  if(!dt)return;
-  const{error}=await sb.from('fin_pro_labore').update({status:'Pago',data_pagamento:dt}).eq('id',id);
-  if(error){toast('Erro',true);return;}
-  toast('Pagamento registrado!');loadProLabore();
+  const{data:pl}=await sb.from('fin_pro_labore').select('*').eq('id',id).single();
+  if(!pl)return;
+  const{data:itens}=await sb.from('fin_pro_labore_itens').select('*').eq('pro_labore_id',id);
+  const calc=_plCalc(pl);
+  const liquido=calc.liquido;
+
+  const dt=hoje();
+  const forma=pl.forma_pagamento||'Espécie';
+
+  const{error}=await sb.from('fin_pro_labore').update({status:'Pago',data_pagamento:dt,forma_pagamento:forma}).eq('id',id);
+  if(error){toast('Erro ao pagar: '+error.message,true);return;}
+
+  // Se pagamento em espécie, debitar do cofre
+  if(forma==='Espécie'&&liquido>0){
+    const{data:ultCofre}=await sb.from('fin_livro_caixa_cofre').select('saldo_atual').order('id',{ascending:false}).limit(1).single();
+    const saldoAnt=ultCofre?.saldo_atual||0;
+    const saldoNovo=saldoAnt-liquido;
+    await sb.from('fin_livro_caixa_cofre').insert({
+      data:dt,
+      tipo:'Saída',
+      descricao:`Pró labore ${pl.socio_nome} ref ${pl.competencia}`,
+      valor:liquido,
+      saldo_anterior:saldoAnt,
+      saldo_atual:saldoNovo,
+      user_id:pl.socio_id,
+      origem:'Automático',
+    });
+  }
+
+  toast(`Pagamento registrado! ${forma==='Espécie'?'Saída lançada no cofre.':''}`);
+  loadProLabore();
 }
 
 async function estornarPL(id){
-  if(!confirm('Estornar este pagamento?'))return;
+  const{data:pl}=await sb.from('fin_pro_labore').select('*').eq('id',id).single();
+  if(!pl)return;
+
   const{error}=await sb.from('fin_pro_labore').update({status:'Estornado',data_pagamento:null}).eq('id',id);
   if(error){toast('Erro',true);return;}
+
+  // Se era espécie, reverter saída no cofre
+  if(pl.forma_pagamento==='Espécie'){
+    const descPL=`Pró labore ${pl.socio_nome} ref ${pl.competencia}`;
+    const{data:lancCofre}=await sb.from('fin_livro_caixa_cofre').select('id,valor').eq('descricao',descPL).eq('tipo','Saída').limit(1);
+    if(lancCofre&&lancCofre.length){
+      const{data:ultCofre}=await sb.from('fin_livro_caixa_cofre').select('saldo_atual').order('id',{ascending:false}).limit(1).single();
+      const saldoAnt=ultCofre?.saldo_atual||0;
+      await sb.from('fin_livro_caixa_cofre').insert({
+        data:hoje(),
+        tipo:'Entrada',
+        descricao:`Estorno: ${descPL}`,
+        valor:lancCofre[0].valor,
+        saldo_anterior:saldoAnt,
+        saldo_atual:saldoAnt+lancCofre[0].valor,
+        user_id:pl.socio_id,
+        origem:'Automático',
+      });
+    }
+  }
+
   toast('Pagamento estornado');loadProLabore();
 }
 

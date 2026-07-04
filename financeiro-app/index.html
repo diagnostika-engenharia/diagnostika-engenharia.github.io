@@ -1166,7 +1166,7 @@ body.capturing .rel-acao{display:none!important}
           <div><h2>Pró-Labore</h2><p>Retiradas mensais dos sócios</p></div>
           <div style="display:flex;gap:8px">
             <input id="pl-comp-gerar" type="month" style="height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;font-size:13px" title="Competência">
-            <button class="btn btn-outline" onclick="gerarPLMes(document.getElementById('pl-comp-gerar').value)" title="Gera rascunhos com varredura automática do banco e cofre">⚡ Gerar Mês</button>
+            <button class="btn btn-outline" onclick="gerarPLMes(document.getElementById('pl-comp-gerar').value,document.getElementById('fpl-socio').value)" title="Gera rascunhos com varredura automática do banco e cofre (respeita o filtro de sócio selecionado)">⚡ Gerar Mês</button>
             <button class="btn btn-primary" onclick="openModalPL()">+ Novo Lançamento</button>
           </div>
         </div>
@@ -5910,9 +5910,10 @@ const PL_BRUTO=750000; // R$7.500 em centavos
 const PL_CLAUDEMIR=PL_SOCIOS.find(s=>s.nome.startsWith('Claudemir'));
 const PL_ROGERIO=PL_SOCIOS.find(s=>s.nome.startsWith('Rogério'));
 
-async function gerarPLMes(compDefault){
+async function gerarPLMes(compDefault,socioIdFiltro){
   const comp=compDefault||prompt('Competência (AAAA-MM):',new Date().toISOString().slice(0,7));
   if(!comp||!/^\d{4}-\d{2}$/.test(comp))return;
+  const sociosAlvo=socioIdFiltro?PL_SOCIOS.filter(s=>s.id===socioIdFiltro):PL_SOCIOS;
 
   const[ano,mes]=comp.split('-').map(Number);
   // Pagamentos ocorrem no mês SEGUINTE à competência (~dia 21)
@@ -5952,7 +5953,7 @@ async function gerarPLMes(compDefault){
 
   const resultados=[];
 
-  for(const socio of PL_SOCIOS){
+  for(const socio of sociosAlvo){
     // Verificar se já existe para este sócio nesta competência
     if(existe&&existe.find(e=>e.socio_nome===socio.nome))continue;
 

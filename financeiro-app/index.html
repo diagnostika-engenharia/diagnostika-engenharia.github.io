@@ -1228,10 +1228,11 @@ body.capturing .rel-acao{display:none!important}
 
 <!-- MODAL: PRÓ-LABORE -->
 <div class="modal-bg" id="modal-prolabore">
-  <div class="modal" style="width:540px">
+  <div class="modal" style="width:580px;max-height:90vh;display:flex;flex-direction:column">
     <div class="modal-hd"><h3 id="mpl-title">Novo Lançamento de Pró-Labore</h3><button onclick="closeModal('modal-prolabore')">×</button></div>
-    <div class="modal-bd">
+    <div class="modal-bd" style="overflow-y:auto;flex:1">
       <input type="hidden" id="mpl-id">
+      <input type="hidden" id="mpl-forma" value="">
       <div class="form-2col">
         <div class="form-row"><label>Sócio *</label>
           <select id="mpl-socio"></select>
@@ -1240,15 +1241,8 @@ body.capturing .rel-acao{display:none!important}
           <input id="mpl-comp" type="month">
         </div>
       </div>
-      <div class="form-2col">
-        <div class="form-row"><label>Valor Bruto (R$) *</label>
-          <input id="mpl-valor" type="number" min="0" step="0.01" placeholder="0,00">
-        </div>
-        <div class="form-row"><label>Forma de Pagamento</label>
-          <select id="mpl-forma">
-            <option value="">—</option><option>Pix</option><option>Espécie</option><option>Transferência</option><option>Misto</option>
-          </select>
-        </div>
+      <div class="form-row"><label>Valor Bruto (R$) *</label>
+        <input id="mpl-valor" type="number" min="0" step="0.01" placeholder="0,00" oninput="_plRecalcModal()">
       </div>
       <div class="form-row"><label>Observação</label><input id="mpl-obs" placeholder="Opcional"></div>
 
@@ -1260,10 +1254,38 @@ body.capturing .rel-acao{display:none!important}
         </div>
         <div id="mpl-itens"></div>
       </div>
+
+      <!-- Totalização em tempo real -->
+      <div id="mpl-resumo" style="margin-top:16px;background:var(--gray1);border-radius:10px;padding:14px 16px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">
+          <span style="color:var(--green);font-weight:600">Total Créditos</span>
+          <span id="mpl-tot-cred" style="color:var(--green);font-weight:700">R$ 0,00</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">
+          <span style="color:var(--red);font-weight:600">Total Débitos</span>
+          <span id="mpl-tot-deb" style="color:var(--red);font-weight:700">R$ 0,00</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:16px;border-top:2px solid var(--teal);padding-top:8px;margin-top:8px">
+          <span style="color:var(--teal);font-weight:800">LÍQUIDO A RECEBER</span>
+          <span id="mpl-tot-liq" style="color:var(--teal);font-weight:800">R$ 0,00</span>
+        </div>
+      </div>
+
+      <!-- Seção de pagamento (estilo banco) -->
+      <div id="mpl-pagamento" style="margin-top:16px;border-top:1px solid var(--gray2);padding-top:14px;display:none">
+        <label style="font-size:13px;font-weight:700;color:var(--teal);display:block;margin-bottom:10px">De onde sai o pagamento?</label>
+        <div id="mpl-contas" style="display:flex;flex-direction:column;gap:8px"></div>
+        <div id="mpl-pag-total" style="margin-top:12px;background:var(--teal);color:#fff;border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;font-weight:700">
+          <span>Total alocado</span>
+          <span id="mpl-pag-alocado">R$ 0,00 / R$ 0,00</span>
+        </div>
+        <div id="mpl-pag-aviso" style="color:var(--red);font-size:12px;margin-top:6px;display:none"></div>
+      </div>
     </div>
-    <div class="modal-ft">
+    <div class="modal-ft" style="flex-wrap:wrap;gap:8px">
       <button class="btn btn-outline" onclick="closeModal('modal-prolabore')">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveProLabore()">Salvar</button>
+      <button class="btn btn-primary" onclick="saveProLabore()">Salvar Rascunho</button>
+      <button class="btn" id="mpl-btn-pagar" style="background:var(--green);color:#fff;display:none" onclick="confirmarPagamentoPL()">💰 Confirmar Pagamento</button>
     </div>
   </div>
 </div>
@@ -5476,10 +5498,147 @@ function openModalPL(item=null){
     _plItensCache[item.id].forEach(it=>_addItemRow(box,it));
   }
   document.getElementById('modal-prolabore').classList.add('open');
+  _plRecalcModal();
+
+  // Mostrar seção de pagamento e botão apenas se o registro já existe e não está pago
+  const status=item?.status||'';
+  const podeP=item&&status!=='Pago';
+  document.getElementById('mpl-btn-pagar').style.display=podeP?'':'none';
+  document.getElementById('mpl-pagamento').style.display=podeP?'block':'none';
+  if(podeP)_plLoadContas();
+}
+
+function _plGetModalTotals(){
+  const bruto=Math.round(parseFloat(document.getElementById('mpl-valor').value||0)*100);
+  const box=document.getElementById('mpl-itens');
+  let creditos=0,debitos=0;
+  for(const div of box.children){
+    const sel=div.querySelector('select');
+    if(!sel)continue;
+    const idx=sel.id.split('-').pop();
+    const tipo=sel.value;
+    const val=Math.round(parseFloat(document.getElementById('pli-val-'+idx)?.value||0)*100);
+    if(tipo==='credito')creditos+=val;
+    else debitos+=val;
+  }
+  creditos+=bruto;
+  const liquido=creditos-debitos;
+  return{creditos,debitos,liquido};
+}
+
+function _plRecalcModal(){
+  const t=_plGetModalTotals();
+  document.getElementById('mpl-tot-cred').textContent=fmt(t.creditos);
+  document.getElementById('mpl-tot-deb').textContent=t.debitos?'-'+fmt(t.debitos):'R$ 0,00';
+  document.getElementById('mpl-tot-liq').textContent=fmt(t.liquido);
+  document.getElementById('mpl-tot-liq').style.color=t.liquido>=0?'var(--teal)':'var(--red)';
+  // Atualizar total alocado na seção de pagamento
+  _plRecalcPagamento();
+}
+
+function _plRecalcPagamento(){
+  const t=_plGetModalTotals();
+  const inputs=document.querySelectorAll('.mpl-conta-val');
+  let alocado=0;
+  inputs.forEach(inp=>{alocado+=Math.round(parseFloat(inp.value||0)*100);});
+  const el=document.getElementById('mpl-pag-alocado');
+  if(el)el.textContent=`${fmt(alocado)} / ${fmt(t.liquido)}`;
+  const aviso=document.getElementById('mpl-pag-aviso');
+  if(aviso){
+    if(alocado>t.liquido){aviso.textContent='Valor alocado excede o líquido!';aviso.style.display='block';}
+    else if(alocado>0&&alocado<t.liquido){aviso.textContent=`Falta alocar ${fmt(t.liquido-alocado)}`;aviso.style.display='block';aviso.style.color='var(--orange)';}
+    else{aviso.style.display='none';}
+  }
+}
+
+async function _plLoadContas(){
+  const box=document.getElementById('mpl-contas');
+  box.innerHTML='<div style="color:var(--text2);font-size:12px">Carregando saldos…</div>';
+  document.getElementById('mpl-pagamento').style.display='block';
+
+  // Buscar saldo do cofre
+  const{data:ultCofre}=await sb.from('fin_livro_caixa_cofre').select('saldo_atual').order('id',{ascending:false}).limit(1).single();
+  const saldoCofre=ultCofre?.saldo_atual||0;
+
+  // Buscar contas bancárias e seus saldos
+  const{data:contas}=await sb.from('fin_contas_bancarias').select('id,nome').order('id');
+  const contasList=contas||[];
+  const saldos={cofre:saldoCofre};
+  for(const c of contasList){
+    const{data:ultTx}=await sb.from('fin_transacoes_bancarias').select('saldo').eq('conta_id',c.id).order('data',{ascending:false}).order('id',{ascending:false}).limit(1).single();
+    saldos[c.id]=ultTx?Math.round(ultTx.saldo*100):0;
+  }
+  _plContasSaldo=saldos;
+
+  const t=_plGetModalTotals();
+  let html='';
+
+  // Cofre
+  html+=`<label class="mpl-conta-card" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:2px solid var(--gray2);border-radius:10px;cursor:pointer;transition:border-color .2s">
+    <input type="checkbox" class="mpl-conta-chk" data-conta="cofre" onchange="_plToggleConta(this)" style="width:18px;height:18px;accent-color:var(--teal)">
+    <div style="flex:1">
+      <div style="font-weight:700;font-size:14px">🔐 Cofre (Espécie)</div>
+      <div style="font-size:12px;color:var(--text2)">Saldo: <b style="color:${saldoCofre>=0?'var(--green)':'var(--red)'}">${fmt(saldoCofre)}</b></div>
+    </div>
+    <input type="number" class="mpl-conta-val" data-conta="cofre" min="0" step="0.01" placeholder="0,00" disabled
+      style="width:120px;height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;text-align:right;font-weight:700;font-size:14px"
+      oninput="_plRecalcPagamento()">
+  </label>`;
+
+  // Contas bancárias
+  const icons={'Conta Principal':'🏦','Conta Poupança':'💰','Sicoob - Diagnóstika':'🏛️'};
+  for(const c of contasList){
+    const saldo=saldos[c.id]||0;
+    const icon=icons[c.nome]||'🏦';
+    html+=`<label class="mpl-conta-card" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:2px solid var(--gray2);border-radius:10px;cursor:pointer;transition:border-color .2s">
+      <input type="checkbox" class="mpl-conta-chk" data-conta="${c.id}" onchange="_plToggleConta(this)" style="width:18px;height:18px;accent-color:var(--teal)">
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:14px">${icon} ${esc(c.nome)}</div>
+        <div style="font-size:12px;color:var(--text2)">Saldo: <b style="color:${saldo>=0?'var(--green)':'var(--red)'}">${fmt(saldo)}</b></div>
+      </div>
+      <input type="number" class="mpl-conta-val" data-conta="${c.id}" min="0" step="0.01" placeholder="0,00" disabled
+        style="width:120px;height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;text-align:right;font-weight:700;font-size:14px"
+        oninput="_plRecalcPagamento()">
+    </label>`;
+  }
+  box.innerHTML=html;
+}
+
+function _plToggleConta(chk){
+  const card=chk.closest('.mpl-conta-card');
+  const valInput=card.querySelector('.mpl-conta-val');
+  if(chk.checked){
+    card.style.borderColor='var(--teal)';
+    card.style.background='var(--teal-lt,rgba(0,128,128,0.05))';
+    valInput.disabled=false;
+    // Se é a única selecionada, preencher com o líquido total
+    const allChk=document.querySelectorAll('.mpl-conta-chk:checked');
+    if(allChk.length===1){
+      const t=_plGetModalTotals();
+      valInput.value=(t.liquido/100).toFixed(2);
+    }
+    valInput.focus();
+  } else {
+    card.style.borderColor='var(--gray2)';
+    card.style.background='';
+    valInput.disabled=true;
+    valInput.value='';
+  }
+  _plRecalcPagamento();
+  // Atualizar forma_pagamento hidden
+  const selecionadas=document.querySelectorAll('.mpl-conta-chk:checked');
+  let forma='';
+  if(selecionadas.length===1){
+    forma=selecionadas[0].dataset.conta==='cofre'?'Espécie':'Transferência';
+  } else if(selecionadas.length>1){
+    forma='Misto';
+  }
+  document.getElementById('mpl-forma').value=forma;
 }
 
 let _plItemIdx=0;
-function addItemPL(){_addItemRow(document.getElementById('mpl-itens'));}
+let _plContasSaldo={}; // {cofre: saldo, 1: saldo, 2: saldo, 3: saldo}
+function addItemPL(){_addItemRow(document.getElementById('mpl-itens'));_plRecalcModal();}
 function _addItemRow(box,it=null){
   const idx=_plItemIdx++;
   const div=document.createElement('div');
@@ -5487,16 +5646,17 @@ function _addItemRow(box,it=null){
   div.style.cssText='align-items:end;gap:6px;margin-bottom:8px';
   div.innerHTML=`
     <div class="form-row" style="margin-bottom:0;flex:0 0 100px"><label>Tipo</label>
-      <select id="pli-tipo-${idx}"><option value="debito" ${it?.tipo==='debito'||!it?'selected':''}>Débito</option><option value="credito" ${it?.tipo==='credito'?'selected':''}>Crédito</option></select>
+      <select id="pli-tipo-${idx}" onchange="_plRecalcModal()"><option value="debito" ${it?.tipo==='debito'||!it?'selected':''}>Débito</option><option value="credito" ${it?.tipo==='credito'?'selected':''}>Crédito</option></select>
     </div>
     <div class="form-row" style="margin-bottom:0;flex:1"><label>Descrição</label><input id="pli-desc-${idx}" value="${esc(it?.descricao||'')}" placeholder="Cartão, INSS, adiantamento…"></div>
-    <div class="form-row" style="margin-bottom:0;flex:0 0 110px"><label>Valor (R$)</label><input id="pli-val-${idx}" type="number" min="0" step="0.01" value="${it?it.valor/100:''}"></div>
+    <div class="form-row" style="margin-bottom:0;flex:0 0 110px"><label>Valor (R$)</label><input id="pli-val-${idx}" type="number" min="0" step="0.01" value="${it?it.valor/100:''}" oninput="_plRecalcModal()"></div>
     <div class="form-row" style="margin-bottom:0;flex:0 0 130px"><label>Data</label><input id="pli-data-${idx}" type="date" value="${it?.data||''}"></div>
-    <button class="btn btn-danger btn-sm" style="margin-bottom:0;height:34px" onclick="this.parentElement.remove()">✕</button>`;
+    <button class="btn btn-danger btn-sm" style="margin-bottom:0;height:34px" onclick="this.parentElement.remove();_plRecalcModal()">✕</button>`;
   div.dataset.itemId=it?.id||'';
   box.appendChild(div);
 }
 
+let _plSaveKeepOpen=false;
 async function saveProLabore(){
   const id=document.getElementById('mpl-id').value;
   const socioId=document.getElementById('mpl-socio').value;
@@ -5546,8 +5706,10 @@ async function saveProLabore(){
     if(e2)toast('Itens salvos com aviso: '+e2.message,true);
   }
 
-  closeModal('modal-prolabore');
-  toast(id?'Pró-labore atualizado!':'Pró-labore criado!');
+  if(!_plSaveKeepOpen){
+    closeModal('modal-prolabore');
+    toast(id?'Pró-labore atualizado!':'Pró-labore criado!');
+  }
   loadProLabore();
 }
 
@@ -5573,36 +5735,77 @@ async function aprovarPL(id){
 }
 
 async function pagarPL(id){
-  const{data:pl}=await sb.from('fin_pro_labore').select('*').eq('id',id).single();
-  if(!pl)return;
-  const{data:itens}=await sb.from('fin_pro_labore_itens').select('*').eq('pro_labore_id',id);
-  const calc=_plCalc(pl);
-  const liquido=calc.liquido;
+  // Abre o modal em modo edição para o usuário escolher de onde sai o pagamento
+  await editPL(id);
+}
+
+async function confirmarPagamentoPL(){
+  const id=parseInt(document.getElementById('mpl-id').value);
+  if(!id){toast('Salve o lançamento antes de pagar',true);return;}
+
+  const t=_plGetModalTotals();
+  const liquido=t.liquido;
+
+  // Verificar alocação
+  const inputs=document.querySelectorAll('.mpl-conta-val');
+  let alocado=0;
+  const alocacoes=[];
+  inputs.forEach(inp=>{
+    const val=Math.round(parseFloat(inp.value||0)*100);
+    if(val>0)alocacoes.push({conta:inp.dataset.conta,valor:val});
+    alocado+=val;
+  });
+
+  if(alocacoes.length===0){toast('Selecione pelo menos uma conta para pagamento',true);return;}
+  if(Math.abs(alocado-liquido)>1){toast(`Valor alocado (${fmt(alocado)}) difere do líquido (${fmt(liquido)})`,true);return;}
+
+  // Salvar itens primeiro (sem fechar modal)
+  _plSaveKeepOpen=true;
+  await saveProLabore();
+  _plSaveKeepOpen=false;
 
   const dt=hoje();
-  const forma=pl.forma_pagamento||'Espécie';
+  const forma=document.getElementById('mpl-forma').value||'Espécie';
 
+  // Atualizar status
   const{error}=await sb.from('fin_pro_labore').update({status:'Pago',data_pagamento:dt,forma_pagamento:forma}).eq('id',id);
   if(error){toast('Erro ao pagar: '+error.message,true);return;}
 
-  // Se pagamento em espécie, debitar do cofre
-  if(forma==='Espécie'&&liquido>0){
-    const{data:ultCofre}=await sb.from('fin_livro_caixa_cofre').select('saldo_atual').order('id',{ascending:false}).limit(1).single();
-    const saldoAnt=ultCofre?.saldo_atual||0;
-    const saldoNovo=saldoAnt-liquido;
-    await sb.from('fin_livro_caixa_cofre').insert({
-      data:dt,
-      tipo:'Saída',
-      descricao:`Pró labore ${pl.socio_nome} ref ${pl.competencia}`,
-      valor:liquido,
-      saldo_anterior:saldoAnt,
-      saldo_atual:saldoNovo,
-      user_id:pl.socio_id,
-      origem:'Automático',
-    });
+  // Buscar dados do PL para descrição
+  const{data:pl}=await sb.from('fin_pro_labore').select('socio_nome,socio_id,competencia').eq('id',id).single();
+  const descPL=`Pró labore ${pl.socio_nome} ref ${pl.competencia}`;
+
+  // Debitar de cada conta selecionada
+  for(const a of alocacoes){
+    if(a.conta==='cofre'){
+      const{data:ultCofre}=await sb.from('fin_livro_caixa_cofre').select('saldo_atual').order('id',{ascending:false}).limit(1).single();
+      const saldoAnt=ultCofre?.saldo_atual||0;
+      await sb.from('fin_livro_caixa_cofre').insert({
+        data:dt,tipo:'Saída',descricao:descPL,valor:a.valor,
+        saldo_anterior:saldoAnt,saldo_atual:saldoAnt-a.valor,
+        user_id:pl.socio_id,origem:'Automático',
+      });
+    } else {
+      // Conta bancária — registrar transação de débito
+      const contaId=parseInt(a.conta);
+      const{data:ultTx}=await sb.from('fin_transacoes_bancarias').select('saldo').eq('conta_id',contaId).order('data',{ascending:false}).order('id',{ascending:false}).limit(1).single();
+      const saldoAnt=ultTx?ultTx.saldo:0;
+      await sb.from('fin_transacoes_bancarias').insert({
+        conta_id:contaId,data:dt,tipo:'debito',
+        descricao:descPL,valor:a.valor/100,
+        saldo:saldoAnt-(a.valor/100),
+        origem:'Automático',
+      });
+    }
   }
 
-  toast(`Pagamento registrado! ${forma==='Espécie'?'Saída lançada no cofre.':''}`);
+  const resumo=alocacoes.map(a=>{
+    const nome=a.conta==='cofre'?'Cofre':document.querySelector(`.mpl-conta-chk[data-conta="${a.conta}"]`)?.closest('.mpl-conta-card')?.querySelector('div div')?.textContent?.trim()||'Banco';
+    return `${nome}: ${fmt(a.valor)}`;
+  }).join(' + ');
+
+  closeModal('modal-prolabore');
+  toast(`Pagamento registrado! ${resumo}`);
   loadProLabore();
 }
 

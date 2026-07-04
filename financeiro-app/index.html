@@ -2077,19 +2077,31 @@ async function loadDashCategorias(){
   if(!canvas) return;
   if(typeof Chart==='undefined'){ if(empty){empty.style.display='';empty.textContent='Biblioteca de gráficos não carregou.';} return; }
   const {de,ate}=_biRange();
-  // Realizado = recebido (filtra por data_recebimento); Previsto/Ambos = por data_vencimento
-  const dCol=_dashCatModo==='realizado'?'data_recebimento':'data_vencimento';
-  let q=sb.from('fin_contas_receber').select('categoria,valor,status,data_vencimento,data_recebimento,estornado').eq('estornado',false);
-  if(_dashCatModo==='realizado') q=q.eq('status','Recebido').not('data_recebimento','is',null);
-  else if(_dashCatModo==='previsto') q=q.eq('status','Pendente');
-  if(de) q=q.gte(dCol,de);
-  if(ate) q=q.lte(dCol,ate);
-  let data=[];
-  try{ const r=await q; if(r.error)throw r.error; data=r.data||[]; }
-  catch(e){ if(_dashCharts['dash-cat-chart']){_dashCharts['dash-cat-chart'].destroy();_dashCharts['dash-cat-chart']=null;} canvas.style.display='none'; if(empty){empty.style.display='';empty.textContent='Erro ao carregar receitas.';} return; }
-  if(myTok!==_catTok) return;        // clique/período mais recente já disparou
   const acc={};
-  data.forEach(r=>{ const c=catCanonica(r.categoria); acc[c]=(acc[c]||0)+(r.valor||0); });
+  if(_dashCatModo==='realizado'){
+    // Realizado = mesma fonte do KPI "Receita no período" (banco + cofre), não só contas a receber formais
+    let qt=sb.from('fin_transacoes_bancarias').select('valor,tipo,categoria,data');
+    let qc=sb.from('fin_livro_caixa_cofre').select('valor,tipo,descricao,data');
+    if(de){qt=qt.gte('data',de);qc=qc.gte('data',de);}
+    if(ate){qt=qt.lte('data',ate);qc=qc.lte('data',ate);}
+    let tx=[],cf=[];
+    try{ const r=await Promise.all([qt,qc]); tx=r[0].data||[]; cf=r[1].data||[]; }
+    catch(e){ if(_dashCharts['dash-cat-chart']){_dashCharts['dash-cat-chart'].destroy();_dashCharts['dash-cat-chart']=null;} canvas.style.display='none'; if(empty){empty.style.display='';empty.textContent='Erro ao carregar receitas.';} return; }
+    if(myTok!==_catTok) return;
+    const all=tx.concat(_cofreComoTxns(cf)).filter(t=>t.tipo==='credito');
+    all.forEach(t=>{ const c=catCanonica(t.categoria); acc[c]=(acc[c]||0)+Math.round((+t.valor||0)*100); });
+  } else {
+    // Previsto/Ambos = contas a receber (por data de vencimento)
+    let q=sb.from('fin_contas_receber').select('categoria,valor,status,data_vencimento,data_recebimento,estornado').eq('estornado',false);
+    if(_dashCatModo==='previsto') q=q.eq('status','Pendente');
+    if(de) q=q.gte('data_vencimento',de);
+    if(ate) q=q.lte('data_vencimento',ate);
+    let data=[];
+    try{ const r=await q; if(r.error)throw r.error; data=r.data||[]; }
+    catch(e){ if(_dashCharts['dash-cat-chart']){_dashCharts['dash-cat-chart'].destroy();_dashCharts['dash-cat-chart']=null;} canvas.style.display='none'; if(empty){empty.style.display='';empty.textContent='Erro ao carregar receitas.';} return; }
+    if(myTok!==_catTok) return;
+    data.forEach(r=>{ const c=catCanonica(r.categoria); acc[c]=(acc[c]||0)+(r.valor||0); });
+  }
   const cats=Object.keys(acc).filter(k=>acc[k]>0).sort((a,b)=>acc[b]-acc[a]);
   if(_dashCharts['dash-cat-chart']){_dashCharts['dash-cat-chart'].destroy();_dashCharts['dash-cat-chart']=null;}
   if(!cats.length){ canvas.style.display='none'; if(empty){empty.style.display='';empty.textContent='Sem receitas no período.';} return; }

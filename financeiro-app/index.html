@@ -5509,7 +5509,6 @@ function openModalPL(item=null){
 }
 
 function _plGetModalTotals(){
-  const bruto=Math.round(parseFloat(document.getElementById('mpl-valor').value||0)*100);
   const box=document.getElementById('mpl-itens');
   let creditos=0,debitos=0;
   for(const div of box.children){
@@ -5521,7 +5520,6 @@ function _plGetModalTotals(){
     if(tipo==='credito')creditos+=val;
     else debitos+=val;
   }
-  creditos+=bruto;
   const liquido=creditos-debitos;
   return{creditos,debitos,liquido};
 }

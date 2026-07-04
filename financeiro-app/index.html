@@ -6139,10 +6139,12 @@ async function gerarPLMes(compDefault,socioIdFiltro){
         itens.push({tipo:'debito',descricao:`Cofre: ${t.descricao}`,valor:val,data:t.data});
       });
 
-      // Banco: transações com observação contendo "ROG" ou classificadas como dele
+      // Banco: transações com observação contendo "ROG" ou classificadas como dele (nunca reembolsos)
       const bancoRog=banco.filter(t=>{
         if(!t.observacao)return false;
         const o=t.observacao.toUpperCase();
+        const descU=(t.descricao||'').toUpperCase();
+        if(o.includes('REEMBOLSO')||descU.includes('REEMBOLSO'))return false;
         return o.includes('ROG')||o.includes('ROGÉRIO')||o.includes('ROGERIO');
       });
       bancoRog.forEach(t=>{

@@ -1183,13 +1183,10 @@ body.capturing .rel-acao{display:none!important}
           <select id="fpl-ano" onchange="loadProLabore()"></select>
         </div>
 
-        <!-- KPIs -->
-        <div class="kpi-row">
-          <div class="kpi blue"><label>Bruto no Período</label><div class="val" id="kpl-bruto">—</div></div>
-          <div class="kpi red"><label>Descontos</label><div class="val" id="kpl-desc">—</div></div>
-          <div class="kpi green"><label>Líquido a Receber</label><div class="val" id="kpl-liq">—</div></div>
-          <div class="kpi gray"><label>Pago</label><div class="val" id="kpl-pago">—</div></div>
-        </div>
+        <!-- Resumo por sócio -->
+        <div id="kpl-socios" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px"></div>
+        <!-- Pendências -->
+        <div id="kpl-pendencias" style="margin-bottom:16px"></div>
 
         <!-- Tabela -->
         <div class="card">
@@ -5439,21 +5436,65 @@ function renderProLabore(){
   const rows=typeof _sortRows==='function'?_sortRows(_plRows,_sortPL,_accPL):_plRows;
   if(typeof _applySortHeaders==='function')_applySortHeaders('tbl-prolabore','plcol',_sortPL);
 
-  let totBruto=0,totDesc=0,totLiq=0,totPago=0;
-  _plRows.forEach(r=>{
-    const c=_plCalc(r);
-    totBruto+=c.creditos;
-    totDesc+=c.debitos;
-    totLiq+=c.liquido;
-    if(r.status==='Pago')totPago+=c.liquido;
-  });
-  document.getElementById('kpl-bruto').textContent=fmt(totBruto);
-  document.getElementById('kpl-desc').textContent=fmt(totDesc);
-  document.getElementById('kpl-liq').textContent=fmt(totLiq);
-  document.getElementById('kpl-pago').textContent=fmt(totPago);
-
   const MESES=['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   const fmtComp=c=>{if(!c)return'—';const[a,m]=c.split('-');return MESES[parseInt(m)]+'/'+a;};
+
+  // Resumo por sócio
+  const porSocio={};
+  _plRows.forEach(r=>{
+    if(!porSocio[r.socio_nome])porSocio[r.socio_nome]={pago:0,pendente:0,meses:0,ultimo:null,ultimoStatus:'',ultimoLiq:0,ultimoDesc:0};
+    const s=porSocio[r.socio_nome];
+    const c=_plCalc(r);
+    s.meses++;
+    if(r.status==='Pago')s.pago+=c.liquido;
+    else if(r.status!=='Estornado')s.pendente+=c.liquido;
+    if(!s.ultimo||r.competencia>s.ultimo){s.ultimo=r.competencia;s.ultimoStatus=r.status;s.ultimoLiq=c.liquido;s.ultimoDesc=c.debitos;}
+  });
+
+  let socioHtml='';
+  PL_SOCIOS.forEach(ps=>{
+    const s=porSocio[ps.nome];
+    if(!s)return;
+    const nome=ps.nome.split(' ')[0];
+    const statusBadge=s.ultimoStatus==='Pago'?'<span style="background:#E8F5E9;color:#2E7D32;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">Pago</span>'
+      :s.ultimoStatus==='Estornado'?'<span style="background:#FFEBEE;color:#C62828;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">Estornado</span>'
+      :'<span style="background:#FFF3E0;color:#E65100;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">Pendente</span>';
+    socioHtml+=`<div style="background:#fff;border-radius:12px;padding:16px;border:1px solid var(--gray2);box-shadow:0 1px 3px rgba(0,0,0,.06)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="font-weight:800;font-size:15px;color:var(--teal)">${esc(nome)}</span>
+        <span style="font-size:12px;color:var(--text2)">${s.meses} mês(es)</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+        <span style="font-size:12px;color:var(--text2)">Último: ${fmtComp(s.ultimo)}</span>
+        ${statusBadge}
+      </div>
+      <div style="font-size:22px;font-weight:800;color:var(--teal);margin-bottom:4px">${fmt(s.ultimoLiq)}</div>
+      <div style="font-size:11px;color:var(--text2)">Descontos: <span style="color:var(--red)">${s.ultimoDesc?'-'+fmt(s.ultimoDesc):'—'}</span></div>
+      <div style="margin-top:10px;border-top:1px solid var(--gray2);padding-top:8px;display:flex;justify-content:space-between;font-size:12px">
+        <span>Pago no ano: <b style="color:var(--green)">${fmt(s.pago)}</b></span>
+        ${s.pendente>0?'<span>Pendente: <b style="color:var(--orange)">'+fmt(s.pendente)+'</b></span>':''}
+      </div>
+    </div>`;
+  });
+  document.getElementById('kpl-socios').innerHTML=socioHtml;
+
+  // Pendências
+  const pendentes=_plRows.filter(r=>r.status!=='Pago'&&r.status!=='Estornado');
+  if(pendentes.length){
+    let pendHtml=`<div style="background:#FFF3E0;border:1px solid #FFB74D;border-radius:10px;padding:12px 16px">
+      <div style="font-weight:700;color:#E65100;font-size:13px;margin-bottom:6px">⚠ ${pendentes.length} pagamento(s) pendente(s)</div>`;
+    pendentes.forEach(r=>{
+      const c=_plCalc(r);
+      pendHtml+=`<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0">
+        <span>${esc(r.socio_nome.split(' ')[0])} — ${fmtComp(r.competencia)} <span class="badge pend" style="font-size:10px">${r.status}</span></span>
+        <b>${fmt(c.liquido)}</b>
+      </div>`;
+    });
+    pendHtml+='</div>';
+    document.getElementById('kpl-pendencias').innerHTML=pendHtml;
+  } else {
+    document.getElementById('kpl-pendencias').innerHTML='';
+  }
 
   const badgePL=s=>{
     if(s==='Pago')return'<span class="badge ok">Pago</span>';

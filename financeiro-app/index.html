@@ -5637,10 +5637,10 @@ async function gerarPLMes(compDefault){
   const mesFimStr=`${ano}-${String(mes).padStart(2,'0')}-${diaFimMes}`;
 
   // Verificar se já existe para essa competência
-  const{data:existe}=await sb.from('fin_pro_labore').select('id,socio_nome').eq('competencia',comp);
+  const{data:existe}=await sb.from('fin_pro_labore').select('id,socio_nome,status').eq('competencia',comp).neq('status','Estornado');
   if(existe&&existe.length){
     const nomes=existe.map(e=>e.socio_nome).join(', ');
-    if(!confirm(`Já existe lançamento para ${comp}: ${nomes}.\nDeseja gerar novamente? (os existentes NÃO serão alterados)`))return;
+    toast(`Competência ${comp} já tem lançamento(s): ${nomes}. Sócios com registro existente serão pulados.`);
   }
 
   toast('Varrendo banco e cofre…');

@@ -2397,7 +2397,7 @@ async function confirmarPago(){
 
   const upd={status:'Pago',data_pagamento:data,fonte_pagamento:fonte};
   const{error}=await sb.from('fin_contas_pagar').update(upd).eq('id',id);
-  if(error){toast('Erro ao registrar pagamento',true);return;}
+  if(error){toast('Erro ao registrar pagamento: '+error.message,true);console.error('confirmarPago:',error);return;}
 
   // Cascata: marca reembolsos do mês como Pagos
   if(conta?.competencia&&conta?.tipo_reembolso){

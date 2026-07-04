@@ -5439,16 +5439,13 @@ function renderProLabore(){
   const MESES=['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   const fmtComp=c=>{if(!c)return'—';const[a,m]=c.split('-');return MESES[parseInt(m)]+'/'+a;};
 
-  // Resumo por sócio
+  // Resumo por sócio — só status, sem valores (bruto é igual para ambos; o que muda é a forma de desconto)
   const porSocio={};
   _plRows.forEach(r=>{
-    if(!porSocio[r.socio_nome])porSocio[r.socio_nome]={pago:0,pendente:0,meses:0,ultimo:null,ultimoStatus:'',ultimoLiq:0,ultimoDesc:0};
+    if(!porSocio[r.socio_nome])porSocio[r.socio_nome]={meses:0,ultimo:null,ultimoStatus:''};
     const s=porSocio[r.socio_nome];
-    const c=_plCalc(r);
     s.meses++;
-    if(r.status==='Pago')s.pago+=c.liquido;
-    else if(r.status!=='Estornado')s.pendente+=c.liquido;
-    if(!s.ultimo||r.competencia>s.ultimo){s.ultimo=r.competencia;s.ultimoStatus=r.status;s.ultimoLiq=c.liquido;s.ultimoDesc=c.debitos;}
+    if(!s.ultimo||r.competencia>s.ultimo){s.ultimo=r.competencia;s.ultimoStatus=r.status;}
   });
 
   let socioHtml='';
@@ -5459,21 +5456,12 @@ function renderProLabore(){
     const statusBadge=s.ultimoStatus==='Pago'?'<span style="background:#E8F5E9;color:#2E7D32;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">Pago</span>'
       :s.ultimoStatus==='Estornado'?'<span style="background:#FFEBEE;color:#C62828;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">Estornado</span>'
       :'<span style="background:#FFF3E0;color:#E65100;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">Pendente</span>';
-    socioHtml+=`<div style="background:#fff;border-radius:12px;padding:16px;border:1px solid var(--gray2);box-shadow:0 1px 3px rgba(0,0,0,.06)">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <span style="font-weight:800;font-size:15px;color:var(--teal)">${esc(nome)}</span>
-        <span style="font-size:12px;color:var(--text2)">${s.meses} mês(es)</span>
+    socioHtml+=`<div style="background:#fff;border-radius:12px;padding:16px;border:1px solid var(--gray2);box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-weight:800;font-size:15px;color:var(--teal)">${esc(nome)}</div>
+        <div style="font-size:12px;color:var(--text2)">Referência: ${fmtComp(s.ultimo)} · ${s.meses} mês(es) no período</div>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
-        <span style="font-size:12px;color:var(--text2)">Último: ${fmtComp(s.ultimo)}</span>
-        ${statusBadge}
-      </div>
-      <div style="font-size:22px;font-weight:800;color:var(--teal);margin-bottom:4px">${fmt(s.ultimoLiq)}</div>
-      <div style="font-size:11px;color:var(--text2)">Descontos: <span style="color:var(--red)">${s.ultimoDesc?'-'+fmt(s.ultimoDesc):'—'}</span></div>
-      <div style="margin-top:10px;border-top:1px solid var(--gray2);padding-top:8px;display:flex;justify-content:space-between;font-size:12px">
-        <span>Pago no ano: <b style="color:var(--green)">${fmt(s.pago)}</b></span>
-        ${s.pendente>0?'<span>Pendente: <b style="color:var(--orange)">'+fmt(s.pendente)+'</b></span>':''}
-      </div>
+      ${statusBadge}
     </div>`;
   });
   document.getElementById('kpl-socios').innerHTML=socioHtml;

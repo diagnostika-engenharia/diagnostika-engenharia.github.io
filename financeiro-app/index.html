@@ -5767,16 +5767,20 @@ async function confirmarPagamentoPL(){
         user_id:pl.socio_id,origem:'Automático',
       });
     } else {
-      // Conta bancária — registrar transação de débito
+      // Conta bancária — registrar transação de débito e atualizar saldo
       const contaId=parseInt(a.conta);
-      const{data:ultTx}=await sb.from('fin_transacoes_bancarias').select('saldo').eq('conta_id',contaId).order('data',{ascending:false}).order('id',{ascending:false}).limit(1).single();
-      const saldoAnt=ultTx?ultTx.saldo:0;
-      await sb.from('fin_transacoes_bancarias').insert({
-        conta_id:contaId,data:dt,tipo:'debito',
+      const{error:eTx}=await sb.from('fin_transacoes_bancarias').insert({
+        conta_bancaria_id:contaId,data:dt,tipo:'debito',
         descricao:descPL,valor:a.valor/100,
-        saldo:saldoAnt-(a.valor/100),
-        origem:'Automático',
+        categoria:'Pró-Labore',tipo_categoria:'Despesa',
+        status:'Conciliado',
       });
+      if(eTx)toast('Aviso banco: '+eTx.message,true);
+      // Atualizar saldo da conta
+      const{data:ctDados}=await sb.from('fin_contas_bancarias').select('saldo').eq('id',contaId).single();
+      if(ctDados){
+        await sb.from('fin_contas_bancarias').update({saldo:ctDados.saldo-a.valor}).eq('id',contaId);
+      }
     }
   }
 

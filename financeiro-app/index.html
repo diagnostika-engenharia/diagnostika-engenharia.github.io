@@ -139,6 +139,10 @@ table.tbl{width:100%;border-collapse:collapse}
 
 /* ── MODAL ── */
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:900;align-items:center;justify-content:center}
+#modal-calc{background:transparent;pointer-events:none}
+#modal-calc #calc-window{pointer-events:auto;position:fixed;top:120px;left:calc(50vw - 150px);width:300px;resize:both;overflow:auto;min-width:260px;min-height:340px;max-width:96vw;max-height:90vh}
+#modal-calc #calc-hd{cursor:move;user-select:none}
+#modal-calc.calc-max #calc-window{width:520px!important;height:640px!important;top:60px!important;left:calc(50vw - 260px)!important}
 .modal-bg.open{display:flex}
 body.capturing .rel-acao{display:none!important}
 .modal{background:var(--white);border-radius:14px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.22)}
@@ -1548,11 +1552,17 @@ body.capturing .rel-acao{display:none!important}
 
 <!-- MODAL: COFRE ENTRADA/SAÍDA -->
 <div class="modal-bg" id="modal-calc">
-  <div class="modal" style="max-width:300px">
-    <div class="modal-hd"><h3>Calculadora</h3><button onclick="closeModal('modal-calc')">×</button></div>
-    <div class="modal-bd">
+  <div class="modal" id="calc-window" style="display:flex;flex-direction:column">
+    <div class="modal-hd" id="calc-hd" onmousedown="_calcDragStart(event)">
+      <h3>Calculadora</h3>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button onclick="_calcToggleMax()" title="Expandir/Restaurar" style="font-size:15px">⛶</button>
+        <button onclick="closeModal('modal-calc')">×</button>
+      </div>
+    </div>
+    <div class="modal-bd" style="flex:1;display:flex;flex-direction:column">
       <input id="calc-visor" readonly style="width:100%;box-sizing:border-box;height:48px;font-size:24px;text-align:right;padding:0 10px;margin-bottom:10px;border:1px solid var(--border);border-radius:6px;background:var(--gray)" value="0">
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;flex:1">
         <button class="btn btn-outline" onclick="calcClear()">C</button>
         <button class="btn btn-outline" onclick="calcBack()">⌫</button>
         <button class="btn btn-outline" onclick="calcOp('%')">%</button>
@@ -2539,6 +2549,29 @@ function abrirCalculadora(){
   _calcExpr='';
   document.getElementById('calc-visor').value='0';
   document.getElementById('modal-calc').classList.add('open');
+}
+let _calcDrag=null;
+function _calcDragStart(e){
+  if(e.target.tagName==='BUTTON')return;
+  const win=document.getElementById('calc-window');
+  const rect=win.getBoundingClientRect();
+  _calcDrag={dx:e.clientX-rect.left,dy:e.clientY-rect.top};
+  document.addEventListener('mousemove',_calcDragMove);
+  document.addEventListener('mouseup',_calcDragEnd);
+}
+function _calcDragMove(e){
+  if(!_calcDrag)return;
+  const win=document.getElementById('calc-window');
+  win.style.left=Math.max(0,e.clientX-_calcDrag.dx)+'px';
+  win.style.top=Math.max(0,e.clientY-_calcDrag.dy)+'px';
+}
+function _calcDragEnd(){
+  _calcDrag=null;
+  document.removeEventListener('mousemove',_calcDragMove);
+  document.removeEventListener('mouseup',_calcDragEnd);
+}
+function _calcToggleMax(){
+  document.getElementById('modal-calc').classList.toggle('calc-max');
 }
 function _calcUpdate(){document.getElementById('calc-visor').value=_calcExpr||'0';}
 function calcClear(){_calcExpr='';_calcUpdate();}

@@ -5154,8 +5154,29 @@ function _exTabela(txns,preview){
       <td><span class="ex-tag ${t.tipo==='C'?'cred':'deb'}">${t.tipo==='C'?'crédito':'débito'}</span></td>
       <td style="text-align:right;color:${t.tipo==='C'?'var(--green)':'var(--red)'}">${_saldoOculto?'••••':((t.tipo==='C'?'+':'−')+' R$ '+(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2}))}</td>
       ${preview?'':`<td style="white-space:nowrap;font-size:11px;line-height:1.5">${(t.categoria&&t.categoria!=='Não classificado')?'<span style="color:var(--green)">🏷️ classif.</span>':'<span style="color:#E65100">⚠️ a classif.</span>'}<br>${t._cofre?'<span style="color:#8A7100;font-weight:700">'+COFRE_ICO+' cofre</span>':(t.status==='conciliado'||t.conta_receber_id||t.conta_pagar_id)?'<span style="color:var(--green)">🔗 conciliado</span>':'<span style="color:var(--text2)">○ a conciliar</span>'}</td>`}
-      ${preview?'':`<td style="text-align:right">${t.id?'<button title="Classificar / conciliar" onclick="abrirClassificar('+t.id+')" style="cursor:pointer;border:none;background:none;font-size:15px">✏️</button>':''}</td>`}
+      ${preview?'':`<td style="text-align:right;white-space:nowrap">${t.id?'<button title="Classificar / conciliar" onclick="abrirClassificar('+t.id+')" style="cursor:pointer;border:none;background:none;font-size:15px">✏️</button>':''}${(t.id&&!t._cofre)?'<button title="Excluir / estornar transação" onclick="excluirTransacaoBancaria('+t.id+')" style="cursor:pointer;border:none;background:none;font-size:15px">🗑️</button>':''}</td>`}
     </tr>`).join('')+`</tbody></table>`;
+}
+
+async function excluirTransacaoBancaria(id){
+  const {data:t,error:e1}=await sb.from('fin_transacoes_bancarias').select('*').eq('id',id).single();
+  if(e1||!t){toast('Erro ao localizar transação',true);return;}
+  const desc=t.historico||t.descricao||'';
+  const valorFmt=(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2});
+  if(!confirm(`Excluir esta transação bancária?\n\n${desc}\n${t.tipo==='credito'||t.tipo==='C'?'Crédito':'Débito'} R$ ${valorFmt}\n\nO saldo da conta será estornado (devolvido/removido) automaticamente.`)) return;
+  const {error:e2}=await sb.from('fin_transacoes_bancarias').delete().eq('id',id);
+  if(e2){toast('Erro ao excluir: '+e2.message,true);return;}
+  if(t.conta_bancaria_id){
+    const {data:conta}=await sb.from('fin_contas_bancarias').select('saldo').eq('id',t.conta_bancaria_id).single();
+    if(conta){
+      const isCredito=(t.tipo==='credito'||t.tipo==='C');
+      const novoSaldo=isCredito?(conta.saldo-t.valor):(conta.saldo+t.valor);
+      await sb.from('fin_contas_bancarias').update({saldo:novoSaldo}).eq('id',t.conta_bancaria_id);
+    }
+  }
+  toast('Transação excluída e saldo estornado!');
+  if(typeof renderExtratoDRE==='function') renderExtratoDRE();
+  if(typeof carregarExtrato==='function') carregarExtrato();
 }
 function cancelarExtrato(){ _exPendentes=null; document.getElementById('ex-preview-card').style.display='none'; document.getElementById('ex-status').textContent=''; }
 

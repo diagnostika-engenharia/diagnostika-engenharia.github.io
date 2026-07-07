@@ -5165,21 +5165,29 @@ async function dividirTransacaoBancaria(id){
   if(e1||!t){toast('Erro ao localizar transação',true);return;}
   const valorTotal=+t.valor;
   const descOrig=t.historico||t.descricao||'';
+  const parcelamentos=await _carregarParcelamentos();
+  const regraAtiva=parcelamentos.find(p=>_parcelamentoMatch(p,descOrig)&&p.parcela_atual<=p.total_parcelas);
   const partes=[];
   let restante=valorTotal;
   let n=1;
   while(true){
-    const sugestao=n===1?'':restante.toFixed(2).replace('.',',');
-    const entrada=prompt(`Lançamento original: ${descOrig} — R$ ${valorTotal.toLocaleString('pt-BR',{minimumFractionDigits:2})}\n\nParte ${n} — informe o VALOR desta parte (restante: R$ ${restante.toLocaleString('pt-BR',{minimumFractionDigits:2})}).\nDeixe em branco para encerrar e usar o restante na última parte já lançada.`,n===1?'':sugestao);
+    let sugestaoVal=n===1?'':restante.toFixed(2).replace('.',',');
+    let sugestaoDesc=descOrig, sugestaoCat=t.categoria||'';
+    if(n===1&&regraAtiva){
+      sugestaoVal=regraAtiva.valor_parcela.toFixed(2).replace('.',',');
+      sugestaoDesc=`${regraAtiva.descricao} — parcela ${regraAtiva.parcela_atual}/${regraAtiva.total_parcelas}`;
+      sugestaoCat=regraAtiva.categoria;
+    }
+    const entrada=prompt(`Lançamento original: ${descOrig} — R$ ${valorTotal.toLocaleString('pt-BR',{minimumFractionDigits:2})}\n\nParte ${n} — informe o VALOR desta parte (restante: R$ ${restante.toLocaleString('pt-BR',{minimumFractionDigits:2})}).${regraAtiva&&n===1?`\n💡 Parcelamento ativo detectado: "${regraAtiva.descricao}" (${regraAtiva.parcela_atual}/${regraAtiva.total_parcelas}) — valor sugerido preenchido.`:''}\nDeixe em branco para encerrar e usar o restante na última parte já lançada.`,sugestaoVal);
     if(entrada===null) return;
     if(entrada.trim()===''){ if(partes.length===0){toast('Informe ao menos uma parte',true);return;} break; }
     const val=parseFloat(entrada.replace(/\./g,'').replace(',','.'));
     if(!val||val<=0||val>restante+0.001){ toast('Valor inválido',true); return; }
-    const desc=prompt(`Parte ${n} (R$ ${val.toLocaleString('pt-BR',{minimumFractionDigits:2})}) — descrição:`, descOrig);
+    const desc=prompt(`Parte ${n} (R$ ${val.toLocaleString('pt-BR',{minimumFractionDigits:2})}) — descrição:`, sugestaoDesc);
     if(desc===null) return;
-    const cat=prompt(`Parte ${n} — categoria (plano de contas):`, t.categoria||'');
+    const cat=prompt(`Parte ${n} — categoria (plano de contas):`, sugestaoCat);
     if(cat===null) return;
-    partes.push({valor:Math.round(val*100)/100, descricao:desc, categoria:cat});
+    partes.push({valor:Math.round(val*100)/100, descricao:desc, categoria:cat, _regra:(n===1?regraAtiva:null)});
     restante=Math.round((restante-val)*100)/100;
     n++;
     if(restante<=0.009) break;
@@ -6079,6 +6087,22 @@ function _plToggleConta(chk){
   document.getElementById('mpl-forma').value=forma;
 }
 
+// ══════════════════════════════════════════════════════════════
+//  PARCELAMENTOS ATIVOS (ex: drone comprado no cartão corporativo,
+//  que não pode ser descontado do sócio — precisa virar despesa da PJ)
+//  Tabela fin_parcelamentos criada via migração — ver instruções.
+// ══════════════════════════════════════════════════════════════
+let _parcelamentosCache=null;
+async function _carregarParcelamentos(force){
+  if(_parcelamentosCache&&!force) return _parcelamentosCache;
+  const {data,error}=await sb.from('fin_parcelamentos').select('*').eq('ativo',true);
+  _parcelamentosCache=error?[]:(data||[]);
+  return _parcelamentosCache;
+}
+function _parcelamentoMatch(regra,descricao){
+  try{ return new RegExp(regra.match_regex||'cart[ãa]o','i').test(descricao||''); }catch(e){ return false; }
+}
+
 let _plItemIdx=0;
 let _plContasSaldo={}; // {cofre: saldo, 1: saldo, 2: saldo, 3: saldo}
 function addItemPL(){_addItemRow(document.getElementById('mpl-itens'));_plRecalcModal();}
@@ -6144,10 +6168,36 @@ async function saveProLabore(){
     const data=document.getElementById('pli-data-'+idx)?.value||null;
     if(desc&&val)novosItens.push({pro_labore_id:plId,tipo,descricao:desc,valor:val,data});
   }
+
+  // Aplica automaticamente parcelamentos ativos (ex: drone) — reduz o desconto do sócio
+  // e marca a parcela como aplicada, sem intervenção manual.
+  const parcelamentos=await _carregarParcelamentos();
+  const ajustesAplicados=[];
+  for(const item of novosItens){
+    if(item.tipo!=='debito')continue;
+    const regra=parcelamentos.find(p=>p.socio_nome===socioNome && _parcelamentoMatch(p,item.descricao) &&
+      !(p.competencias_aplicadas||[]).includes(comp) && p.parcela_atual<=p.total_parcelas);
+    if(!regra)continue;
+    const valorParcelaCent=Math.round(regra.valor_parcela*100);
+    if(item.valor<valorParcelaCent)continue; // segurança: não deixar o item negativo
+    item.valor-=valorParcelaCent;
+    item.descricao+=` (déd. R$ ${regra.valor_parcela.toFixed(2).replace('.',',')} parcela ${regra.parcela_atual}/${regra.total_parcelas} "${regra.descricao}" — despesa PJ, não onera o sócio)`;
+    ajustesAplicados.push(regra);
+  }
+
   if(novosItens.length){
     const{error:e2}=await sb.from('fin_pro_labore_itens').insert(novosItens);
     if(e2)toast('Itens salvos com aviso: '+e2.message,true);
   }
+
+  for(const regra of ajustesAplicados){
+    const novasComps=[...(regra.competencias_aplicadas||[]),comp];
+    const novaParcela=regra.parcela_atual+1;
+    const aindaAtivo=novaParcela<=regra.total_parcelas;
+    await sb.from('fin_parcelamentos').update({parcela_atual:novaParcela,competencias_aplicadas:novasComps,ativo:aindaAtivo}).eq('id',regra.id);
+    toast(`Parcelamento "${regra.descricao}" aplicado automaticamente: parcela ${regra.parcela_atual}/${regra.total_parcelas} (R$ ${regra.valor_parcela.toFixed(2).replace('.',',')})`);
+  }
+  if(ajustesAplicados.length) await _carregarParcelamentos(true);
 
   if(!_plSaveKeepOpen){
     closeModal('modal-prolabore');

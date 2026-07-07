@@ -618,11 +618,12 @@ body.capturing .rel-acao{display:none!important}
             <option>ART</option><option>Assessoria</option><option>Projeto</option>
             <option>Vistoria</option><option>Laudo/Parecer</option><option>Outros</option>
           </select>
+          <select id="fr-mes" onchange="_receberSelecionarMes()" style="padding:4px 6px;border-radius:8px;border:1px solid var(--gray3)"></select>
           <span style="font-size:12px;color:var(--text2);font-weight:600">Venc. de:</span>
-          <input type="date" id="fr-de" onchange="loadReceber()" style="padding:4px 6px;border-radius:8px;border:1px solid var(--gray3)">
+          <input type="date" id="fr-de" onchange="document.getElementById('fr-mes').value='';loadReceber()" style="padding:4px 6px;border-radius:8px;border:1px solid var(--gray3)">
           <span style="font-size:12px;color:var(--text2);font-weight:600">até:</span>
-          <input type="date" id="fr-ate" onchange="loadReceber()" style="padding:4px 6px;border-radius:8px;border:1px solid var(--gray3)">
-          <button class="btn btn-outline btn-sm" onclick="document.getElementById('fr-de').value='';document.getElementById('fr-ate').value='';loadReceber()">Limpar período</button>
+          <input type="date" id="fr-ate" onchange="document.getElementById('fr-mes').value='';loadReceber()" style="padding:4px 6px;border-radius:8px;border:1px solid var(--gray3)">
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('fr-de').value='';document.getElementById('fr-ate').value='';document.getElementById('fr-mes').value='';loadReceber()">Limpar período</button>
         </div>
         <div class="card">
           <div class="card-bd"><table class="tbl"><thead><tr>
@@ -2192,7 +2193,33 @@ async function loadContasBancarias(){
 }
 
 // ── Contas a Receber ──────────────────────────────────────────
+function _receberPopularMeses(){
+  const sel=document.getElementById('fr-mes');
+  if(!sel||sel.options.length)return; // já populado
+  const MESES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const hoje=new Date();
+  let html='<option value="">Todos os meses</option>';
+  for(let i=-6;i<=6;i++){
+    const d=new Date(hoje.getFullYear(),hoje.getMonth()+i,1);
+    const ym=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    html+=`<option value="${ym}">${MESES[d.getMonth()]}/${d.getFullYear()}</option>`;
+  }
+  sel.innerHTML=html;
+}
+function _receberSelecionarMes(){
+  const ym=document.getElementById('fr-mes').value;
+  if(ym){
+    const[a,m]=ym.split('-').map(Number);
+    const de=`${ym}-01`;
+    const ultimoDia=new Date(a,m,0).getDate();
+    const ate=`${ym}-${String(ultimoDia).padStart(2,'0')}`;
+    document.getElementById('fr-de').value=de;
+    document.getElementById('fr-ate').value=ate;
+  }
+  loadReceber();
+}
 async function loadReceber(){
+  _receberPopularMeses();
   let q=sb.from('fin_contas_receber').select('*').order('data_vencimento');
   const st=document.getElementById('fr-status').value;
   const cat=document.getElementById('fr-cat').value;
@@ -2204,11 +2231,12 @@ async function loadReceber(){
   const{data,error}=await q;
   if(error){toast('Erro ao carregar',true);return;}
   const rows=data||[];
-  // KPIs
+  // KPIs — refletem exatamente o resultado do filtro aplicado (status/categoria/período)
   const mesAtual=new Date().toISOString().slice(0,7);
-  const pend=rows.filter(r=>r.status==='Pendente'&&!r.estornado).reduce((s,r)=>s+r.valor,0);
+  const totalFiltro=rows.filter(r=>!r.estornado).reduce((s,r)=>s+r.valor,0);
   const mes=rows.filter(r=>r.status==='Recebido'&&r.data_recebimento&&r.data_recebimento.startsWith(mesAtual)).reduce((s,r)=>s+r.valor,0);
-  document.getElementById('kr-total').textContent=fmt(pend);
+  document.getElementById('kr-total').previousElementSibling.textContent=st?`Total ${st}`:'Total a Receber';
+  document.getElementById('kr-total').textContent=fmt(totalFiltro);
   document.getElementById('kr-mes').textContent=fmt(mes);
   _receberRows=rows;
   renderReceber();

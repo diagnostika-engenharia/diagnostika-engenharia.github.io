@@ -2050,10 +2050,16 @@ async function loadDash(){
   loadDashCategorias();              // receita por categoria (guarda própria _catTok)
 }
 
+// Natureza contábil de uma transação: usa tipo_categoria (um crédito pode ser Despesa=estorno);
+// só cai no campo tipo (credito/debito) quando tipo_categoria está ausente.
+function _txNat(t){ return (t&&t.tipo_categoria==='Despesa')?'Despesa':(t&&t.tipo_categoria==='Receita')?'Receita':((t&&t.tipo==='credito')?'Receita':'Despesa'); }
+// Valor com sinal contábil: estorno (crédito marcado Despesa) REDUZ a despesa; refund (débito marcado Receita) REDUZ a receita.
+function _txSig(t){ const nat=_txNat(t); const natural=(nat==='Receita')?'credito':'debito'; return ((t&&t.tipo===natural)?1:-1)*(+((t&&t.valor)||0)); }
+
 // realizado no período: receita/despesa/resultado + fluxo de caixa mensal
 async function _loadDashRealizado(de,ate,tok){
   const gr=id=>document.getElementById(id);
-  let qt=sb.from('fin_transacoes_bancarias').select('data,valor,tipo,competencia');
+  let qt=sb.from('fin_transacoes_bancarias').select('data,valor,tipo,competencia,tipo_categoria,categoria');
   let qc=sb.from('fin_livro_caixa_cofre').select('data,valor,tipo,descricao');
   if(de){qt=qt.gte('data',de);qc=qc.gte('data',de);}
   if(ate){qt=qt.lte('data',ate);qc=qc.lte('data',ate);}
@@ -2061,8 +2067,8 @@ async function _loadDashRealizado(de,ate,tok){
   try{ const r=await Promise.all([qt,qc]); tx=r[0].data||[]; cf=r[1].data||[]; }catch(e){}
   if(tok!=null && tok!==_dashTok) return;    // período mudou — descarta resultado obsoleto
   const all=tx.concat(_cofreComoTxns(cf));   // tudo em REAIS
-  const rec=all.filter(t=>t.tipo==='credito').reduce((s,t)=>s+(+t.valor||0),0);
-  const desp=all.filter(t=>t.tipo==='debito').reduce((s,t)=>s+(+t.valor||0),0);
+  const rec=all.filter(t=>_txNat(t)==='Receita').reduce((s,t)=>s+_txSig(t),0);
+  const desp=all.filter(t=>_txNat(t)==='Despesa').reduce((s,t)=>s+_txSig(t),0);
   const result=rec-desp, margem=rec?Math.round(result/rec*100):0;
   if(gr('kpi-bi-receita'))gr('kpi-bi-receita').textContent=_fmtR(rec);
   if(gr('kpi-bi-despesa'))gr('kpi-bi-despesa').textContent=_fmtR(desp);
@@ -2140,7 +2146,7 @@ async function loadDashCategorias(){
   const acc={};
   if(_dashCatModo==='realizado'){
     // Realizado = mesma fonte do KPI "Receita no período" (banco + cofre), não só contas a receber formais
-    let qt=sb.from('fin_transacoes_bancarias').select('valor,tipo,categoria,data');
+    let qt=sb.from('fin_transacoes_bancarias').select('valor,tipo,categoria,data,tipo_categoria');
     let qc=sb.from('fin_livro_caixa_cofre').select('valor,tipo,descricao,data');
     if(de){qt=qt.gte('data',de);qc=qc.gte('data',de);}
     if(ate){qt=qt.lte('data',ate);qc=qc.lte('data',ate);}
@@ -2148,8 +2154,8 @@ async function loadDashCategorias(){
     try{ const r=await Promise.all([qt,qc]); tx=r[0].data||[]; cf=r[1].data||[]; }
     catch(e){ if(_dashCharts['dash-cat-chart']){_dashCharts['dash-cat-chart'].destroy();_dashCharts['dash-cat-chart']=null;} canvas.style.display='none'; if(empty){empty.style.display='';empty.textContent='Erro ao carregar receitas.';} return; }
     if(myTok!==_catTok) return;
-    const all=tx.concat(_cofreComoTxns(cf)).filter(t=>t.tipo==='credito');
-    all.forEach(t=>{ const c=catCanonica(t.categoria); acc[c]=(acc[c]||0)+Math.round((+t.valor||0)*100); });
+    const all=tx.concat(_cofreComoTxns(cf)).filter(t=>_txNat(t)==='Receita');
+    all.forEach(t=>{ const c=catCanonica(t.categoria); acc[c]=(acc[c]||0)+Math.round(_txSig(t)*100); });
   } else {
     // Previsto/Ambos = contas a receber (por data de vencimento)
     let q=sb.from('fin_contas_receber').select('categoria,valor,status,data_vencimento,data_recebimento,estornado').eq('estornado',false);
@@ -5456,8 +5462,8 @@ async function renderExtratoDRE(force){
       return naoClass||!!temConta;
     });
   }
-  const rec=txns.filter(t=>t.tipo==='credito').reduce((s,t)=>s+(+t.valor),0);
-  const desp=txns.filter(t=>t.tipo==='debito').reduce((s,t)=>s+(+t.valor),0);
+  const rec=txns.filter(t=>_txNat(t)==='Receita').reduce((s,t)=>s+_txSig(t),0);
+  const desp=txns.filter(t=>_txNat(t)==='Despesa').reduce((s,t)=>s+_txSig(t),0);
   document.getElementById('ex-kpi-rec').textContent='R$ '+rec.toLocaleString('pt-BR',{minimumFractionDigits:2});
   document.getElementById('ex-kpi-desp').textContent='R$ '+desp.toLocaleString('pt-BR',{minimumFractionDigits:2});
   const res=rec-desp; const resEl=document.getElementById('ex-kpi-res');
@@ -5591,10 +5597,10 @@ function _dreRender(txns){
   const sec={Receita:{}, Despesa:{}};
   const catTxns={Receita:{}, Despesa:{}};
   txns.forEach(t=>{
-    const nat=t.tipo==='credito'?'Receita':'Despesa';
+    const nat=_txNat(t);
     const cat=t.categoria||'Não classificado';
     const m=_txComp(t)||'—';
-    (sec[nat][cat]=sec[nat][cat]||{}); sec[nat][cat][m]=(sec[nat][cat][m]||0)+(+t.valor);
+    (sec[nat][cat]=sec[nat][cat]||{}); sec[nat][cat][m]=(sec[nat][cat][m]||0)+_txSig(t);
     (catTxns[nat][cat]=catTxns[nat][cat]||[]).push(t);
   });
   const somaMes=obj=>meses.map(m=>obj[m]||0);

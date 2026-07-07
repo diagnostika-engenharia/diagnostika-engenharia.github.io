@@ -2233,7 +2233,9 @@ async function loadReceber(){
   const rows=data||[];
   // KPIs — refletem exatamente o resultado do filtro aplicado (status/categoria/período)
   const mesAtual=new Date().toISOString().slice(0,7);
-  const totalFiltro=rows.filter(r=>!r.estornado).reduce((s,r)=>s+r.valor,0);
+  // "Total a Receber" (filtro Todos) = só o que está Pendente (o que de fato falta receber).
+  // Com um status específico selecionado, soma o que está filtrado (ex.: Total Recebido).
+  const totalFiltro=(st?rows.filter(r=>!r.estornado):rows.filter(r=>!r.estornado&&r.status==='Pendente')).reduce((s,r)=>s+r.valor,0);
   const mes=rows.filter(r=>r.status==='Recebido'&&r.data_recebimento&&r.data_recebimento.startsWith(mesAtual)).reduce((s,r)=>s+r.valor,0);
   document.getElementById('kr-total').previousElementSibling.textContent=st?`Total ${st}`:'Total a Receber';
   document.getElementById('kr-total').textContent=fmt(totalFiltro);

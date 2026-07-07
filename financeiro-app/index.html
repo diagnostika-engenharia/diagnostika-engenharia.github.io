@@ -5154,8 +5154,48 @@ function _exTabela(txns,preview){
       <td><span class="ex-tag ${t.tipo==='C'?'cred':'deb'}">${t.tipo==='C'?'crédito':'débito'}</span></td>
       <td style="text-align:right;color:${t.tipo==='C'?'var(--green)':'var(--red)'}">${_saldoOculto?'••••':((t.tipo==='C'?'+':'−')+' R$ '+(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2}))}</td>
       ${preview?'':`<td style="white-space:nowrap;font-size:11px;line-height:1.5">${(t.categoria&&t.categoria!=='Não classificado')?'<span style="color:var(--green)">🏷️ classif.</span>':'<span style="color:#E65100">⚠️ a classif.</span>'}<br>${t._cofre?'<span style="color:#8A7100;font-weight:700">'+COFRE_ICO+' cofre</span>':(t.status==='conciliado'||t.conta_receber_id||t.conta_pagar_id)?'<span style="color:var(--green)">🔗 conciliado</span>':'<span style="color:var(--text2)">○ a conciliar</span>'}</td>`}
-      ${preview?'':`<td style="text-align:right;white-space:nowrap">${t.id?'<button title="Classificar / conciliar" onclick="abrirClassificar('+t.id+')" style="cursor:pointer;border:none;background:none;font-size:15px">✏️</button>':''}${(t.id&&!t._cofre)?'<button title="Excluir / estornar transação" onclick="excluirTransacaoBancaria('+t.id+')" style="cursor:pointer;border:none;background:none;font-size:15px">🗑️</button>':''}</td>`}
+      ${preview?'':`<td style="text-align:right;white-space:nowrap">${t.id?'<button title="Classificar / conciliar" onclick="abrirClassificar('+t.id+')" style="cursor:pointer;border:none;background:none;font-size:15px">✏️</button>':''}${(t.id&&!t._cofre)?'<button title="Dividir lançamento em categorias" onclick="dividirTransacaoBancaria('+t.id+')" style="cursor:pointer;border:none;background:none;font-size:15px">✂️</button>':''}${(t.id&&!t._cofre)?'<button title="Excluir / estornar transação" onclick="excluirTransacaoBancaria('+t.id+')" style="cursor:pointer;border:none;background:none;font-size:15px">🗑️</button>':''}</td>`}
     </tr>`).join('')+`</tbody></table>`;
+}
+
+// Divide um único lançamento bancário em 2+ linhas categorizadas, mantendo o valor total
+// (ex: fatura de cartão que mistura despesa da empresa + desconto pessoal do sócio) — sem gerar dinheiro novo.
+async function dividirTransacaoBancaria(id){
+  const {data:t,error:e1}=await sb.from('fin_transacoes_bancarias').select('*').eq('id',id).single();
+  if(e1||!t){toast('Erro ao localizar transação',true);return;}
+  const valorTotal=+t.valor;
+  const descOrig=t.historico||t.descricao||'';
+  const partes=[];
+  let restante=valorTotal;
+  let n=1;
+  while(true){
+    const sugestao=n===1?'':restante.toFixed(2).replace('.',',');
+    const entrada=prompt(`Lançamento original: ${descOrig} — R$ ${valorTotal.toLocaleString('pt-BR',{minimumFractionDigits:2})}\n\nParte ${n} — informe o VALOR desta parte (restante: R$ ${restante.toLocaleString('pt-BR',{minimumFractionDigits:2})}).\nDeixe em branco para encerrar e usar o restante na última parte já lançada.`,n===1?'':sugestao);
+    if(entrada===null) return;
+    if(entrada.trim()===''){ if(partes.length===0){toast('Informe ao menos uma parte',true);return;} break; }
+    const val=parseFloat(entrada.replace(/\./g,'').replace(',','.'));
+    if(!val||val<=0||val>restante+0.001){ toast('Valor inválido',true); return; }
+    const desc=prompt(`Parte ${n} (R$ ${val.toLocaleString('pt-BR',{minimumFractionDigits:2})}) — descrição:`, descOrig);
+    if(desc===null) return;
+    const cat=prompt(`Parte ${n} — categoria (plano de contas):`, t.categoria||'');
+    if(cat===null) return;
+    partes.push({valor:Math.round(val*100)/100, descricao:desc, categoria:cat});
+    restante=Math.round((restante-val)*100)/100;
+    n++;
+    if(restante<=0.009) break;
+    if(!confirm(`Restam R$ ${restante.toLocaleString('pt-BR',{minimumFractionDigits:2})}. Adicionar mais uma parte?`)) { partes.push({valor:restante,descricao:descOrig,categoria:t.categoria||''}); restante=0; break; }
+  }
+  const somaPartes=partes.reduce((s,p)=>s+p.valor,0);
+  if(Math.abs(somaPartes-valorTotal)>0.01){ toast(`Erro: soma das partes (R$ ${somaPartes.toFixed(2)}) não bate com o total (R$ ${valorTotal.toFixed(2)})`,true); return; }
+  if(!confirm(`Confirma dividir em ${partes.length} parte(s)?\n\n`+partes.map((p,i)=>`${i+1}. ${p.descricao} — ${p.categoria||'sem categoria'} — R$ ${p.valor.toLocaleString('pt-BR',{minimumFractionDigits:2})}`).join('\n')+'\n\nO saldo bancário NÃO muda (mesmo total, só reclassificado).')) return;
+  const novasLinhas=partes.map(p=>({...t,id:undefined,historico:p.descricao,descricao:p.descricao,categoria:p.categoria,valor:p.valor}));
+  const {error:e2}=await sb.from('fin_transacoes_bancarias').insert(novasLinhas);
+  if(e2){toast('Erro ao criar partes: '+e2.message,true);return;}
+  const {error:e3}=await sb.from('fin_transacoes_bancarias').delete().eq('id',id);
+  if(e3){toast('Erro ao remover original: '+e3.message,true);return;}
+  toast('Lançamento dividido com sucesso!');
+  if(typeof renderExtratoDRE==='function') renderExtratoDRE();
+  if(typeof carregarExtrato==='function') carregarExtrato();
 }
 
 async function excluirTransacaoBancaria(id){

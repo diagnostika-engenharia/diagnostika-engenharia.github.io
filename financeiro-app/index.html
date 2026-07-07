@@ -2261,7 +2261,7 @@ function renderReceber(){
       <td>${formatData(r.data_vencimento)}</td>
       <td>${fmt(r.valor)}</td>
       <td>${badgeSt(r.status,r.data_vencimento)}</td>
-      <td>${r.nota_fiscal_emitida?'<span style="color:var(--green);font-size:12px">✓ Emitida</span>':r.lembrete_nota_fiscal?'<span style="color:var(--warn);font-size:12px">⚠ Pendente</span>':'—'}</td>
+      <td>${r.nota_fiscal_emitida?`<span style="color:var(--green);font-size:12px">✓ ${esc(r.numero_nfse||'Emitida')}</span>${r.codigo_verificacao?'<br><small style="color:var(--text2)">'+esc(r.codigo_verificacao)+'</small>':''}`:r.lembrete_nota_fiscal?'<span style="color:var(--warn);font-size:12px">⚠ Pendente</span>':'—'}</td>
       <td style="white-space:nowrap">
         ${r.status==='Pendente'&&!r.estornado?`<button class="btn btn-green btn-sm" onclick="openMarcarRecebido(${r.id})">Receber</button> `:''}
         ${r.status==='Recebido'&&!r.estornado?`<button class="btn btn-danger btn-sm" onclick="openEstornoR(${r.id})">Estornar</button> `:''}
@@ -4611,14 +4611,17 @@ function _nfseVencISO(){
 }
 
 // Cria a Conta a Receber (PRODUÇÃO) e devolve o id, ou null.
-async function _nfseCriarContaReceber(nome,valorNum,descricao,vencISO,categoria){
+// Já grava o número da nota emitida — garante rastreabilidade (nota ↔ conta a receber ↔ extrato).
+async function _nfseCriarContaReceber(nome,valorNum,descricao,vencISO,categoria,numeroNfse,codigoVerificacao){
   try{
     const payload={
       cliente:nome, categoria:categoria||'Outros',
       valor:Math.round((+valorNum)*100),
       descricao:(descricao||'').slice(0,500),
       data_vencimento:vencISO, dia_vencimento:NFSE_PRESTADOR.vencimento_dia,
-      recorrente:false, lembrete_nota_fiscal:false
+      recorrente:false, lembrete_nota_fiscal:false,
+      nota_fiscal_emitida:!!numeroNfse, numero_nfse:numeroNfse?String(numeroNfse):null,
+      codigo_verificacao:codigoVerificacao||null
     };
     const{data,error}=await sb.from('fin_contas_receber').insert(payload).select('id').single();
     if(error){ console.warn('contas_receber',error.message); return null; }
@@ -4669,7 +4672,7 @@ async function emitirNfse(){
       if(r.ok && j.ok && j.numero_nfse){
         // PRODUÇÃO → lança no Contas a Receber
         let crId=null;
-        if(prod){ crId=await _nfseCriarContaReceber(c.nome,st.valor,descFinal,_nfseVencISO()); }
+        if(prod){ crId=await _nfseCriarContaReceber(c.nome,st.valor,descFinal,_nfseVencISO(),null,j.numero_nfse,j.codigo_verificacao); }
         // grava histórico (sempre)
         await _nfseGravarHistorico({
           condominio_id:c.id, nome:c.nome,
@@ -4783,7 +4786,7 @@ async function emitirAvulsa(){
     const txt=await r.text(); let j={}; try{j=JSON.parse(txt);}catch(e){}
     if(r.ok && j.ok && j.numero_nfse){
       let crId=null;
-      if(prod){ crId=await _nfseCriarContaReceber(razao,valor,(servico?servico+' — ':'')+desc,_nfseVencISO(),catCanonica(servico)); }
+      if(prod){ crId=await _nfseCriarContaReceber(razao,valor,(servico?servico+' — ':'')+desc,_nfseVencISO(),catCanonica(servico),j.numero_nfse,j.codigo_verificacao); }
       await _nfseGravarHistorico({
         condominio_id:'avulsa', nome:razao, tomador_doc:doc, tomador_tipo:tipo, tomador_razao:razao,
         competencia:comp, valor:valor, iss_retido:iss, descricao:payload.descricao, parcela:null,

@@ -5364,6 +5364,22 @@ async function salvarClassificacao(){
   finally{ btn.disabled=false; btn.textContent='Salvar'; }
 }
 
+function _dreDetailHtml(lista){
+  if(!lista.length) return '<div style="padding:10px 16px;color:var(--text2);font-size:12px">Nenhum lançamento.</div>';
+  const linhas=lista.map(t=>{
+    const desc=t.historico||t.descricao||'—';
+    const dt=t.data?String(t.data).split('-').reverse().join('/'):'—';
+    const cofreTag=t._cofre?'<span style="display:inline-flex;align-items:center;gap:3px;background:#8A7100;color:#fff;border-radius:6px;padding:1px 6px;margin-right:6px;font-size:9.5px;font-weight:800">COFRE</span>':'';
+    return `<tr><td style="padding:6px 10px;white-space:nowrap;font-size:12px;color:var(--text2)">${dt}</td><td style="padding:6px 10px;font-size:12px">${cofreTag}${esc(desc)}</td><td style="padding:6px 10px;text-align:right;font-size:12px;font-weight:600">R$ ${(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td></tr>`;
+  }).join('');
+  return `<table style="width:100%;border-collapse:collapse">${linhas}</table>`;
+}
+function _dreToggleDetail(idx){
+  const row=document.getElementById('dre-det-'+idx);
+  if(!row)return;
+  row.style.display=row.style.display==='none'?'table-row':'none';
+}
+
 // rótulo de competência 'AAAA-MM' → 'mar/26'
 const _MES_ABR=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 function _compLabel(c){ if(!c||c.length<7) return c||'—'; const [y,m]=c.split('-'); return _MES_ABR[(+m||1)-1]+'/'+y.slice(2); }
@@ -5376,11 +5392,13 @@ function _dreRender(txns){
   if(!txns.length) return '<p class="empty">Sem dados ainda. Importe um extrato.</p>';
   const meses=[...new Set(txns.map(_txComp).filter(Boolean))].sort();
   const sec={Receita:{}, Despesa:{}};
+  const catTxns={Receita:{}, Despesa:{}};
   txns.forEach(t=>{
     const nat=t.tipo==='credito'?'Receita':'Despesa';
     const cat=t.categoria||'Não classificado';
     const m=_txComp(t)||'—';
     (sec[nat][cat]=sec[nat][cat]||{}); sec[nat][cat][m]=(sec[nat][cat][m]||0)+(+t.valor);
+    (catTxns[nat][cat]=catTxns[nat][cat]||[]).push(t);
   });
   const somaMes=obj=>meses.map(m=>obj[m]||0);
   const totLinha=obj=>meses.reduce((s,m)=>s+(obj[m]||0),0);
@@ -5404,8 +5422,11 @@ function _dreRender(txns){
     return `<td>${v?_dreR(v):'<span class="dre-av">—</span>'}${pct}</td>`;
   }).join('');
 
+  const ncols=meses.length+3;
   const head=`<thead><tr><th>Conta</th>${meses.map(m=>`<th>${_compLabel(m)}</th>`).join('')}<th>Total</th><th>AV%</th><th>AH%</th></tr></thead>`;
   let body='<tbody>';
+  let _dreRowIdx=0;
+  window._dreDetailTxns=window._dreDetailTxns||{};
   // seções
   [['Receita','RECEITAS'],['Despesa','DESPESAS']].forEach(([nat,titulo])=>{
     const cats=Object.entries(sec[nat]).sort((a,b)=>totLinha(b[1])-totLinha(a[1]));
@@ -5416,7 +5437,11 @@ function _dreRender(txns){
     if(!cats.length){ body+=`<tr class="dre-cat"><td>—</td>${meses.map(()=>'<td><span class="dre-av">—</span></td>').join('')}<td><span class="dre-av">—</span></td><td></td><td></td></tr>`; }
     cats.forEach(([cat,obj])=>{
       const arr=somaMes(obj), tot=totLinha(obj);
-      body+=`<tr class="dre-cat"><td>${esc(cat)}</td>${cellMes(arr)}<td>${_dreR(tot)}</td><td>${fmtAV(avPct(tot))}</td><td>${fmtAH(ah(arr))}</td></tr>`;
+      const idx=_dreRowIdx++;
+      const lista=(catTxns[nat][cat]||[]).slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+      window._dreDetailTxns[idx]=lista;
+      body+=`<tr class="dre-cat" style="cursor:pointer" onclick="_dreToggleDetail(${idx})"><td>▸ ${esc(cat)}</td>${cellMes(arr)}<td>${_dreR(tot)}</td><td>${fmtAV(avPct(tot))}</td><td>${fmtAH(ah(arr))}</td></tr>`;
+      body+=`<tr class="dre-detail" id="dre-det-${idx}" style="display:none"><td colspan="${ncols}" style="padding:0;background:var(--gray)">${_dreDetailHtml(lista)}</td></tr>`;
     });
   });
   // resultado líquido

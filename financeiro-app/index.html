@@ -5586,6 +5586,8 @@ function renderProLabore(){
 let _relatorioPL=null;
 function visualizarRelatorioPL(id){
 try{
+  const MESES=['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const fmtComp=c=>{if(!c)return'—';const[a,m]=c.split('-');return MESES[parseInt(m)]+'/'+a;};
   const r=_plRows.find(x=>x.id===id);
   if(!r){toast('Lançamento não encontrado',true);return;}
   const itens=(_plItensCache[r.id]||[]).slice().sort((a,b)=>(a.data||'').localeCompare(b.data||''));
@@ -5660,6 +5662,8 @@ try{
 
 function downloadPDFProLabore(){
   if(!_relatorioPL){toast('Nenhum relatório carregado',true);return;}
+  const MESES=['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const fmtComp=c=>{if(!c)return'—';const[a,m]=c.split('-');return MESES[parseInt(m)]+'/'+a;};
   const r=_plRows.find(x=>x.id===_relatorioPL.id);
   const itens=(_plItensCache[_relatorioPL.id]||[]).slice().sort((a,b)=>(a.data||'').localeCompare(b.data||''));
   const{jsPDF}=window.jspdf;

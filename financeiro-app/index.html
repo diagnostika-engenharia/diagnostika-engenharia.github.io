@@ -627,8 +627,8 @@ body.capturing .rel-acao{display:none!important}
         </div>
         <div class="card">
           <div class="card-bd"><table class="tbl"><thead><tr>
-            <th class="sortable" data-rcol="cliente">Cliente</th><th class="sortable" data-rcol="categoria">Categoria</th><th class="sortable" data-rcol="data_vencimento">Vencimento</th><th class="sortable" data-rcol="valor">Valor</th><th class="sortable" data-rcol="status">Status</th><th class="sortable" data-rcol="nf">NF</th><th></th>
-          </tr></thead><tbody id="tbl-receber"><tr><td colspan="7" class="empty">Carregando…</td></tr></tbody></table></div>
+            <th class="sortable" data-rcol="cliente">Cliente</th><th class="sortable" data-rcol="categoria">Categoria</th><th class="sortable" data-rcol="data_vencimento">Vencimento</th><th class="sortable" data-rcol="data_recebimento">Pagamento</th><th class="sortable" data-rcol="valor">Valor</th><th class="sortable" data-rcol="status">Status</th><th class="sortable" data-rcol="nf">NF</th><th></th>
+          </tr></thead><tbody id="tbl-receber"><tr><td colspan="8" class="empty">Carregando…</td></tr></tbody></table></div>
         </div>
       </div>
 
@@ -2269,6 +2269,7 @@ function renderReceber(){
       <td>${esc(r.cliente)}</td>
       <td>${esc(r.categoria)}</td>
       <td>${formatData(r.data_vencimento)}</td>
+      <td>${r.data_recebimento?'<span style="color:var(--green)">'+formatData(r.data_recebimento)+'</span>':'<span style="color:var(--text2)">—</span>'}</td>
       <td>${fmt(r.valor)}</td>
       <td>${badgeSt(r.status,r.data_vencimento)}</td>
       <td>${r.nota_fiscal_emitida?`<span style="color:var(--green);font-size:12px">✓ ${esc(r.numero_nfse||'Emitida')}</span>${r.codigo_verificacao?'<br><small style="color:var(--text2)">'+esc(r.codigo_verificacao)+'</small>':''}`:r.lembrete_nota_fiscal?'<span style="color:var(--warn);font-size:12px">⚠ Pendente</span>':'—'}</td>
@@ -2278,7 +2279,7 @@ function renderReceber(){
         <button class="btn btn-outline btn-sm" onclick="editReceber(${r.id})">✎</button>
         <button class="btn btn-danger btn-sm" onclick="delReceber(${r.id})">✕</button>
       </td>
-    </tr>`).join(''):'<tr><td colspan="7" class="empty">Nenhum registro encontrado</td></tr>';
+    </tr>`).join(''):'<tr><td colspan="8" class="empty">Nenhum registro encontrado</td></tr>';
 }
 
 function openModalReceber(item=null){

@@ -501,6 +501,7 @@ body.capturing .rel-acao{display:none!important}
       <button class="sn-btn" id="sn-extrato" onclick="nav('extrato')"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>Extratos &amp; Conciliação</button>
       <button class="sn-btn" id="sn-dre" onclick="nav('dre')"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 16l4-6 3 4 4-7"/></svg>DRE</button>
       <button class="sn-btn" id="sn-cofre" onclick="nav('cofre')"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>Cofre</button>
+      <button class="sn-btn" onclick="abrirCalculadora()"><svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="8" y2="11.01"/><line x1="12" y1="11" x2="12" y2="11.01"/><line x1="16" y1="11" x2="16" y2="11.01"/><line x1="8" y1="15" x2="8" y2="15.01"/><line x1="12" y1="15" x2="12" y2="15.01"/><line x1="16" y1="15" x2="16" y2="15.01"/><line x1="8" y1="19" x2="8" y2="19.01"/><line x1="12" y1="19" x2="12" y2="19.01"/></svg>Calculadora</button>
 
       <div class="sn-footer">
         <div class="sn-user">
@@ -1546,6 +1547,35 @@ body.capturing .rel-acao{display:none!important}
 </div>
 
 <!-- MODAL: COFRE ENTRADA/SAÍDA -->
+<div class="modal-bg" id="modal-calc">
+  <div class="modal" style="max-width:300px">
+    <div class="modal-hd"><h3>Calculadora</h3><button onclick="closeModal('modal-calc')">×</button></div>
+    <div class="modal-bd">
+      <input id="calc-visor" readonly style="width:100%;box-sizing:border-box;height:48px;font-size:24px;text-align:right;padding:0 10px;margin-bottom:10px;border:1px solid var(--border);border-radius:6px;background:var(--gray)" value="0">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+        <button class="btn btn-outline" onclick="calcClear()">C</button>
+        <button class="btn btn-outline" onclick="calcBack()">⌫</button>
+        <button class="btn btn-outline" onclick="calcOp('%')">%</button>
+        <button class="btn btn-primary" onclick="calcOp('/')">÷</button>
+        <button class="btn btn-outline" onclick="calcNum('7')">7</button>
+        <button class="btn btn-outline" onclick="calcNum('8')">8</button>
+        <button class="btn btn-outline" onclick="calcNum('9')">9</button>
+        <button class="btn btn-primary" onclick="calcOp('*')">×</button>
+        <button class="btn btn-outline" onclick="calcNum('4')">4</button>
+        <button class="btn btn-outline" onclick="calcNum('5')">5</button>
+        <button class="btn btn-outline" onclick="calcNum('6')">6</button>
+        <button class="btn btn-primary" onclick="calcOp('-')">−</button>
+        <button class="btn btn-outline" onclick="calcNum('1')">1</button>
+        <button class="btn btn-outline" onclick="calcNum('2')">2</button>
+        <button class="btn btn-outline" onclick="calcNum('3')">3</button>
+        <button class="btn btn-primary" onclick="calcOp('+')">+</button>
+        <button class="btn btn-outline" onclick="calcNum('0')" style="grid-column:span 2">0</button>
+        <button class="btn btn-outline" onclick="calcNum('.')">,</button>
+        <button class="btn btn-primary" onclick="calcEquals()">=</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="modal-bg" id="modal-cofre">
   <div class="modal">
     <div class="modal-hd"><h3 id="mcf-title">Registrar Entrada</h3><button onclick="closeModal('modal-cofre')">×</button></div>
@@ -2502,6 +2532,43 @@ async function confirmarEstornoP(){
 
 // ── Utilitários ───────────────────────────────────────────────
 function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+// ── CALCULADORA ─────────────────────────
+let _calcExpr='';
+function abrirCalculadora(){
+  _calcExpr='';
+  document.getElementById('calc-visor').value='0';
+  document.getElementById('modal-calc').classList.add('open');
+}
+function _calcUpdate(){document.getElementById('calc-visor').value=_calcExpr||'0';}
+function calcClear(){_calcExpr='';_calcUpdate();}
+function calcBack(){_calcExpr=_calcExpr.slice(0,-1);_calcUpdate();}
+function calcNum(n){
+  if(n==='.'){
+    const partes=_calcExpr.split(/[-+*/%]/);
+    if(partes[partes.length-1].includes('.'))return;
+  }
+  _calcExpr+=n;_calcUpdate();
+}
+function calcOp(op){
+  if(!_calcExpr){if(op!=='-')return;}
+  const ultimo=_calcExpr.slice(-1);
+  if(['+','-','*','/','%'].includes(ultimo))_calcExpr=_calcExpr.slice(0,-1);
+  _calcExpr+=op;_calcUpdate();
+}
+function calcEquals(){
+  if(!_calcExpr)return;
+  try{
+    if(!/^[0-9.+\-*/%]+$/.test(_calcExpr))throw new Error('inválido');
+    const resultado=Function('"use strict";return('+_calcExpr+')')();
+    if(!isFinite(resultado))throw new Error('inválido');
+    _calcExpr=String(Math.round(resultado*100)/100);
+    _calcUpdate();
+  }catch(e){
+    document.getElementById('calc-visor').value='Erro';
+    _calcExpr='';
+  }
+}
 function toggleRecorrente(pfx){
   const checked=document.getElementById(pfx+'-rec').checked;
   document.getElementById(pfx+'-fim-row').style.display=checked?'block':'none';
@@ -5615,7 +5682,7 @@ try{
         <div style="font-size:12px;color:#6B7B83;margin-top:3px">Competência: ${fmtComp(r.competencia)}${r.nr_controle?' · Controle '+esc(r.nr_controle):''}</div>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:22px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:22px">
       <div style="background:#EAF2F6;border-radius:6px;padding:11px 16px">
         <div style="font-size:10px;font-weight:600;color:#6B7B83;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Sócio</div>
         <div style="font-size:15px;font-weight:700;color:#1F3A42">${esc(r.socio_nome)}</div>
@@ -5627,6 +5694,10 @@ try{
       <div style="background:#EAF2F6;border-radius:6px;padding:11px 16px">
         <div style="font-size:10px;font-weight:600;color:#6B7B83;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">${statusLabel}</div>
         <div style="font-size:15px;font-weight:700;color:#16A34A">${esc(statusVal)}</div>
+      </div>
+      <div style="background:#EAF2F6;border-radius:6px;padding:11px 16px">
+        <div style="font-size:10px;font-weight:600;color:#6B7B83;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Conta de Pagamento</div>
+        <div style="font-size:15px;font-weight:700;color:#1F3A42">${esc(r.conta_pagamento||r.forma_pagamento||'—')}</div>
       </div>
     </div>
     <div style="margin-bottom:18px">
@@ -5672,7 +5743,7 @@ function downloadPDFProLabore(){
   doc.setTextColor(255,255,255);doc.setFontSize(16);doc.setFont('helvetica','bold');
   doc.text('Recibo de Pró-Labore — Diagnóstika Engenharia',14,12);
   doc.setFontSize(11);doc.setFont('helvetica','normal');
-  doc.text(`Sócio: ${r.socio_nome} | Competência: ${fmtComp(r.competencia)}`,14,20);
+  doc.text(`Sócio: ${r.socio_nome} | Competência: ${fmtComp(r.competencia)} | Conta: ${r.conta_pagamento||r.forma_pagamento||'—'}`,14,20);
   doc.setTextColor(30,30,30);doc.setFontSize(11);doc.setFont('helvetica','bold');
   doc.text('Detalhamento',14,38);
   let y=44;
@@ -5960,13 +6031,18 @@ async function confirmarPagamentoPL(){
   const dt=hoje();
   const forma=document.getElementById('mpl-forma').value||'Espécie';
 
-  // Atualizar status
-  const{error}=await sb.from('fin_pro_labore').update({status:'Pago',data_pagamento:dt,forma_pagamento:forma}).eq('id',id);
-  if(error){toast('Erro ao pagar: '+error.message,true);return;}
-
   // Buscar dados do PL para descrição
   const{data:pl}=await sb.from('fin_pro_labore').select('socio_nome,socio_id,competencia').eq('id',id).single();
   const descPL=`Pró labore ${pl.socio_nome} ref ${pl.competencia}`;
+
+  const contaResumo=alocacoes.map(a=>{
+    const nome=a.conta==='cofre'?'Cofre (Espécie)':document.querySelector(`.mpl-conta-chk[data-conta="${a.conta}"]`)?.closest('.mpl-conta-card')?.querySelector('div div')?.textContent?.trim()||'Banco';
+    return alocacoes.length>1?`${nome}: ${fmt(a.valor)}`:nome;
+  }).join(' + ');
+
+  // Atualizar status
+  const{error}=await sb.from('fin_pro_labore').update({status:'Pago',data_pagamento:dt,forma_pagamento:forma,conta_pagamento:contaResumo}).eq('id',id);
+  if(error){toast('Erro ao pagar: '+error.message,true);return;}
 
   // Debitar de cada conta selecionada
   for(const a of alocacoes){
@@ -6050,7 +6126,8 @@ function verDetalhePL(id){
     <div><span style="font-size:11px;color:var(--text2);font-weight:600">STATUS</span><div style="margin-top:4px">${r.status}</div></div>
     <div><span style="font-size:11px;color:var(--text2);font-weight:600">FORMA</span><div style="margin-top:4px">${r.forma_pagamento||'—'}</div></div>
     <div><span style="font-size:11px;color:var(--text2);font-weight:600">DATA PAGAMENTO</span><div style="margin-top:4px">${r.data_pagamento?formatData(r.data_pagamento):'—'}</div></div>
-    <div><span style="font-size:11px;color:var(--text2);font-weight:600">OBSERVAÇÃO</span><div style="margin-top:4px">${esc(r.observacao||'—')}</div></div>
+    <div><span style="font-size:11px;color:var(--text2);font-weight:600">CONTA DE PAGAMENTO</span><div style="margin-top:4px">${esc(r.conta_pagamento||'—')}</div></div>
+    <div style="grid-column:1/-1"><span style="font-size:11px;color:var(--text2);font-weight:600">OBSERVAÇÃO</span><div style="margin-top:4px">${esc(r.observacao||'—')}</div></div>
   </div>`;
 
   html+=`<table class="tbl" style="margin-bottom:12px"><thead><tr><th>Tipo</th><th>Descrição</th><th>Data</th><th style="text-align:right">Valor</th></tr></thead><tbody>`;

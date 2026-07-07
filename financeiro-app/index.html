@@ -140,9 +140,17 @@ table.tbl{width:100%;border-collapse:collapse}
 /* ── MODAL ── */
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:900;align-items:center;justify-content:center}
 #modal-calc{background:transparent;pointer-events:none}
-#modal-calc #calc-window{pointer-events:auto;position:fixed;top:120px;left:calc(50vw - 150px);width:300px;resize:both;overflow:auto;min-width:260px;min-height:340px;max-width:96vw;max-height:90vh}
+#modal-calc #calc-window{pointer-events:auto;position:fixed;top:120px;left:calc(50vw - 150px);width:300px;height:420px;overflow:hidden;min-width:260px;min-height:340px;max-width:96vw;max-height:90vh}
 #modal-calc #calc-hd{cursor:move;user-select:none}
 #modal-calc.calc-max #calc-window{width:520px!important;height:640px!important;top:60px!important;left:calc(50vw - 260px)!important}
+.calc-rz{position:absolute;z-index:20}
+.calc-rz-n,.calc-rz-s{left:6px;right:6px;height:6px}
+.calc-rz-n{top:0;cursor:ns-resize} .calc-rz-s{bottom:0;cursor:ns-resize}
+.calc-rz-e,.calc-rz-w{top:6px;bottom:6px;width:6px}
+.calc-rz-e{right:0;cursor:ew-resize} .calc-rz-w{left:0;cursor:ew-resize}
+.calc-rz-ne,.calc-rz-nw,.calc-rz-se,.calc-rz-sw{width:10px;height:10px}
+.calc-rz-ne{top:0;right:0;cursor:nesw-resize} .calc-rz-nw{top:0;left:0;cursor:nwse-resize}
+.calc-rz-se{bottom:0;right:0;cursor:nwse-resize} .calc-rz-sw{bottom:0;left:0;cursor:nesw-resize}
 .modal-bg.open{display:flex}
 body.capturing .rel-acao{display:none!important}
 .modal{background:var(--white);border-radius:14px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.22)}
@@ -1584,6 +1592,14 @@ body.capturing .rel-acao{display:none!important}
         <button class="btn btn-primary" onclick="calcEquals()">=</button>
       </div>
     </div>
+    <div class="calc-rz calc-rz-n" onmousedown="_calcResizeStart(event,'n')"></div>
+    <div class="calc-rz calc-rz-s" onmousedown="_calcResizeStart(event,'s')"></div>
+    <div class="calc-rz calc-rz-e" onmousedown="_calcResizeStart(event,'e')"></div>
+    <div class="calc-rz calc-rz-w" onmousedown="_calcResizeStart(event,'w')"></div>
+    <div class="calc-rz calc-rz-ne" onmousedown="_calcResizeStart(event,'ne')"></div>
+    <div class="calc-rz calc-rz-nw" onmousedown="_calcResizeStart(event,'nw')"></div>
+    <div class="calc-rz calc-rz-se" onmousedown="_calcResizeStart(event,'se')"></div>
+    <div class="calc-rz calc-rz-sw" onmousedown="_calcResizeStart(event,'sw')"></div>
   </div>
 </div>
 <div class="modal-bg" id="modal-cofre">
@@ -2573,6 +2589,47 @@ function _calcDragEnd(){
 function _calcToggleMax(){
   document.getElementById('modal-calc').classList.toggle('calc-max');
 }
+let _calcRz=null;
+function _calcResizeStart(e,dir){
+  e.stopPropagation();e.preventDefault();
+  const win=document.getElementById('calc-window');
+  const rect=win.getBoundingClientRect();
+  _calcRz={dir,x:e.clientX,y:e.clientY,w:rect.width,h:rect.height,l:rect.left,t:rect.top};
+  document.addEventListener('mousemove',_calcResizeMove);
+  document.addEventListener('mouseup',_calcResizeEnd);
+}
+function _calcResizeMove(e){
+  if(!_calcRz)return;
+  const win=document.getElementById('calc-window');
+  const {dir,x,y,w,h,l,t}=_calcRz;
+  const dx=e.clientX-x, dy=e.clientY-y;
+  const minW=260,minH=340;
+  if(dir.includes('e')){ win.style.width=Math.max(minW,w+dx)+'px'; }
+  if(dir.includes('s')){ win.style.height=Math.max(minH,h+dy)+'px'; }
+  if(dir.includes('w')){
+    const nw=Math.max(minW,w-dx);
+    win.style.width=nw+'px'; win.style.left=(l+(w-nw))+'px';
+  }
+  if(dir.includes('n')){
+    const nh=Math.max(minH,h-dy);
+    win.style.height=nh+'px'; win.style.top=(t+(h-nh))+'px';
+  }
+}
+function _calcResizeEnd(){
+  _calcRz=null;
+  document.removeEventListener('mousemove',_calcResizeMove);
+  document.removeEventListener('mouseup',_calcResizeEnd);
+}
+document.addEventListener('keydown',e=>{
+  const modal=document.getElementById('modal-calc');
+  if(!modal||!modal.classList.contains('open'))return;
+  if(/^[0-9]$/.test(e.key)){calcNum(e.key);e.preventDefault();}
+  else if(e.key==='.'||e.key===','){calcNum('.');e.preventDefault();}
+  else if(['+','-','*','/','%'].includes(e.key)){calcOp(e.key);e.preventDefault();}
+  else if(e.key==='Enter'||e.key==='='){calcEquals();e.preventDefault();}
+  else if(e.key==='Backspace'){calcBack();e.preventDefault();}
+  else if(e.key==='Escape'){closeModal('modal-calc');e.preventDefault();}
+});
 function _calcUpdate(){document.getElementById('calc-visor').value=_calcExpr||'0';}
 function calcClear(){_calcExpr='';_calcUpdate();}
 function calcBack(){_calcExpr=_calcExpr.slice(0,-1);_calcUpdate();}

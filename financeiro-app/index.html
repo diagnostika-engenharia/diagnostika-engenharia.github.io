@@ -5163,7 +5163,10 @@ async function excluirTransacaoBancaria(id){
   if(e1||!t){toast('Erro ao localizar transação',true);return;}
   const desc=t.historico||t.descricao||'';
   const valorFmt=(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2});
-  if(!confirm(`Excluir esta transação bancária?\n\n${desc}\n${t.tipo==='credito'||t.tipo==='C'?'Crédito':'Débito'} R$ ${valorFmt}\n\nO saldo da conta será estornado (devolvido/removido) automaticamente.`)) return;
+  const vinculo=t.conta_receber_id?'\n\n⚠ Vinculada a uma Conta a Receber — ela voltará para "Pendente".':t.conta_pagar_id?'\n\n⚠ Vinculada a uma Conta a Pagar — ela voltará para "Pendente".':'';
+  if(!confirm(`Excluir esta transação bancária?\n\n${desc}\n${t.tipo==='credito'||t.tipo==='C'?'Crédito':'Débito'} R$ ${valorFmt}\n\nO saldo da conta será estornado (devolvido/removido) automaticamente.${vinculo}`)) return;
+  if(t.conta_receber_id){ await sb.from('fin_contas_receber').update({status:'Pendente',data_recebimento:null,forma_pagamento:null}).eq('id',t.conta_receber_id); }
+  if(t.conta_pagar_id){ await sb.from('fin_contas_pagar').update({status:'Pendente',data_pagamento:null}).eq('id',t.conta_pagar_id); }
   const {error:e2}=await sb.from('fin_transacoes_bancarias').delete().eq('id',id);
   if(e2){toast('Erro ao excluir: '+e2.message,true);return;}
   if(t.conta_bancaria_id){

@@ -796,6 +796,12 @@ body.capturing .rel-acao{display:none!important}
           <option value="">— carregando —</option>
         </select>
       </div>
+      <div class="func-col">
+        <label>Agenda (Google)</label>
+        <select id="rem-calendar" onchange="_remCalendarId=this.value">
+          <option value="primary">— conecte o Google —</option>
+        </select>
+      </div>
       <div class="mes-grid-col">
         <div class="mes-grid-label">Mês</div>
         <div class="mes-grid" id="mes-grid">
@@ -2737,6 +2743,8 @@ const EXCLUDE_RE=/reuni[aã]o|enviar|liberar|ligar|e-?mail|whatsapp|mensagem|lem
 
 let _remVisitas=[];       // visitas do mês atual
 let _remGoogleToken=null; // access token Google
+let _remCalendarId='primary'; // agenda Google de onde importar as visitas
+let _remCalendars=[];     // lista de agendas disponíveis na conta conectada
 let _remAprendizado=[];   // cache fin_cidade_aprendizado
 let _relatorio=null;      // relatório gerado
 let _relatorioDig=null;   // relatório digital gerado
@@ -2841,6 +2849,36 @@ function aplicarAgrupamento(visitas){
   }
 }
 
+// ─── Listar agendas da conta conectada ───────────────────────
+// As visitas ficam numa agenda separada ("Diagnóstika 2026"), não na primary.
+// Busca a lista de agendas e seleciona automaticamente a que casa com "Diagnóstika" + ano.
+async function carregarCalendarios(){
+  if(!_remGoogleToken)return false;
+  try{
+    const r=await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250',{headers:{Authorization:'Bearer '+_remGoogleToken}});
+    if(r.status===401){
+      localStorage.removeItem('gcal_token');_remGoogleToken=null;
+      atualizarStatusGcal(false);toast('Token expirado. Reconecte o Google Calendar.',true);return false;
+    }
+    const j=await r.json();
+    _remCalendars=(j.items||[]).map(c=>({id:c.id,nome:c.summaryOverride||c.summary||c.id}));
+  }catch(e){_remCalendars=[];}
+  const sel=document.getElementById('rem-calendar');
+  const ano=String(_remAnoN||'');
+  // Prioridade: "Diagnóstika"+ano → "Diagnóstika" qualquer → primary
+  const best=_remCalendars.find(c=>/diagn[oó]stika/i.test(c.nome)&&c.nome.includes(ano))
+          || _remCalendars.find(c=>/diagn[oó]stika/i.test(c.nome))
+          || null;
+  _remCalendarId=best?best.id:'primary';
+  if(sel){
+    sel.innerHTML=_remCalendars.length
+      ? _remCalendars.map(c=>`<option value="${esc(c.id)}">${esc(c.nome)}</option>`).join('')
+      : '<option value="primary">Agenda principal</option>';
+    sel.value=_remCalendarId;
+  }
+  return true;
+}
+
 // ─── Importar do Google Calendar ─────────────────────────────
 async function importarCalendario(){
   if(!_remGoogleToken){
@@ -2848,6 +2886,8 @@ async function importarCalendario(){
   }
   const mes=getMesISO();
   if(!mes){toast('Selecione um mês.',true);return;}
+  // Garante que a agenda correta ("Diagnóstika <ano>") esteja resolvida
+  if(!_remCalendars.length) await carregarCalendarios();
   document.getElementById('rem-loading').style.display='inline';
   document.getElementById('btn-gerar-rel').style.display='none';
   document.getElementById('card-relatorio-gerado').style.display='none';
@@ -2861,7 +2901,8 @@ async function importarCalendario(){
   const{data:aprendizado}=await sb.from('fin_cidade_aprendizado').select('*').eq('user_id',(await sb.auth.getUser()).data.user.id);
   _remAprendizado=aprendizado||[];
 
-  const url=`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(tMin)}&timeMax=${encodeURIComponent(tMax)}&singleEvents=true&orderBy=startTime&maxResults=500`;
+  const calId=_remCalendarId||'primary';
+  const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?timeMin=${encodeURIComponent(tMin)}&timeMax=${encodeURIComponent(tMax)}&singleEvents=true&orderBy=startTime&maxResults=500`;
   let resp;
   try{
     const r=await fetch(url,{headers:{Authorization:'Bearer '+_remGoogleToken}});
@@ -2910,6 +2951,16 @@ async function importarCalendario(){
   renderTabelaVisitas();
   atualizarKPIsRem();
   await carregarHistoricoRem();
+
+  // Feedback claro quando não veio nada (ajuda a distinguir agenda errada x mês vazio x filtro)
+  const nomeAgenda=(_remCalendars.find(c=>c.id===calId)||{}).nome||'agenda selecionada';
+  if(!events.length){
+    toast(`Nenhum evento em ${mes} na agenda "${nomeAgenda}". Confira se a agenda e o mês estão certos.`,true);
+  }else if(!_remVisitas.length){
+    toast(`${events.length} evento(s) lido(s), mas nenhum reconhecido como visita. Verifique o texto dos eventos.`,true);
+  }else{
+    toast(`${_remVisitas.length} visita(s) importada(s) de "${nomeAgenda}".`);
+  }
 }
 
 // ─── Render tabela de visitas ─────────────────────────────────
@@ -3061,6 +3112,12 @@ function adicionarVisitaManual(){
 async function gerarRelatorio(){
   const mes=getMesISO();
   if(!mes){toast('Selecione o mês',true);return;}
+  // Sem visitas importadas → orienta em vez de gerar relatório vazio ("Sem dados para este mês")
+  if(!_remVisitas.length){
+    if(!_remGoogleToken)toast('Conecte o Google Agenda e importe as visitas antes de gerar o relatório.',true);
+    else toast('Importe as visitas do mês primeiro (botão "✓ Calendar").',true);
+    return;
+  }
   const visitasFin=_remVisitas.filter(v=>v.cidade!=='PENDENTE_CIDADE');
   const total=visitasFin.reduce((s,v)=>s+(v.valorFinal||0),0);
 
@@ -3959,6 +4016,8 @@ function remTab(tab){
 async function loadReembolsos(){
   const tokOk=carregarTokenGoogle();
   atualizarStatusGcal(tokOk);
+  // Se já conectado, pré-carrega a lista de agendas e resolve "Diagnóstika <ano>"
+  if(tokOk) carregarCalendarios();
 
   // Popular dropdown de ano
   const anoSel=document.getElementById('rem-ano');
@@ -6615,7 +6674,7 @@ async function gerarPLMes(compDefault,socioIdFiltro){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260703-093436';
+const APP_BUILD='20260708-001109';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();

@@ -182,6 +182,17 @@
 </style>
 </head>
 <body>
+<!-- P1.2: gate de login LGPD app-wide (CONGELADO — controlado pelo flag APP_WIDE_LOGIN em sombraAuthInit; oculto por padrão). A aba Robô tem login próprio. -->
+<div id="sombraLogin" style="position:fixed;inset:0;z-index:100000;background:#0d1b1e;display:none;align-items:center;justify-content:center;padding:20px">
+  <div style="width:100%;max-width:360px;background:#14282c;border:1px solid #1f3a3f;border-radius:16px;padding:28px 24px;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+    <h2 style="margin:0 0 4px;color:#00B4AC;font-size:19px">Assistente Sombra</h2>
+    <p style="margin:0 0 18px;color:#8fa7ab;font-size:12.5px">Acesso restrito à equipe Diagnóstika</p>
+    <input id="slEmail" type="email" placeholder="E-mail" autocomplete="username" style="width:100%;box-sizing:border-box;padding:11px;margin-bottom:10px;border-radius:9px;border:1px solid #2a4a4f;background:#0d1b1e;color:#eaf3f4;font-size:14px">
+    <input id="slPass" type="password" placeholder="Senha" autocomplete="current-password" style="width:100%;box-sizing:border-box;padding:11px;margin-bottom:14px;border-radius:9px;border:1px solid #2a4a4f;background:#0d1b1e;color:#eaf3f4;font-size:14px">
+    <button id="slBtn" style="width:100%;padding:12px;border:0;border-radius:9px;background:#00B4AC;color:#00201e;font-weight:800;font-size:14px;cursor:pointer">Entrar</button>
+    <div id="slErr" style="color:#ff8a8a;font-size:12px;margin-top:10px;min-height:16px"></div>
+  </div>
+</div>
 <div class="modal-bg" id="modalBg" onclick="if(event.target===this)fecharConversa()">
   <div class="modal-box" id="modalBox">
     <div class="modal-head">
@@ -208,6 +219,7 @@
       <button class="tab on" id="tab-inbox" onclick="setTab('inbox')">💬 Conversas <b id="ibcount"></b></button>
       <button class="tab" id="tab-aprov" onclick="setTab('aprov')">📋 Painel <b id="apcount"></b></button>
       <button class="tab" id="tab-docs" onclick="setTab('docs')">📁 Documentos</button>
+      <button class="tab" id="tab-robo" onclick="setTab('robo')">🤖 Robô</button>
     </div>
   </div>
 </header>
@@ -439,6 +451,69 @@
     <div class="docs-grid" id="docGrid"><div class="docs-loading">Carregando...</div></div>
   </div>
 </div>
+<!-- ========== ROBÔ DE ART (Sombra) ========== -->
+<style>
+  #view-robo h2{margin:0 0 4px;font-size:18px}
+  #view-robo .ra-sub{color:var(--mut);font-size:13px;margin:0 0 14px}
+  #view-robo .ra-note{background:rgba(58,208,122,.08);border:1px solid rgba(58,208,122,.30);color:#bfe6cf;border-radius:10px;padding:10px 14px;font-size:12.5px;margin-bottom:14px}
+  [data-theme="light"] #view-robo .ra-note{color:#1f7d4a}
+  #view-robo .ra-login{max-width:360px;margin:26px auto;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px 22px}
+  #view-robo .ra-login input{width:100%;box-sizing:border-box;padding:11px;margin-bottom:10px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--txt);font-size:14px}
+  #view-robo .ra-login button{width:100%;padding:12px;border:0;border-radius:9px;background:var(--turq);color:#00201e;font-weight:800;font-size:14px;cursor:pointer}
+  #view-robo .ra-login button:disabled{opacity:.6;cursor:wait}
+  #view-robo .ra-err{color:var(--err);font-size:12px;margin-top:8px;min-height:15px}
+  #view-robo .ra-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}
+  #view-robo .ra-kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 12px;text-align:center}
+  #view-robo .ra-kpi .n{font-size:26px;font-weight:800;color:var(--turq);line-height:1}
+  #view-robo .ra-kpi .l{font-size:11px;color:var(--mut);margin-top:5px;text-transform:uppercase;letter-spacing:.4px}
+  #view-robo .ra-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-size:12px;color:var(--mut);flex-wrap:wrap;gap:6px}
+  #view-robo .ra-list{display:flex;flex-direction:column;gap:12px}
+  #view-robo .ra-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  #view-robo .ra-card.esc{border-color:var(--warn)}
+  #view-robo .ra-top{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+  #view-robo .ra-tel{font-weight:700;font-size:14px;color:var(--txt)}
+  #view-robo .ra-time{font-size:11.5px;color:var(--mut);margin-left:auto}
+  #view-robo .ra-badge{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.3px}
+  #view-robo .ra-b-sim{background:rgba(58,208,122,.15);color:var(--ok)}
+  #view-robo .ra-b-esc{background:rgba(240,188,82,.18);color:var(--warn)}
+  #view-robo .ra-b-resp{background:rgba(0,180,172,.15);color:var(--turq)}
+  #view-robo .ra-row{display:flex;gap:8px;font-size:13px;margin:6px 0}
+  #view-robo .ra-row .k{color:var(--mut);min-width:82px;font-size:11px;text-transform:uppercase;letter-spacing:.3px;padding-top:2px}
+  #view-robo .ra-row .v{color:var(--txt);flex:1}
+  #view-robo .ra-row .v b{color:var(--turq)}
+  #view-robo .ra-resp{background:var(--card2);border-radius:9px;padding:10px 12px;font-size:13.5px;white-space:pre-wrap;color:var(--txt);margin-top:4px}
+  #view-robo .ra-empty{text-align:center;color:var(--mut);padding:50px 20px;font-size:14px}
+  #view-robo .ra-empty .big{font-size:40px;margin-bottom:12px}
+  #view-robo .ra-loading{text-align:center;color:var(--mut);padding:30px}
+  #view-robo .ra-out{font-size:11.5px;color:var(--mut);background:none;border:1px solid var(--line);border-radius:7px;padding:4px 10px;cursor:pointer}
+  @media(max-width:560px){ #view-robo .ra-kpis{gap:8px} #view-robo .ra-kpi .n{font-size:22px} }
+</style>
+<div class="wrap hide" id="view-robo">
+  <h2>🤖 Robô de ART — Sombra</h2>
+  <p class="ra-sub">O que o robô responderia no WhatsApp 1:1 — sem enviar nada ao cliente.</p>
+
+  <!-- gate de login SÓ desta aba -->
+  <div class="ra-login" id="raLoginBox" style="display:none">
+    <h2 style="color:var(--turq)">Acesso restrito</h2>
+    <p class="ra-sub">Contém conversas reais de clientes (CPF). Entre com a conta da equipe.</p>
+    <input id="raEmail" type="email" placeholder="E-mail" autocomplete="username">
+    <input id="raPass" type="password" placeholder="Senha" autocomplete="current-password">
+    <button id="raBtn">Entrar</button>
+    <div class="ra-err" id="raErr"></div>
+  </div>
+
+  <!-- conteúdo (após login) -->
+  <div id="raContent" style="display:none">
+    <div class="ra-note">🟢 <b>Modo SOMBRA · nada é enviado ao cliente.</b> Cada linha é o que o robô faria (resposta ou escala p/ equipe). A IA só entende; os textos são fixos.</div>
+    <div class="ra-kpis">
+      <div class="ra-kpi"><div class="n" id="raTotal">–</div><div class="l">Atendimentos</div></div>
+      <div class="ra-kpi"><div class="n" id="raResp">–</div><div class="l">Respostas</div></div>
+      <div class="ra-kpi"><div class="n" id="raEsc">–</div><div class="l">Escalados</div></div>
+    </div>
+    <div class="ra-bar"><div>Atualiza sozinho a cada 30s</div><div style="display:flex;gap:10px;align-items:center"><span id="raUpd"></span><button class="ra-out" id="raOut">Sair</button></div></div>
+    <div class="ra-list" id="raList"><div class="ra-loading">Carregando…</div></div>
+  </div>
+</div>
 <div class="wrap" id="view-inbox">
   <div class="inbox-app" id="ibApp">
     <!-- coluna 1: lista -->
@@ -473,7 +548,11 @@
 // ====== Supabase: captura ao vivo do WhatsApp via Evolution ======
 const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpbW1qZ2R3aGlmc3JyYnJlY2hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzU2NDIsImV4cCI6MjA5NTE1MTY0Mn0.eAmMS95M8BkfX3NCcOtHnhKWXy0jkvXwSGEoqv_Q21Q';
-const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON,{auth:{persistSession:false}}) : null;
+const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON,{auth:{persistSession:true,autoRefreshToken:true}}) : null;
+window.sb = sb; // exposto p/ a aba Robô (guards) e debug
+// P1.2: token do usuário logado (RLS) — cai no anon só antes do login
+let _session = null;
+function sbToken(){ return (_session && _session.access_token) ? _session.access_token : SUPABASE_ANON; }
 
 const CONDS_COM_TEMPLATE=['Monte Carlo','Morada Morumbi','Santa Clara','Portal Primavera'];
 const LIVE = {}; // tel -> {msgs:[], loaded:bool, channel:obj}
@@ -482,7 +561,7 @@ let LIVE_OK = null; // null=desconhecido, true=tabela existe, false=ainda não c
 async function probeLive(){
   if(!sb){ LIVE_OK=false; return false; }
   try{
-    const r=await fetch(SUPABASE_URL+'/rest/v1/mensagens_wa?select=id&limit=1',{headers:{apikey:SUPABASE_ANON,Authorization:'Bearer '+SUPABASE_ANON}});
+    const r=await fetch(SUPABASE_URL+'/rest/v1/mensagens_wa?select=id&limit=1',{headers:{apikey:SUPABASE_ANON,Authorization:'Bearer '+sbToken()}});
     LIVE_OK = r.ok;
   }catch(e){ LIVE_OK=false; }
   return LIVE_OK;
@@ -768,7 +847,7 @@ function gmailHtml(tel){
   const data = GMAIL_CACHE[tel];
   const loading = GMAIL_LOADING[tel];
   const nome = MODAL_NOME||'';
-  const btn = `<button onclick="buscarGmail('${escH(tel)}', ${JSON.stringify(nome).replace(/"/g,'&quot;')})" ${loading?'disabled':''} style="padding:5px 11px;background:#d44638;color:#fff;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">${loading?'Buscando…':(data?'Re-buscar':'📧 Buscar e-mails')}</button>`;
+  const btn = `<button onclick="buscarGmail('${tel}', ${JSON.stringify(nome).replace(/"/g,'&quot;')})" ${loading?'disabled':''} style="padding:5px 11px;background:#d44638;color:#fff;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">${loading?'Buscando…':(data?'Re-buscar':'📧 Buscar e-mails')}</button>`;
   let body = '';
   if(data && data.erro) body = `<div style="color:#f88;margin-top:6px;font-size:11px">Webhook Gmail não configurado: ${data.erro}</div>`;
   else if(Array.isArray(data) && data.length){
@@ -957,7 +1036,7 @@ async function buscarFinanceiro(tel){
     try{
       const [rFin, rNfse]=await Promise.all([
         fetch(N8N_BASE+'/webhook/sombra-financeiro',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cond,nome,termo}),signal:ctrl.signal}),
-        fetch(SUPABASE_URL+'/rest/v1/fin_nfse_emitidas?select=numero_nfse,valor,competencia,descricao,created_at,nome,condominio_id,conta_receber_id&or=('+encodeURIComponent(`nome.ilike.*${termo}*,condominio_id.ilike.*${termo}*`)+')&order=created_at.desc&limit=10',{headers:{apikey:SUPABASE_ANON,Authorization:'Bearer '+SUPABASE_ANON},signal:ctrl.signal}).catch(()=>null)
+        fetch(SUPABASE_URL+'/rest/v1/fin_nfse_emitidas?select=numero_nfse,valor,competencia,descricao,created_at,nome,condominio_id,conta_receber_id&or=('+encodeURIComponent(`nome.ilike.*${termo}*,condominio_id.ilike.*${termo}*`)+')&order=created_at.desc&limit=10',{headers:{apikey:SUPABASE_ANON,Authorization:'Bearer '+sbToken()},signal:ctrl.signal}).catch(()=>null)
       ]);
       const j=await rFin.json();
       const rows=Array.isArray(j.rows)?j.rows:(Array.isArray(j)?j:[]);
@@ -972,7 +1051,7 @@ function finHtml(tel){
   // suporta tanto array (legado) quanto {rows, nfse}
   const data = Array.isArray(raw) ? raw : (raw && Array.isArray(raw.rows) ? raw.rows : raw);
   const nfse = (raw && Array.isArray(raw.nfse)) ? raw.nfse : [];
-  const btn=`<button onclick="buscarFinanceiro('${escH(tel)}')" ${loading?'disabled':''} style="padding:5px 11px;background:#1f7a3d;color:#fff;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">${loading?'Buscando…':(raw?'Re-buscar':'💰 Buscar financeiro')}</button>`;
+  const btn=`<button onclick="buscarFinanceiro('${tel}')" ${loading?'disabled':''} style="padding:5px 11px;background:#1f7a3d;color:#fff;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">${loading?'Buscando…':(raw?'Re-buscar':'💰 Buscar financeiro')}</button>`;
   let body='';
   if(loading) body='<div style="color:var(--mut);margin-top:6px;font-size:11px">Consultando Supabase…</div>';
   else if(data && data.erro) body=`<div style="color:#f88;margin-top:6px;font-size:11px">${data.erro}</div>`;
@@ -1048,7 +1127,7 @@ async function gerarDossie(tel){
 function escH(s){return (s==null?'':(''+s)).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 function dossieHtml(tel){
   const d=DOSSIE_CACHE[tel]; const loading=DOSSIE_LOADING[tel];
-  const btn=`<button onclick="gerarDossie('${escH(tel)}')" ${loading?'disabled':''} style="padding:5px 11px;background:#7a4ec2;color:#fff;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">${loading?'Gerando…':(d?'Re-gerar':'📚 Gerar dossiê')}</button>`;
+  const btn=`<button onclick="gerarDossie('${tel}')" ${loading?'disabled':''} style="padding:5px 11px;background:#7a4ec2;color:#fff;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">${loading?'Gerando…':(d?'Re-gerar':'📚 Gerar dossiê')}</button>`;
   let body='';
   if(loading) body='<div style="color:var(--mut);margin-top:6px;font-size:11px">Consolidando WhatsApp + Gmail e enviando ao GPT-4o (pode levar 30-60s)…</div>';
   else if(d && d.erro) body=`<div style="color:#f88;margin-top:6px;font-size:11px">Erro: ${escH(d.erro||d.raw||'')}</div>`;
@@ -1318,7 +1397,7 @@ function macrosBarHtml(ia){
   return `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;padding:6px;background:#0d1417;border:1px solid var(--line);border-radius:7px">
     <div style="width:100%;font-size:10px;color:var(--mut);margin-bottom:2px">⚡ Macros · <span style="color:var(--lima);font-weight:700">${cat}</span></div>
     ${list.map(m=>`<button onclick="usarMacro(${JSON.stringify(m.t).replace(/"/g,'&quot;')})" title="${m.t.replace(/"/g,'&quot;')}" style="padding:4px 9px;background:rgba(0,180,172,.15);color:var(--turq);border:1px solid rgba(0,180,172,.35);border-radius:6px;font-size:11px;cursor:pointer;font-weight:600">${m.l}</button>`).join('')}
-    ${MODAL_TEL&&CONDS_COM_TEMPLATE.some(c=>c.toLowerCase()===((PEND.find(x=>x.tel===MODAL_TEL)||{}).cond||'').toLowerCase())?`<button onclick="event.stopPropagation();abrirModalAprovacao('${escH(MODAL_TEL)}')" style="padding:4px 9px;background:var(--lima);color:#001;border:1px solid var(--lima);border-radius:6px;font-size:11px;cursor:pointer;font-weight:700">📋 Emitir Aprovação</button>`:''}
+    ${MODAL_TEL&&CONDS_COM_TEMPLATE.some(c=>c.toLowerCase()===((PEND.find(x=>x.tel===MODAL_TEL)||{}).cond||'').toLowerCase())?`<button onclick="event.stopPropagation();abrirModalAprovacao('${MODAL_TEL}')" style="padding:4px 9px;background:var(--lima);color:#001;border:1px solid var(--lima);border-radius:6px;font-size:11px;cursor:pointer;font-weight:700">📋 Emitir Aprovação</button>`:''}
   </div>`;
 }
 function usarMacro(txt){
@@ -1401,7 +1480,7 @@ function renderModal(){
       const isPdf=/\.pdf$/i.test(fname);
       const pcache=PDF_CACHE[m.id]; const ploading=PDF_LOADING[m.id];
       const pdfBtn=isPdf?`<button onclick="extrairPdf(${m.id})" ${ploading?'disabled':''} title="${pcache?'PDF já lido pela IA':'Extrair texto pra IA'}" style="margin-left:4px;padding:3px 9px;background:${pcache?'#0d1417':'var(--turq)'};color:${pcache?'var(--turq)':'#001'};border:${pcache?'1px solid var(--turq)':'0'};border-radius:6px;font-size:11px;cursor:pointer;font-weight:700">${ploading?'⏳ lendo…':(pcache?'✅ IA lê este PDF':'🤖 Ler pra IA')}</button>`:'';
-      txt=`📄 ${escH(fname)} <button onclick="abrirArquivo(${m.id})" ${mloading?'disabled':''} style="margin-left:6px;padding:3px 9px;background:var(--lima);color:#001;border:0;border-radius:6px;font-size:11px;cursor:pointer;font-weight:700">${mloading?'⏳':'📥 Baixar'}</button>${pdfBtn}${pcache?`<div style="margin-top:6px;font-size:10px;color:var(--mut);font-style:italic">📝 ${pcache.texto.length} caracteres extraídos</div>`:''}`;
+      txt=`📄 ${fname} <button onclick="abrirArquivo(${m.id})" ${mloading?'disabled':''} style="margin-left:6px;padding:3px 9px;background:var(--lima);color:#001;border:0;border-radius:6px;font-size:11px;cursor:pointer;font-weight:700">${mloading?'⏳':'📥 Baixar'}</button>${pdfBtn}${pcache?`<div style="margin-top:6px;font-size:10px;color:var(--mut);font-style:italic">📝 ${pcache.texto.length} caracteres extraídos</div>`:''}`;
     } else {
       txt=escH(m.texto||'['+(m.tipo||'mídia')+']');
     }
@@ -1412,11 +1491,11 @@ function renderModal(){
   const iaHtml=`<div style="padding:10px 14px;background:rgba(0,180,172,.06);border-bottom:1px solid var(--line);font-size:12px">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
       <b style="color:var(--turq)">🤖 Análise IA (gpt-4o-mini)</b>
-      <button onclick="analisarIA('${escH(MODAL_TEL)}')" ${IA_LOADING?'disabled':''} style="padding:5px 11px;background:var(--turq);color:#001;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">
+      <button onclick="analisarIA('${MODAL_TEL}')" ${IA_LOADING?'disabled':''} style="padding:5px 11px;background:var(--turq);color:#001;border:0;border-radius:7px;font-size:11px;cursor:pointer;font-weight:700">
         ${IA_LOADING?'Analisando…':(ia?'Reanalisar':'Analisar com IA')}
       </button>
     </div>
-    ${ia?(ia.erro?`<div style="color:#f88;margin-top:6px">Erro: ${escH(ia.erro)}</div>`:`
+    ${ia?(ia.erro?`<div style="color:#f88;margin-top:6px">Erro: ${ia.erro}</div>`:`
       <div style="margin-top:8px;color:#cfdde0"><b>Classificação:</b> <span style="color:var(--lima)">${ia.classificacao}</span> · confiança ${Math.round((ia.confianca||0)*100)}%</div>
       ${ia.sinais&&ia.sinais.length?`<div style="margin-top:4px;color:var(--mut);font-size:11px">Sinais: ${ia.sinais.join(' · ')}</div>`:''}
     `):'<div style="color:var(--mut);margin-top:6px;font-size:11px">Clique para classificar e gerar sugestão de resposta.</div>'}
@@ -1455,7 +1534,7 @@ function renderModal(){
   const chatHtml=`<div style="padding:10px 14px;background:rgba(141,183,42,.05)">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
       <b style="color:var(--lima);font-size:12px">💬 Chat com IA</b>
-      ${chatHist.length?`<button onclick="limparChat('${escH(MODAL_TEL)}')" style="padding:3px 8px;background:transparent;color:var(--mut);border:1px solid var(--line);border-radius:6px;font-size:10px;cursor:pointer">Limpar</button>`:''}
+      ${chatHist.length?`<button onclick="limparChat('${MODAL_TEL}')" style="padding:3px 8px;background:transparent;color:var(--mut);border:1px solid var(--line);border-radius:6px;font-size:10px;cursor:pointer">Limpar</button>`:''}
     </div>
     ${sugBtn}
     ${macrosBarHtml(ia)}
@@ -1463,14 +1542,14 @@ function renderModal(){
     <div style="display:flex;gap:6px;margin-top:6px">
       <input id="chatInput" onkeydown="chatKeydown(event)" placeholder="Pergunte ou clique no 🎤…" ${CHAT_LOADING?'disabled':''} style="flex:1;padding:8px 10px;background:#0d1417;border:1px solid var(--line);border-radius:7px;color:#e5edee;font-size:12px;font-family:inherit">
       <button id="chatMic" onclick="gravarVoz()" ${CHAT_LOADING?'disabled':''} title="Ditar (pt-BR)" style="padding:8px 12px;background:#0d1417;color:#cfdde0;border:1px solid var(--line);border-radius:7px;font-size:14px;cursor:pointer">🎤</button>
-      <button onclick="perguntarChat('${escH(MODAL_TEL)}')" ${CHAT_LOADING?'disabled':''} style="padding:8px 14px;background:var(--lima);color:#001;border:0;border-radius:7px;font-size:12px;cursor:pointer;font-weight:700">${CHAT_LOADING?'…':'Enviar'}</button>
+      <button onclick="perguntarChat('${MODAL_TEL}')" ${CHAT_LOADING?'disabled':''} style="padding:8px 14px;background:var(--lima);color:#001;border:0;border-radius:7px;font-size:12px;cursor:pointer;font-weight:700">${CHAT_LOADING?'…':'Enviar'}</button>
     </div>
   </div>`;
   const prevInp=document.getElementById('chatInput');
   const savedVal=prevInp?prevInp.value:'';
   const focoChat=document.activeElement&&document.activeElement.id==='chatInput';
   const emitAprovBtn=CONDS_COM_TEMPLATE.some(c=>c.toLowerCase()===(p.cond||'').toLowerCase())?`<div style="padding:8px 14px;background:rgba(141,183,42,.08);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px">
-    <button onclick="event.stopPropagation();abrirModalAprovacao('${escH(MODAL_TEL)}')" style="padding:7px 14px;background:var(--lima);color:#001;border:0;border-radius:8px;font-size:12px;cursor:pointer;font-weight:700">📋 Emitir Aprovação</button>
+    <button onclick="event.stopPropagation();abrirModalAprovacao('${MODAL_TEL}')" style="padding:7px 14px;background:var(--lima);color:#001;border:0;border-radius:8px;font-size:12px;cursor:pointer;font-weight:700">📋 Emitir Aprovação</button>
     <span style="font-size:11px;color:var(--mut)">Gera DOCX de Autorização de Reforma com os dados deste atendimento</span>
   </div>`:'';
   body.innerHTML=cabHtml+emitAprovBtn+msgsHtml+iaHtml+crEAnetHtml(p,ia,d.msgs)+dossieHtml(MODAL_TEL)+finHtml(MODAL_TEL)+gmailHtml(MODAL_TEL)+arqHtml+chatHtml;
@@ -1485,7 +1564,7 @@ function renderModal(){
 let RAW = [];
 async function loadTicketsMegazap(){
   try{
-    const r=await fetch(SUPABASE_URL+'/rest/v1/tickets_megazap?select=*&order=started_at.desc&limit=200',{headers:{apikey:SUPABASE_ANON,Authorization:'Bearer '+SUPABASE_ANON}});
+    const r=await fetch(SUPABASE_URL+'/rest/v1/tickets_megazap?select=*&order=started_at.desc&limit=200',{headers:{apikey:SUPABASE_ANON,Authorization:'Bearer '+sbToken()}});
     if(!r.ok) throw new Error(r.status);
     const rows=await r.json();
     RAW=rows.map(r=>({id:String(r.id),startedAt:r.started_at,event:r.evento,contato:r.contato,tel:r.tel,depto:r.departamento,agente:r.agente,protocolo:r.protocolo,fields:r.campos||{}}));
@@ -1577,7 +1656,7 @@ function exportarPendCSV(){
 let DEMANDAS_IA = [];
 async function loadDemandasIA(){
   try{
-    const r = await fetch(SUPABASE_URL+'/rest/v1/demandas_status?select=*&status=neq.resolvida&order=updated_at.desc&limit=200',{headers:{apikey:SUPABASE_ANON,Authorization:'Bearer '+SUPABASE_ANON}});
+    const r = await fetch(SUPABASE_URL+'/rest/v1/demandas_status?select=*&status=neq.resolvida&order=updated_at.desc&limit=200',{headers:{apikey:SUPABASE_ANON,Authorization:'Bearer '+sbToken()}});
     if(!r.ok) return;
     DEMANDAS_IA = await r.json();
     const byTel = {};
@@ -1615,7 +1694,7 @@ async function recarregarLive(btn){
     await Promise.all(RAW.filter(ev=>ev.tel).map(ev=>loadHistorico(ev.tel)));
     try{
       const since = new Date(Date.now()-10*24*60*60*1000).toISOString();
-      const r = await fetch(SUPABASE_URL+'/rest/v1/mensagens_wa?select=tel&recebida_em=gte.'+encodeURIComponent(since)+'&from_me=is.false&limit=500',{headers:{apikey:SUPABASE_ANON,Authorization:'Bearer '+SUPABASE_ANON}});
+      const r = await fetch(SUPABASE_URL+'/rest/v1/mensagens_wa?select=tel&recebida_em=gte.'+encodeURIComponent(since)+'&from_me=is.false&limit=500',{headers:{apikey:SUPABASE_ANON,Authorization:'Bearer '+sbToken()}});
       const arr = await r.json();
       const novos = [...new Set(arr.map(x=>x.tel).filter(Boolean))].filter(tel=>!LIVE[tel]||!LIVE[tel].loaded);
       await Promise.all(novos.map(tel=>loadHistorico(tel)));
@@ -1770,20 +1849,20 @@ function render(){
     const aptoInfo=[p.apto,p.area].filter(Boolean).join(' · ');
     const contatoLimpo=(ev.contato||'').split(' - ')[0].split(',')[0].slice(0,40);
     const vtxt=cur?`<span class="${cur.v}" style="font-weight:600">${cur.v==='ok'?'✅':cur.v==='warn'?'⚠️':'❌'}</span>`:'';
-    const safeContato=escH((ev.contato||'').replace(/'/g,"\\'"));
-    return `<div class="card ${cur?'done':''}" style="cursor:pointer" onclick="abrirConversa('${escH(ev.tel||'')}','${safeContato}')">
+    const safeContato=(ev.contato||'').replace(/'/g,"\\'");
+    return `<div class="card ${cur?'done':''}" style="cursor:pointer" onclick="abrirConversa('${ev.tel||''}','${safeContato}')">
       <div class="c-head">
         <div style="flex:1;min-width:0">
           <div class="c-who" style="display:flex;align-items:center;gap:8px">
-            ${escH(contatoLimpo)||'Contato'} ${vtxt}
+            ${contatoLimpo||'Contato'} ${vtxt}
           </div>
           <div class="c-meta">
-            ${cond?`<b style="color:var(--lima)">${escH(cond)}</b> · `:''}${aptoInfo?escH(aptoInfo)+' · ':''}${fmtData(ev.startedAt)}${ev.protocolo?' · #'+escH(ev.protocolo):''}
+            ${cond?`<b style="color:var(--lima)">${cond}</b> · `:''}${aptoInfo?aptoInfo+' · ':''}${fmtData(ev.startedAt)}${ev.protocolo?' · #'+ev.protocolo:''}
           </div>
         </div>
         <span class="tag ${t}">${t}</span>
       </div>
-      ${ev.tel&&LIVE_OK!==false?`<div class="live-mini" data-live-tel="${ev.tel}" onclick="event.stopPropagation();abrirConversa('${escH(ev.tel)}','${safeContato}')" style="margin-top:10px">
+      ${ev.tel&&LIVE_OK!==false?`<div class="live-mini" data-live-tel="${ev.tel}" onclick="event.stopPropagation();abrirConversa('${ev.tel}','${safeContato}')" style="margin-top:10px">
         <div class="lm-text">Carregando histórico…</div>
         <div class="lm-cta">ver conversa ↗</div>
       </div>`:''}
@@ -2052,7 +2131,7 @@ function renderAprov(){
     const arr=grupos[cond].sort((a,b)=>(a.quem==='diag'?0:1)-(b.quem==='diag'?0:1));
     const nd=arr.filter(p=>p.quem==='diag').length;
     return `<div class="ap-cond">
-      <h3>🏢 ${escH(cond)} <span class="cnt">${arr.length} pendência${arr.length>1?'s':''}${nd?` · ${nd} com a Diagnóstika`:''}</span></h3>
+      <h3>🏢 ${cond} <span class="cnt">${arr.length} pendência${arr.length>1?'s':''}${nd?` · ${nd} com a Diagnóstika`:''}</span></h3>
       <div class="ap-grid">${arr.map(p=>cardAprov(p)).join("")}</div>
     </div>`;
   }).join("");
@@ -2598,11 +2677,14 @@ function setTab(t){
   document.getElementById("view-aprov").classList.toggle("hide",t!=="aprov");
   const vi=document.getElementById("view-inbox"); if(vi) vi.classList.toggle("hide",t!=="inbox");
   const vd=document.getElementById("view-docs"); if(vd) vd.classList.toggle("hide",t!=="docs");
+  const vr=document.getElementById("view-robo"); if(vr) vr.classList.toggle("hide",t!=="robo");
   document.getElementById("tab-aprov").classList.toggle("on",t==="aprov");
   const ti=document.getElementById("tab-inbox"); if(ti) ti.classList.toggle("on",t==="inbox");
   const td=document.getElementById("tab-docs"); if(td) td.classList.toggle("on",t==="docs");
+  const tr=document.getElementById("tab-robo"); if(tr) tr.classList.toggle("on",t==="robo");
   if(t==="inbox") renderInbox();
   if(t==="docs" && !DOCS_LOADED) loadDocs();
+  if(t==="robo" && window.roboEnter) window.roboEnter();
 }
 
 // ========== MÓDULO DOCUMENTOS ==========
@@ -2623,7 +2705,7 @@ async function docListFolder(prefix){
   const path=prefix||'';
   const url=SUPABASE_URL+'/storage/v1/object/list/documentos';
   const body={prefix:path,limit:500,offset:0,sortBy:{column:'name',order:'asc'}};
-  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json',apikey:SUPABASE_ANON,Authorization:'Bearer '+SUPABASE_ANON},body:JSON.stringify(body)});
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json',apikey:SUPABASE_ANON,Authorization:'Bearer '+sbToken()},body:JSON.stringify(body)});
   if(!r.ok) throw new Error('Storage API '+r.status);
   return r.json();
 }
@@ -2716,8 +2798,8 @@ render();
 renderAprov();
 renderInbox();
 
-// boot live capture
-(async()=>{
+// boot live capture (P1.2: só roda após login)
+async function bootLive(){
   await loadTicketsMegazap();
   await probeLive();
   if(LIVE_OK){
@@ -2728,7 +2810,7 @@ renderInbox();
     // descobre tels recentes que não estão em PEND_BASE/RAW (ex: Lorena, novos contatos)
     try{
       const since = new Date(Date.now()-10*24*60*60*1000).toISOString();
-      const r = await fetch(SUPABASE_URL+'/rest/v1/mensagens_wa?select=tel&recebida_em=gte.'+encodeURIComponent(since)+'&from_me=is.false&limit=500',{headers:{apikey:SUPABASE_ANON,Authorization:'Bearer '+SUPABASE_ANON}});
+      const r = await fetch(SUPABASE_URL+'/rest/v1/mensagens_wa?select=tel&recebida_em=gte.'+encodeURIComponent(since)+'&from_me=is.false&limit=500',{headers:{apikey:SUPABASE_ANON,Authorization:'Bearer '+sbToken()}});
       const arr = await r.json();
       const novos = [...new Set(arr.map(x=>x.tel).filter(Boolean))].filter(tel=>!LIVE[tel]||!LIVE[tel].loaded);
       console.log('Auto-descoberta:', novos.length, 'tels novos no Supabase');
@@ -2742,7 +2824,7 @@ renderInbox();
   }else{
     renderAprov(); // mostra aviso de "DDL pendente"
   }
-})();
+}
 
 // ====== Inbox: colunas redimensionáveis + ocultáveis ======
 const IB_LAYOUT_KEY='sombra_inbox_layout';
@@ -2931,6 +3013,113 @@ async function gerarAprovacao(){
     sombraToast('Servidor de documentos offline','err');
   }
 }
+
+// ====== P1.2: gate de autenticação (LGPD — dados de moradores) ======
+async function sombraAuthInit(){
+  const ov=document.getElementById('sombraLogin');
+  const err=document.getElementById('slErr'), btn=document.getElementById('slBtn');
+  function reveal(){
+    if(ov) ov.style.display='none';
+    // botão discreto de sair
+    if(!document.getElementById('sombraLogout')){
+      const b=document.createElement('button'); b.id='sombraLogout'; b.textContent='Sair';
+      b.title='Encerrar sessão';
+      b.style.cssText='position:fixed;bottom:8px;left:8px;z-index:9999;font-size:11px;padding:5px 10px;border:1px solid #2a4a4f;border-radius:7px;background:#14282c;color:#8fa7ab;cursor:pointer;opacity:.7';
+      b.onclick=async()=>{ try{await sb.auth.signOut();}catch(e){} location.reload(); };
+      document.body.appendChild(b);
+    }
+  }
+  // LGPD app-wide login CONGELADO. false = app aberto (como na URL pública hoje);
+  // a aba Robô tem login próprio. Vire p/ true p/ exigir login em TODAS as abas.
+  const APP_WIDE_LOGIN=false;
+  if(!sb){ if(!APP_WIDE_LOGIN){ if(ov) ov.style.display='none'; bootLive(); } else if(err){ err.textContent='Supabase indisponível — recarregue a página.'; } return; }
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    if(session){ _session=session; }
+  }catch(e){ /* segue */ }
+  if(!APP_WIDE_LOGIN){ if(ov) ov.style.display='none'; if(_session) reveal(); bootLive(); return; }
+  if(_session){ reveal(); bootLive(); return; }
+  if(ov) ov.style.display='flex';
+  async function doLogin(){
+    if(!err||!btn) return;
+    err.textContent=''; btn.disabled=true; btn.textContent='Entrando...';
+    const email=document.getElementById('slEmail').value.trim();
+    const pass=document.getElementById('slPass').value;
+    const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
+    if(error){ err.textContent='E-mail ou senha inválidos.'; btn.disabled=false; btn.textContent='Entrar'; return; }
+    _session=data.session; reveal(); bootLive();
+  }
+  if(btn) btn.addEventListener('click',doLogin);
+  const passEl=document.getElementById('slPass');
+  if(passEl) passEl.addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
+}
+sombraAuthInit();
+
+// ===== Aba Robô de ART (Sombra) — login próprio + leitura de robo_art_saida =====
+(function(){
+  const $=id=>document.getElementById(id);
+  function raEsc(s){return (s==null?'':(''+s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+  function raTel(t){t=String(t||'');const m=t.match(/^55(\d{2})(\d{4,5})(\d{4})$/);return m?`(${m[1]}) ${m[2]}-${m[3]}`:t;}
+  function raTime(s){if(!s)return'';const d=new Date(s);const p=n=>String(n).padStart(2,'0');return `${p(d.getDate())}/${p(d.getMonth()+1)} ${p(d.getHours())}:${p(d.getMinutes())}`;}
+  function showLogin(){ const l=$('raLoginBox'),c=$('raContent'); if(l)l.style.display='block'; if(c)c.style.display='none'; }
+  function showContent(){ const l=$('raLoginBox'),c=$('raContent'); if(l)l.style.display='none'; if(c)c.style.display='block'; }
+
+  // chamado pelo setTab('robo')
+  window.roboEnter=function(){
+    if(typeof _session!=='undefined' && _session){ showContent(); loadRobo(); }
+    else { showLogin(); }
+  };
+
+  const btn=$('raBtn');
+  if(btn) btn.onclick=async function(){
+    const err=$('raErr'); err.textContent='';
+    if(!window.sb){ err.textContent='Supabase indisponível — recarregue.'; return; }
+    btn.disabled=true; btn.textContent='Entrando…';
+    const email=($('raEmail').value||'').trim(), pass=$('raPass').value||'';
+    const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
+    btn.disabled=false; btn.textContent='Entrar';
+    if(error){ err.textContent='E-mail ou senha incorretos.'; return; }
+    try{ _session=data.session; }catch(e){}
+    showContent(); loadRobo();
+  };
+  const passEl=$('raPass'); if(passEl) passEl.addEventListener('keydown',e=>{ if(e.key==='Enter') btn && btn.click(); });
+  const out=$('raOut'); if(out) out.onclick=async function(){ try{await sb.auth.signOut();}catch(e){} try{_session=null;}catch(e){} showLogin(); };
+
+  async function loadRobo(){
+    const list=$('raList'); if(!list) return;
+    if(!window.sb){ list.innerHTML='<div class="ra-empty"><div class="big">⚠️</div>Supabase indisponível.</div>'; return; }
+    if(!list.dataset.loaded) list.innerHTML='<div class="ra-loading">Carregando…</div>';
+    let data,error;
+    try{ const r=await sb.from('robo_art_saida').select('*').order('criado_em',{ascending:false}).limit(100); data=r.data; error=r.error; }catch(e){ error=e; }
+    if(error){
+      list.innerHTML=`<div class="ra-empty"><div class="big">🔒</div>Sem acesso ao log.<br><br><span style="font-size:12.5px;color:var(--mut)">Entre com a conta da equipe. Se já entrou e mesmo assim aparece isto, falta aplicar a policy de leitura no Supabase.</span></div>`;
+      $('raTotal').textContent='–';$('raResp').textContent='–';$('raEsc').textContent='–';
+      return;
+    }
+    list.dataset.loaded='1';
+    const rows=data||[];
+    const resp=rows.filter(r=>r.tipo==='resposta_cliente').length;
+    const esc_=rows.filter(r=>r.tipo&&r.tipo.indexOf('escala')===0).length;
+    $('raTotal').textContent=rows.length;$('raResp').textContent=resp;$('raEsc').textContent=esc_;
+    $('raUpd').textContent='atualizado '+raTime(new Date().toISOString());
+    if(!rows.length){
+      list.innerHTML=`<div class="ra-empty"><div class="big">👀</div>Nenhum atendimento ainda.<br><br><span style="font-size:12.5px;color:var(--mut)">Mande uma DM de ART para 5519978173686 — em até 1 min aparece aqui.</span></div>`;
+      return;
+    }
+    list.innerHTML=rows.map(r=>{
+      const isEsc=r.tipo&&r.tipo.indexOf('escala')===0;
+      const bTipo=isEsc?'<span class="ra-badge ra-b-esc">Escala p/ equipe</span>':'<span class="ra-badge ra-b-resp">Resposta</span>';
+      const bSim=r.simulado?'<span class="ra-badge ra-b-sim">Sombra</span>':'';
+      const conf=(r.intent||r.confianca!=null)?`<div class="ra-row"><div class="k">Entendeu</div><div class="v">${raEsc(r.intent||'—')}${r.confianca!=null?` · confiança <b>${Math.round(r.confianca*100)}%</b>`:''}</div></div>`:'';
+      const est=(r.estado_de||r.estado_para)?`<div class="ra-row"><div class="k">Estado</div><div class="v">${raEsc(r.estado_de||'—')} → ${raEsc(r.estado_para||'—')}</div></div>`:'';
+      return `<div class="ra-card ${isEsc?'esc':''}"><div class="ra-top"><span class="ra-tel">${raEsc(raTel(r.tel))}</span>${bTipo}${bSim}<span class="ra-time">${raTime(r.criado_em)}</span></div>${conf}${est}<div class="ra-row"><div class="k">Responderia</div><div class="v"></div></div><div class="ra-resp">${raEsc(r.conteudo)}</div></div>`;
+    }).join('');
+  }
+  window._loadRobo=loadRobo;
+
+  // auto-refresh 30s quando a aba Robô está ativa, logado e visível
+  setInterval(()=>{ const v=$('view-robo'); if(v&&!v.classList.contains('hide')&&document.visibilityState==='visible'&&typeof _session!=='undefined'&&_session) loadRobo(); },30000);
+})();
 </script>
 
 <!-- Modal Emitir Aprovação -->

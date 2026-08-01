@@ -1,0 +1,21 @@
+codigo,nome,cidade,bairro,endereco,incorporadora,administradora,unidades,data_entrega,status_entrega,grupo_whatsapp_link,embaixador_nome,embaixador_whatsapp,zelador_nome,zelador_whatsapp,sindico_nome,sindico_whatsapp,meta_ads_ativo,landing_slug,art_emitidas,ultima_art,observacoes
+CPS001,Reserva Anhumas,Campinas,Anhumas,,Rossi,,,,pendente_confirmacao,,,,,,,,nao,reserva-anhumas,0,,PREENCHER pesquisa Habite-se prefeitura
+CPS002,HM Ícaro Cambuí,Campinas,Cambuí,,HM Engenharia,,,,pendente_confirmacao,,,,,,,,nao,hm-icaro-cambui,0,,PREENCHER
+CPS003,Cyrela Iconyc Cambuí,Campinas,Cambuí,,Cyrela,,,,pendente_confirmacao,,,,,,,,nao,cyrela-iconyc,0,,PREENCHER
+CPS004,Vibe Taquaral,Campinas,Taquaral,,Plaenge,,,,pendente_confirmacao,,,,,,,,nao,vibe-taquaral,0,,PREENCHER
+CPS005,Living Grand Nobre,Campinas,Nova Campinas,,Living/Cyrela,,,,pendente_confirmacao,,,,,,,,nao,living-grand-nobre,0,,PREENCHER
+CPS006,Swiss Park Chalezinho,Campinas,Swiss Park,,Rossi,,,,pendente_confirmacao,,,,,,,,nao,swiss-park-chalezinho,0,,PREENCHER
+CPS007,Alphaville Dom Pedro,Campinas,Alphaville,,Alphaville Urbanismo,,,,pendente_confirmacao,,,,,,,,nao,alphaville-dom-pedro,0,,PREENCHER
+CPS008,MRV Parque das Cerejeiras,Campinas,Parque Prado,,MRV,,,,pendente_confirmacao,,,,,,,,nao,mrv-cerejeiras,0,,PREENCHER
+CPS009,Tenda Vista Verde,Campinas,Ouro Verde,,Tenda,,,,pendente_confirmacao,,,,,,,,nao,tenda-vista-verde,0,,PREENCHER
+CPS010,Notre Dame Campinas,Campinas,Guanabara,,Cyrela,,,,pendente_confirmacao,,,,,,,,nao,notre-dame-campinas,0,,PREENCHER
+VLH001,Reserva Vale Verde,Valinhos,Ortizes,,Grupo A. Yoshii,,,,pendente_confirmacao,,,,,,,,nao,reserva-vale-verde-valinhos,0,,PREENCHER
+VLH002,Alphaville Nova Esplanada,Valinhos,Vila Nova,,Alphaville,,,,pendente_confirmacao,,,,,,,,nao,alphaville-nova-esplanada,0,,PREENCHER
+VLH003,Terras de São Bento,Valinhos,Vila Sao Bento,,,,,,,pendente_confirmacao,,,,,,,,nao,terras-sao-bento,0,,PREENCHER
+VDO001,Reserva Vinhedo,Vinhedo,Capela,,,,,,,pendente_confirmacao,,,,,,,,nao,reserva-vinhedo,0,,PREENCHER
+VDO002,Vinhedo Village,Vinhedo,Centro,,,,,,,pendente_confirmacao,,,,,,,,nao,vinhedo-village,0,,PREENCHER
+PLN001,Reserva Paulinia,Paulinia,Nova Paulinia,,,,,,,pendente_confirmacao,,,,,,,,nao,reserva-paulinia,0,,PREENCHER
+IND001,Reserva Indaia,Indaiatuba,Jd Morada do Sol,,,,,,,pendente_confirmacao,,,,,,,,nao,reserva-indaia,0,,PREENCHER
+SUM001,MRV Sumare,Sumare,Nova Veneza,,MRV,,,,pendente_confirmacao,,,,,,,,nao,mrv-sumare,0,,PREENCHER
+HRT001,Reserva Hortolandia,Hortolandia,Remanso Campineiro,,,,,,,pendente_confirmacao,,,,,,,,nao,reserva-hortolandia,0,,PREENCHER
+CPS011,Cyrela Living Nova Aliança,Campinas,Jd Nova Aliança,,Cyrela,,,,pendente_confirmacao,,,,,,,,nao,living-nova-alianca,0,,PREENCHER

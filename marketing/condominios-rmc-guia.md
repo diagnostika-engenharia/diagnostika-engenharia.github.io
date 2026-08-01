@@ -1,61 +1,79 @@
 # Guia de preenchimento — condominios-rmc.csv
 
-## Aviso importante
+## Estado atual
 
-A planilha `condominios-rmc.csv` sai com **20 prédios semente** apenas com nome/cidade/incorporadora conhecidos publicamente e coluna `status_entrega=pendente_confirmacao`. **Todos os campos operacionais precisam ser validados** antes de ligar mídia paga — nomes de empreendimentos e datas de entrega mudam, e alguns podem já ter passado da janela de 90 dias.
+**40 empreendimentos catalogados** com dados curados de fontes públicas (sites das incorporadoras, portais Novo Metro / Campinas na Planta / Seina / Pazim, matérias de imprensa, blogs corporativos). Chegou-se aqui por múltiplas buscas dirigidas — nenhum portal imobiliário grande (ZAP, Viva Real) permitiu scraping direto (Cloudflare 403), então a colheita foi via sumários de busca + páginas oficiais.
 
-Meta: chegar em **150 prédios validados** nos primeiros 15 dias.
+Meta próxima: chegar em **150 prédios validados** antes de ligar mídia paga.
 
-## Fontes de coleta (ordem de prioridade)
+## Colunas da planilha
 
-### 1. Habite-se das prefeituras (fonte oficial, mais precisa)
-- Campinas: portal e-Cidade / SEPLAN → consulta pública de Habite-se emitidos.
-- Valinhos, Vinhedo, Paulínia, Sumaré, Hortolândia, Indaiatuba: mesma consulta na secretaria de urbanismo.
-- Filtrar: uso residencial multifamiliar, área > 3000m², emissão nos últimos 24 meses.
+| Coluna | Descrição |
+|--------|-----------|
+| `codigo` | ID único: CPS=Campinas, VLH=Valinhos, VDO=Vinhedo, PLN=Paulínia, IND=Indaiatuba, SUM=Sumaré, HRT=Hortolândia |
+| `nome, cidade, bairro, endereco` | Identificação |
+| `incorporadora` | Vazio quando não foi possível confirmar |
+| `unidades` | Nº apts. Vazio = falta validar |
+| `data_entrega` | AAAA-MM. Vazio = falta validar |
+| `status` | `confirmado_entregue` \| `em_obras` \| `lancamento` |
+| `perfil` | `vertical` \| `horizontal` \| `misto` |
+| `padrao` | `MCMV` \| `medio` \| `medio_alto` \| `alto` — segmenta abordagem e ticket |
+| `fonte` | De onde veio o dado |
+| `confianca` | `alta` (site oficial + data explícita) \| `media` (portal 3rd party) \| `baixa` (menção sem detalhe) |
+| `prioridade` | `A` = ativar mídia agora (janela + volume) \| `B` = pipeline 30d \| `C` = fora janela ou baixo volume |
+| `landing_slug` | Path para SEO programático |
+| `observacoes` | Tudo mais |
 
-### 2. CBIC / SindusCon-SP
-- Radar de lançamentos e entregas regional.
-- Reporta unidades entregues por município.
+## Filtro operacional (o que vai para mídia paga primeiro)
 
-### 3. ZAP Imóveis / Viva Real / OLX — filtro "Lançamentos"
-- Filtrar por cidade + "pronto para morar" ou "entrega recente".
-- Ler descrição pra pegar data de entrega.
+Ligar canais pagos apenas quando:
 
-### 4. LinkedIn dos gerentes comerciais das incorporadoras
-- MRV, Cyrela, Rossi, Plaenge, HM, Tenda, Living, A.Yoshii — publicam entregas.
+- `status = confirmado_entregue`
+- `data_entrega` entre 3 e 24 meses atrás
+- `confianca = alta` ou `media`
+- `padrao != MCMV` (MCMV converte melhor por indicação de zelador, não por Meta Ads — ticket baixo, comportamento diferente)
 
-### 5. Google Maps + Street View
-- Confirma se o prédio está de pé e habitado (janelas com cortinas, carros, etc).
+**Prioridade A hoje = pilotos:**
+CPS001 Alenza Cambuí · CPS002 Cyrela Haus Nova Campinas · CPS004 Hub Cambuí · CPS005 Una Proença · CPS008 Sirius Patriani · CPS007 Sensia Parque Prado · PLN001 Città Di Módena.
 
-## Prioridade de preenchimento (colunas por ordem)
+## O que ainda falta preencher (gargalos)
 
-1. **codigo, nome, cidade, bairro** — identificação (30s por prédio).
-2. **endereco, unidades, data_entrega** — qualificação (5min por prédio).
-3. **incorporadora, administradora** — abre porta pra abordagem B2B (2min).
-4. **landing_slug** — automático se seguir padrão `nome-bairro` sem espaço, minúsculo, sem acento.
-5. **meta_ads_ativo** — marca `sim` quando anúncio ligado.
-6. **embaixador_nome/whatsapp** — preenchido após recrutamento (ver `embaixador.md`).
-7. **zelador, sindico** — abordagem física; preenchido a partir do dia 30.
-8. **grupo_whatsapp_link** — quase sempre vazio (grupos são privados); serve como flag se o embaixador conseguir adicionar a Diagnostika.
+Praticamente todas as linhas estão sem: `endereco` completo, `unidades`, `data_entrega` exata em alguns casos. Para chegar em 150 prédios validados, ainda precisa:
 
-## Filtros que precisa aplicar antes de ativar
+1. **Habite-se Prefeitura de Campinas** — portal Aprova Fácil (`aprova-facil.campinas.sp.gov.br`) não expõe lista pública, é consulta por protocolo. Solução: solicitar via LAI (Lei de Acesso à Informação) uma lista de Certificados de Conclusão de Obras (CCO) residencial vertical emitidos nos últimos 24 meses. Prazo de resposta: 20 dias úteis.
+2. **Prefeituras da RMC** — mesma abordagem (Valinhos, Vinhedo, Paulínia, Sumaré, Hortolândia, Indaiatuba) via portal e-SIC ou LAI presencial.
+3. **Sindicato da Indústria da Construção (SindusCon-SP Campinas)** — publicam relatório trimestral de entregas. Contato direto: (19) 3255-0011.
+4. **CBIC** — dados agregados por município, útil para dimensionar mercado.
+5. **Pesquisa manual nos sites das outras incorporadoras ativas na RMC** que não caíram no radar: Rossi, Living, Yng, Cury, Direcional, Idea!Zarvos, Tegra, Building, MPD, Alpha Construtora.
 
-Só ligar canal pago em prédio que atende:
-- `data_entrega` entre 3 e 24 meses atrás.
-- `unidades >= 80` (custo/benefício de mídia geo-cercada).
-- `status_entrega=confirmado`.
+## Como manter atualizado
 
-Prédios fora da janela (>24 meses): mantém no CSV, muda status para `saturado`, foco em SEO orgânico apenas.
+- CSV vive no git (source of truth).
+- Duplicar em Google Sheets para edição colaborativa.
+- Reimport semanal do Sheets pro CSV mantém histórico.
+- Cada ART emitida no futuro atualiza `art_emitidas` e `ultima_art` (a serem adicionadas quando plugar CRM).
 
-## Segmentação sugerida para os 150 primeiros
+## Fontes coletadas nesta rodada
 
-- 60 em Campinas (Cambuí, Taquaral, Nova Campinas, Guanabara, Alphaville).
-- 30 em Valinhos + Vinhedo (público de maior ticket).
-- 30 em Paulínia + Sumaré + Hortolândia + Indaiatuba (volume).
-- 30 restantes: reserva/expansão.
+Sites oficiais e portais utilizados na curadoria dos 40 empreendimentos:
+- `pradogoncalves.com.br/lancamento/*`
+- `cyrela.com.br/empreendimentos/*`
+- `construtorapatriani.com.br`
+- `eme.maishm.com.br/imoveis/*`
+- `plaenge.com.br` + `blog.plaenge.com.br`
+- `mrv.com.br/imoveis/sao-paulo/*`
+- `auten.com.br/paulinia`
+- `campinasnaplanta.com.br/imoveis/*`
+- `novometro.com.br/blog`
+- `seinaimoveis.com.br`
+- `pazim.com.br`
+- Reclame Aqui (útil para confirmar atrasos e nomes exatos de empreendimentos com problemas de entrega)
+- Matérias: Correio Popular / RAC, Panorama de Negócios, Gazeta de Pinheiros, ACidade ON
 
-## Update do CSV
+## Alertas para uso operacional
 
-- Fonte da verdade fica no repositório (versão git).
-- Duplicar em Google Sheets pra edição colaborativa da equipe comercial.
-- Reimport semanal do Sheets pro CSV mantém commit history.
+- **HM Engenharia** entregou 2.950 unidades em Campinas desde 2020 — potencial enorme, mas MCMV, ticket baixo, aposta em zelador/porteiro.
+- **Cidade Sete Sóis Dunlop (MRV)** = 5.000 unidades, entrega 2027 — não abordar ainda, mas colocar no radar para 2027-2028.
+- **Cambuí** concentra alto padrão (Cyrela, Plaenge, Prado Gonçalves) — CPL alto mas ticket alto, boa conta.
+- **Nova Campinas** próximo do Cambuí em perfil, boa expansão.
+- **Cores do Poente / Colina do Sol / Portal dos Buritis (MRV)** — vários empreendimentos MCMV no Campo Grande / Parque Prado com grande volume no médio prazo.

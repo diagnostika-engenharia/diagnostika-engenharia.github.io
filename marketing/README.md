@@ -13,10 +13,11 @@ Plano operacional para levar emissão de ART semiautomática direto ao morador d
 ## Estado atual
 
 - Estratégia definida e escrita.
-- 20 prédios semente listados (todos com `status_entrega=pendente_confirmacao` — precisam ser validados no Habite-se).
+- **40 empreendimentos catalogados** com dados curados de fontes públicas (sites das incorporadoras, Novo Metro, Campinas na Planta, Seina, imprensa local). Ver `condominios-rmc-guia.md` para fontes e critério de confiança.
+- 7 prédios com prioridade A prontos para começar mídia paga já (Alenza Cambuí, Cyrela Haus Nova Campinas, Hub Cambuí, Una Proença, Sirius Patriani, Sensia Parque Prado, Città Di Módena).
 - Landing de conversão `/solicitar-art.html` já existe.
-- **Falta:** popular planilha até 150 prédios, recrutar embaixadores, ligar mídia paga.
+- **Falta:** popular planilha até 150 prédios (via LAI nas prefeituras), recrutar embaixadores, ligar mídia paga.
 
 ## Próxima ação (dia 1)
 
-Pegar `condominios-rmc.csv`, seguir o guia, e chegar em 50 prédios validados até fim de semana. É o gargalo — sem prédios validados nada mais roda.
+Pegar os 7 prédios de prioridade A e recrutar o primeiro embaixador em cada — script pronto em `embaixador.md`. Em paralelo, protocolar LAI de CCO residencial vertical nas 6 prefeituras da RMC para desbloquear os próximos 100+ prédios.

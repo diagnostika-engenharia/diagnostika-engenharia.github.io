@@ -14,6 +14,10 @@ Plano operacional para levar emissão de ART semiautomática direto ao morador d
 7. **[scripts/gerar-landings.js](./scripts/gerar-landings.js)** — gerador de landings SEO por prédio.
 8. **[../dashboard-marketing.html](../dashboard-marketing.html)** — dashboard de conversão (login com Supabase, mesma senha do portal).
 
+## Execução dia 1
+- **[setup-supabase.sql](./setup-supabase.sql)** — rodar UMA vez no Supabase antes do deploy (ALTER TABLE + policies + indexes + view auxiliar).
+- **[dia-1-midia-paga.md](./dia-1-midia-paga.md)** — copy Meta Ads + Google Ads pronto para os 7 prédios A + orçamento R$ 220/dia + KPIs esperados.
+
 ## Automação
 - Push no CSV em `main` → GitHub Action `.github/workflows/gerar-landings.yml` regera `condominio/*.html` + `sitemap.xml` e faz commit automático.
 

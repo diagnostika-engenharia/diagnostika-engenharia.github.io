@@ -5,7 +5,8 @@ Plano operacional para levar emissão de ART semiautomática direto ao morador d
 ## Ordem de leitura
 
 1. **[playbook.md](./playbook.md)** — a estratégia inteira em 1 documento. Comece aqui.
-2. **[embaixador.md](./embaixador.md)** — o motor principal: programa Morador Embaixador.
+2. **[embaixador.md](./embaixador.md)** — o motor principal: programa Morador Embaixador (regras + scripts).
+2a. **[prospeccao-embaixadores.md](./prospeccao-embaixadores.md)** — guia operacional pra recrutar (queries prontas por prédio A).
 3. **[criativos.md](./criativos.md)** — copy pronto para Meta, Google, QR, panfleto.
 4. **[condominios-rmc.csv](./condominios-rmc.csv)** — planilha dos prédios alvo (40 curados).
 5. **[condominios-rmc-guia.md](./condominios-rmc-guia.md)** — como completar a planilha até 150 prédios.

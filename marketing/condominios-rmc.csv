@@ -1,12 +1,12 @@
 codigo,nome,cidade,bairro,endereco,incorporadora,unidades,data_entrega,status,perfil,padrao,fonte,confianca,prioridade,landing_slug,observacoes
-CPS001,Alenza Cambuí,Campinas,Cambuí,,Prado Gonçalves,,2024-02,confirmado_entregue,vertical,alto,Prado Gonçalves site,alta,A,alenza-cambui,Aptos 157m2 e duplex 281m2 alto padrão janela ideal fev24
-CPS002,Cyrela Haus Nova Campinas,Campinas,Nova Campinas,Av Norte-Sul,Cyrela,,2025-01,confirmado_entregue,vertical,alto,Cyrela site + Reclame Aqui,alta,A,cyrela-haus-nova-campinas,Aptos 120-145m2 entrega adiada de dez24 pra jan25 5min Cambuí
+CPS001,Alenza Cambuí,Campinas,Cambuí,Rua Dr. Emílio Ribas 314,Prado Gonçalves,,2024-02,confirmado_entregue,vertical,alto,Prado Gonçalves site + Foxter,alta,A,alenza-cambui,Aptos 157m2 e duplex 281m2 alto padrão janela ideal fev24
+CPS002,Cyrela Haus Nova Campinas,Campinas,Nova Campinas,Rua Dr. Antônio Arruda Camargo 225,Cyrela,85,2024-10,confirmado_entregue,vertical,alto,Cyrela site + Provectum,alta,A,cyrela-haus-nova-campinas,Aptos 120-145m2 torre única 85 residências entregue out24 (2025-01 é reforço)
 CPS003,Vitra Cambuí,Campinas,Cambuí,,Plaenge,,2024,confirmado_entregue,vertical,alto,Plaenge blog,alta,A,vitra-cambui,Primeiro empreendimento Plaenge em Campinas
-CPS004,Hub Cambuí,Campinas,Cambuí,,Prado Gonçalves,,2024-05,confirmado_entregue,misto,alto,Prado Gonçalves site,alta,A,hub-cambui,Uso misto residencial+comercial entrega maio24
-CPS005,Una Proença,Campinas,Proença,,Prado Gonçalves,,2024-02,confirmado_entregue,vertical,medio,Prado Gonçalves site,alta,A,una-proenca,Próximo ao centro entrega fev24
+CPS004,Hub Cambuí,Campinas,Cambuí,Rua Coronel Quirino 982,Prado Gonçalves,,2024-05,confirmado_entregue,misto,alto,Prado Gonçalves site + Instagram @hubcambuicampinas,alta,A,hub-cambui,Uso misto residencial+comercial entrega maio24
+CPS005,Una Proença,Campinas,Jardim Proença,Rua Serra Dourada 101,Prado Gonçalves,,2024-02,confirmado_entregue,vertical,medio,Prado Gonçalves site + Instagram @unaproencacampinas,alta,A,una-proenca,Aptos 47-55m2 2 dorm próximo ao centro entrega fev24
 CPS006,Campinas Boulevard,Campinas,Vila Industrial,,,,2024,confirmado_entregue,vertical,medio,Campinas na Planta,media,B,campinas-boulevard,100% vendido área de lazer 4000m2
-CPS007,Sensia Parque Prado,Campinas,Parque Prado,,,,2024-08,confirmado_entregue,vertical,medio,Fabiana Tenan Imóveis,media,A,sensia-parque-prado,Entrega ago24
-CPS008,Sirius Patriani,Campinas,Vila Lídia,,Patriani,,2025-05,confirmado_entregue,vertical,alto,Patriani site,alta,A,sirius-patriani,43 andares prédio mais alto de Campinas studios 46m2 janela ideal mai25
+CPS007,Sensia Parque Prado,Campinas,Parque Prado,Rua Tabelião Agnaldo Xavier de Souza 121,,,2024-12,confirmado_entregue,vertical,medio,QuintoAndar + Fabiana Tenan,alta,A,sensia-parque-prado,Aptos 64-66m2 2 dorm 1 suíte varanda gourmet entregue dez24
+CPS008,Sirius Patriani,Campinas,Centro,Avenida Aquidaban 130,Patriani,,2025-05,confirmado_entregue,vertical,alto,Patriani site + Colombos,alta,A,sirius-patriani,43 andares prédio mais alto de Campinas studios 46m2 janela ideal mai25
 CPS009,Legacy Paineiras,Campinas,Nova Campinas,,,,2025-09,em_obras,vertical,alto,Campinas na Planta,media,A,legacy-paineiras,Entrega set25 janela ideal quando abrir
 CPS010,Orion Norte Sul,Campinas,,R Nuporanga,Patriani,,2025-12,em_obras,vertical,alto,Patriani + Campinas na Planta,alta,A,orion-norte-sul,Entrega dez25 aptos 81-98m2 hobby room 2-3 suítes
 CPS011,Living Cyrela Cambuí,Campinas,Cambuí,,Cyrela/Living,,2025-12,em_obras,vertical,alto,Cyrela site,alta,A,living-cyrela-cambui,Entrega dez25 porte-cochère alto padrão

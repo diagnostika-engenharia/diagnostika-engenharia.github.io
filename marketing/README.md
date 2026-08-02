@@ -9,8 +9,12 @@ Plano operacional para levar emissão de ART semiautomática direto ao morador d
 3. **[criativos.md](./criativos.md)** — copy pronto para Meta, Google, QR, panfleto.
 4. **[condominios-rmc.csv](./condominios-rmc.csv)** — planilha dos prédios alvo (40 curados).
 5. **[condominios-rmc-guia.md](./condominios-rmc-guia.md)** — como completar a planilha até 150 prédios.
-6. **[lai/](./lai/)** — pedidos LAI para as 7 prefeituras da RMC (destrava próximos 100+ prédios).
+6. **[lai/](./lai/)** — 7 pedidos LAI prontos, um por prefeitura da RMC (destrava próximos 100+ prédios).
 7. **[scripts/gerar-landings.js](./scripts/gerar-landings.js)** — gerador de landings SEO por prédio.
+8. **[../dashboard-marketing.html](../dashboard-marketing.html)** — dashboard de conversão (login com Supabase, mesma senha do portal).
+
+## Automação
+- Push no CSV em `main` → GitHub Action `.github/workflows/gerar-landings.yml` regera `condominio/*.html` + `sitemap.xml` e faz commit automático.
 
 ## Estado atual
 

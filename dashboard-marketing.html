@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://fimmjgdwhifsrrbreche.supabase.co; img-src 'self' data:; frame-src 'none'; object-src 'none'; base-uri 'self';">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#155B67">
+<meta name="robots" content="noindex,nofollow">
+<title>Dashboard Marketing · Diagnóstika Engenharia</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{--teal:#155B67;--teal-dk:#0D3C44;--turq:#00B4AC;--lime:#8DB72A;--amber:#D4A24C;--purple:#7D3C98;--bg:#F0F4F5;--card:#fff;--text:#1A2E31;--text2:#4A6568;--mut:#A8BFC2;--line:#E0EAEC;--gray2:#E0EAEC;--gray4:#5A7A7E}
+html,body{min-height:100%;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:linear-gradient(160deg,var(--teal-dk) 0%,var(--teal) 100%);color:var(--text);font-size:15px;line-height:1.5}
+body{min-height:100vh;display:flex;flex-direction:column}
+body.locked>header,body.locked>main,body.locked>footer{display:none!important}
+
+/* Login gate — mesmo padrão do portal */
+#login-gate{position:fixed;inset:0;background:linear-gradient(135deg,var(--teal-dk) 0%,var(--teal) 50%,var(--turq) 100%);display:none;align-items:center;justify-content:center;z-index:999;padding:20px}
+body.locked #login-gate{display:flex}
+.login-box{background:#fff;border-radius:16px;padding:32px 28px;max-width:380px;width:100%;box-shadow:0 12px 48px rgba(0,0,0,.3);text-align:center}
+.login-box h2{font-size:18px;color:var(--teal);margin-bottom:4px;font-weight:700}
+.login-box .sub{font-size:12.5px;color:var(--text2);margin-bottom:22px}
+.login-box input{width:100%;padding:13px 14px;border:1.5px solid var(--gray2);border-radius:8px;font-size:14px;margin-bottom:10px;outline:none;font-family:inherit}
+.login-box input:focus{border-color:var(--teal)}
+.login-box button{width:100%;padding:13px;border:none;background:var(--teal);color:#fff;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;margin-top:6px}
+.login-box button:hover{background:var(--teal-dk)}
+.login-box button:disabled{opacity:.6;cursor:not-allowed}
+.login-err{background:rgba(192,0,0,.08);color:#C00000;border-left:3px solid #C00000;padding:9px 11px;border-radius:0 6px 6px 0;font-size:12.5px;margin-bottom:10px;text-align:left;display:none}
+.login-err.show{display:block}
+
+/* Layout do dashboard */
+header{padding:18px 24px 22px;text-align:center;color:#fff}
+header .header-inner{display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:1200px;margin:0 auto}
+header .h-title h1{font-size:22px;font-weight:700;letter-spacing:.3px;text-align:left}
+header .h-title p{font-size:12.5px;opacity:.85;text-align:left;margin-top:2px}
+header .h-actions{display:flex;gap:10px;align-items:center;font-size:12px}
+header .h-actions select,header .h-actions button{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.28);padding:8px 12px;border-radius:8px;font-family:inherit;font-size:12.5px;cursor:pointer}
+header .h-actions button:hover{background:rgba(255,255,255,.24)}
+
+main{flex:1;background:var(--bg);border-radius:24px 24px 0 0;padding:24px 20px 60px}
+.wrap{max-width:1200px;margin:0 auto}
+
+.section-title{font-size:12px;font-weight:700;color:var(--gray4);text-transform:uppercase;letter-spacing:.8px;margin:22px 0 12px;padding-left:4px}
+.section-title:first-child{margin-top:0}
+
+/* KPIs */
+.kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:24px}
+@media(min-width:640px){.kpi-grid{grid-template-columns:repeat(4,1fr)}}
+.kpi{background:var(--card);border-radius:14px;padding:16px 14px;box-shadow:0 2px 12px rgba(21,91,103,.08);position:relative;overflow:hidden}
+.kpi-lbl{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.4px}
+.kpi-val{font-size:26px;font-weight:800;color:var(--teal);margin-top:6px;line-height:1.1}
+.kpi-sub{font-size:11.5px;color:var(--gray4);margin-top:4px}
+.kpi.hi .kpi-val{color:var(--lime)}
+.kpi.warn .kpi-val{color:var(--amber)}
+.kpi.info .kpi-val{color:var(--turq)}
+
+/* Tabelas */
+.card{background:var(--card);border-radius:14px;padding:16px 14px;box-shadow:0 2px 12px rgba(21,91,103,.08);margin-bottom:14px;overflow:hidden}
+.card h3{font-size:14px;font-weight:700;color:var(--teal);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.card h3 .badge{background:rgba(0,180,172,.12);color:var(--turq);font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.4px}
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;min-width:480px}
+th,td{padding:9px 8px;text-align:left;font-size:13px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:700;color:var(--text2);font-size:11px;text-transform:uppercase;letter-spacing:.4px;background:#F8FAFB;position:sticky;top:0}
+td.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;color:var(--teal)}
+td.mono{font-family:'Courier New',monospace;font-size:12px;color:var(--text2)}
+tr:hover td{background:#F7FAFB}
+.empty{padding:22px;text-align:center;color:var(--gray4);font-size:13px}
+
+.grid-2{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:960px){.grid-2{grid-template-columns:1fr 1fr}}
+
+.status-pill{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.4px}
+.st-aguard{background:rgba(212,162,76,.18);color:#a87826}
+.st-pago{background:rgba(27,138,74,.14);color:#1B8A4A}
+.st-emit{background:rgba(0,180,172,.14);color:var(--turq)}
+.st-cancel{background:rgba(192,0,0,.1);color:#C0392B}
+
+.err-banner{background:rgba(192,0,0,.08);color:#C0392B;border-left:3px solid #C0392B;padding:12px 14px;border-radius:0 8px 8px 0;font-size:13px;margin-bottom:18px;display:none}
+.err-banner.show{display:block}
+.err-banner b{color:#7a1f0f}
+.err-banner code{background:rgba(0,0,0,.05);padding:2px 5px;border-radius:3px;font-size:12px}
+
+.loading{padding:22px;text-align:center;color:var(--gray4);font-size:13px}
+.loading::before{content:'⏳ ';font-size:16px}
+
+footer{background:var(--teal-dk);color:rgba(255,255,255,.7);text-align:center;padding:18px 16px;font-size:12px}
+footer a{color:var(--turq);text-decoration:none}
+
+@media(max-width:640px){
+  header .h-title h1{font-size:18px}
+  header .h-actions{flex-direction:column;gap:6px}
+}
+</style>
+</head>
+<body class="locked">
+
+<!-- Login gate -->
+<div id="login-gate">
+  <form class="login-box" onsubmit="event.preventDefault();fazerLogin();">
+    <h2>Dashboard Marketing</h2>
+    <div class="sub">Diagnóstika Engenharia — acesso da equipe</div>
+    <div id="login-err" class="login-err"></div>
+    <input type="email" id="login-email" placeholder="E-mail" autocomplete="username" required>
+    <input type="password" id="login-senha" placeholder="Senha" autocomplete="current-password" required>
+    <button id="login-btn" type="submit">Entrar</button>
+  </form>
+</div>
+
+<header>
+  <div class="header-inner">
+    <div class="h-title">
+      <h1>Dashboard Marketing</h1>
+      <p>Conversão de ART por canal, prédio e embaixador</p>
+    </div>
+    <div class="h-actions">
+      <select id="periodo">
+        <option value="7">Últimos 7 dias</option>
+        <option value="30" selected>Últimos 30 dias</option>
+        <option value="90">Últimos 90 dias</option>
+        <option value="365">Últimos 12 meses</option>
+      </select>
+      <button onclick="sair()">Sair</button>
+    </div>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+  <div id="err-banner" class="err-banner"></div>
+
+  <div class="section-title">Visão geral</div>
+  <div class="kpi-grid" id="kpi-grid">
+    <div class="kpi hi"><div class="kpi-lbl">ART hoje</div><div class="kpi-val" id="k-hoje">—</div><div class="kpi-sub">meta 20/dia</div></div>
+    <div class="kpi"><div class="kpi-lbl">ART período</div><div class="kpi-val" id="k-periodo">—</div><div class="kpi-sub" id="k-periodo-sub">—</div></div>
+    <div class="kpi info"><div class="kpi-lbl">Média/dia útil</div><div class="kpi-val" id="k-media">—</div><div class="kpi-sub">dias úteis no período</div></div>
+    <div class="kpi warn"><div class="kpi-lbl">Aguardando pgto</div><div class="kpi-val" id="k-aguard">—</div><div class="kpi-sub">últimos 7 dias</div></div>
+  </div>
+
+  <div class="section-title">Desempenho por canal e prédio</div>
+  <div class="grid-2">
+    <div class="card">
+      <h3>Por canal <span class="badge" id="b-canal">0</span></h3>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Canal</th><th style="text-align:right">ART</th><th style="text-align:right">Últ. 7d</th></tr></thead>
+          <tbody id="tbl-canal"><tr><td colspan="3" class="loading">Carregando…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Por prédio <span class="badge" id="b-predio">0</span></h3>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Prédio</th><th>Nome</th><th style="text-align:right">ART</th></tr></thead>
+          <tbody id="tbl-predio"><tr><td colspan="3" class="loading">Carregando…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>Por embaixador <span class="badge" id="b-emb">0</span></h3>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Código</th><th style="text-align:right">ART</th><th style="text-align:right">R$ comissão</th></tr></thead>
+          <tbody id="tbl-emb"><tr><td colspan="3" class="loading">Carregando…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Por status <span class="badge" id="b-status">0</span></h3>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Status</th><th style="text-align:right">Qtd</th><th style="text-align:right">R$ soma</th></tr></thead>
+          <tbody id="tbl-status"><tr><td colspan="3" class="loading">Carregando…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">Últimas solicitações</div>
+  <div class="card">
+    <h3>Recentes <span class="badge" id="b-recentes">0</span></h3>
+    <div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th>Quando</th><th>Nome</th><th>Condomínio</th><th>Canal</th><th>Prédio</th><th>Emb.</th><th style="text-align:right">R$</th><th>Status</th>
+        </tr></thead>
+        <tbody id="tbl-recentes"><tr><td colspan="8" class="loading">Carregando…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</main>
+
+<footer>© Diagnóstika Engenharia LTDA · <a href="/">portal</a> · <a href="/solicitar-art.html">solicitar ART</a></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// Auth — mesmo padrão do portal (index.html)
+// ═══════════════════════════════════════════════════════════════════════════
+const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
+const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpbW1qZ2R3aGlmc3JyYnJlY2hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzU2NDIsImV4cCI6MjA5NTE1MTY0Mn0.eAmMS95M8BkfX3NCcOtHnhKWXy0jkvXwSGEoqv_Q21Q';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+
+// Comissão paga por ART emitida vinda do embaixador (R$). Ver marketing/embaixador.md
+const COMISSAO_EMBAIXADOR = 60;
+
+async function verificarSessao(){
+  try{
+    const {data}=await sb.auth.getSession();
+    if(!data?.session){ document.body.classList.add('locked'); return; }
+    // se for síndico, redireciona pra área dele (mesmo comportamento do portal)
+    const {data:vincs}=await sb.from('user_condos').select('role').eq('user_id',data.session.user.id);
+    if(vincs && vincs.some(v=>v.role==='sindico')){
+      window.location.replace('./sindico/'); return;
+    }
+    document.body.classList.remove('locked');
+    carregar();
+  }catch(e){ console.warn('Auth check falhou:',e); document.body.classList.add('locked'); }
+}
+
+async function fazerLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const senha=document.getElementById('login-senha').value;
+  const btn=document.getElementById('login-btn');
+  const err=document.getElementById('login-err');
+  err.classList.remove('show');
+  if(!email||!senha){ err.textContent='Preencha e-mail e senha'; err.classList.add('show'); return; }
+  btn.disabled=true; btn.textContent='Entrando…';
+  try{
+    const {error}=await sb.auth.signInWithPassword({email,password:senha});
+    if(error) throw error;
+    await verificarSessao();
+  }catch(e){
+    console.error('Falha no login:', e);
+    err.textContent = e.message==='Invalid login credentials' ? 'E-mail ou senha incorretos.' : 'Não foi possível entrar. Verifique sua conexão e tente novamente.';
+    err.classList.add('show');
+    btn.disabled=false; btn.textContent='Entrar';
+  }
+}
+
+async function sair(){ await sb.auth.signOut(); location.reload(); }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Data & rendering
+// ═══════════════════════════════════════════════════════════════════════════
+let CONDOS = {}; // codigo -> nome (do CSV, cache leve)
+
+async function carregarCondos(){
+  try{
+    const r = await fetch('marketing/condominios-rmc.csv');
+    if(!r.ok) return;
+    const text = await r.text();
+    const [header, ...rows] = text.split('\n').map(l=>l.split(','));
+    const idxCod = header.indexOf('codigo');
+    const idxNome = header.indexOf('nome');
+    if(idxCod<0||idxNome<0) return;
+    rows.forEach(r=>{ if(r[idxCod]) CONDOS[r[idxCod].trim()] = (r[idxNome]||'').trim(); });
+  }catch(_){}
+}
+
+function diasUteis(dias){
+  // aproximação: 5/7 do intervalo
+  return Math.max(1, Math.round(dias * 5/7));
+}
+
+function ymd(d){ return d.toISOString().slice(0,10); }
+function ymdBR(iso){
+  if(!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) + ' ' + d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+}
+function brl(n){ return (n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function stPill(s){
+  const m = { 'aguardando_pagamento':['st-aguard','Aguardando'], 'pago':['st-pago','Pago'], 'emitida':['st-emit','Emitida'], 'cancelada':['st-cancel','Cancelada'] };
+  const [cls,lbl] = m[s] || ['st-aguard', s||'—'];
+  return `<span class="status-pill ${cls}">${esc(lbl)}</span>`;
+}
+
+async function carregar(){
+  await carregarCondos();
+  const dias = parseInt(document.getElementById('periodo').value, 10);
+  const desde = new Date(Date.now() - dias*24*3600*1000);
+  const err = document.getElementById('err-banner');
+  err.classList.remove('show');
+
+  try{
+    const { data, error } = await sb
+      .from('solicitacoes_art')
+      .select('id,criado_em,nome,condominio,origem,predio_codigo,embaixador_codigo,criativo,valor,status')
+      .gte('criado_em', desde.toISOString())
+      .order('criado_em',{ ascending: false });
+    if(error) throw error;
+    render(data || [], dias);
+  }catch(e){
+    console.error(e);
+    err.innerHTML = `<b>Não consegui carregar os leads.</b><br>${esc(e.message||'erro')}<br><br>` +
+      `Se for erro de permissão (RLS), rode no Supabase:<br>` +
+      `<code>CREATE POLICY "auth_select_art" ON public.solicitacoes_art FOR SELECT TO authenticated USING (true);</code>`;
+    err.classList.add('show');
+    ['tbl-canal','tbl-predio','tbl-emb','tbl-status','tbl-recentes'].forEach(id => {
+      document.getElementById(id).innerHTML = `<tr><td colspan="8" class="empty">Sem dados</td></tr>`;
+    });
+  }
+}
+
+function render(rows, dias){
+  const hojeStr = ymd(new Date());
+  const hoje = rows.filter(r => r.criado_em?.slice(0,10) === hojeStr).length;
+  const total = rows.length;
+  const media = (total / diasUteis(dias)).toFixed(1);
+  const aguard7d = rows.filter(r =>
+    r.status === 'aguardando_pagamento' &&
+    new Date(r.criado_em) > new Date(Date.now() - 7*24*3600*1000)
+  ).length;
+
+  document.getElementById('k-hoje').textContent = hoje;
+  document.getElementById('k-periodo').textContent = total;
+  document.getElementById('k-periodo-sub').textContent = `últimos ${dias} dias`;
+  document.getElementById('k-media').textContent = media;
+  document.getElementById('k-aguard').textContent = aguard7d;
+
+  // Por canal
+  const canal = agrupa(rows, r => r.origem || '(sem canal)');
+  const seteDias = new Date(Date.now() - 7*24*3600*1000);
+  Object.values(canal).forEach(g => {
+    g.recentes = g.itens.filter(r => new Date(r.criado_em) > seteDias).length;
+  });
+  document.getElementById('b-canal').textContent = Object.keys(canal).length;
+  document.getElementById('tbl-canal').innerHTML = renderRows(canal, ['origem','count','recentes'],
+    g => `<tr><td>${esc(g.chave)}</td><td class="num">${g.count}</td><td class="num">${g.recentes}</td></tr>`
+  );
+
+  // Por prédio
+  const predio = agrupa(rows.filter(r => r.predio_codigo), r => r.predio_codigo);
+  document.getElementById('b-predio').textContent = Object.keys(predio).length;
+  document.getElementById('tbl-predio').innerHTML = renderRows(predio, ['predio','count'],
+    g => `<tr><td class="mono">${esc(g.chave)}</td><td>${esc(CONDOS[g.chave]||'—')}</td><td class="num">${g.count}</td></tr>`
+  );
+
+  // Por embaixador
+  const emb = agrupa(rows.filter(r => r.embaixador_codigo), r => r.embaixador_codigo);
+  // só conta comissão sobre ART pagas/emitidas
+  Object.values(emb).forEach(g => {
+    g.pagas = g.itens.filter(r => r.status !== 'aguardando_pagamento' && r.status !== 'cancelada').length;
+    g.comissao = g.pagas * COMISSAO_EMBAIXADOR;
+  });
+  document.getElementById('b-emb').textContent = Object.keys(emb).length;
+  document.getElementById('tbl-emb').innerHTML = renderRows(emb, ['embaixador','count','comissao'],
+    g => `<tr><td class="mono">${esc(g.chave)}</td><td class="num">${g.pagas}<span style="color:var(--gray4);font-weight:400"> / ${g.count}</span></td><td class="num">${brl(g.comissao)}</td></tr>`
+  );
+
+  // Por status
+  const status = agrupa(rows, r => r.status || 'desconhecido');
+  Object.values(status).forEach(g => {
+    g.soma = g.itens.reduce((s,r) => s + (parseFloat(r.valor)||0), 0);
+  });
+  document.getElementById('b-status').textContent = Object.keys(status).length;
+  document.getElementById('tbl-status').innerHTML = renderRows(status, ['status','count','soma'],
+    g => `<tr><td>${stPill(g.chave)}</td><td class="num">${g.count}</td><td class="num">${brl(g.soma)}</td></tr>`
+  );
+
+  // Últimas 20
+  const rec = rows.slice(0, 20);
+  document.getElementById('b-recentes').textContent = rows.length;
+  document.getElementById('tbl-recentes').innerHTML = rec.length ? rec.map(r =>
+    `<tr>
+      <td>${ymdBR(r.criado_em)}</td>
+      <td>${esc(r.nome||'—')}</td>
+      <td>${esc(r.condominio||'—')}</td>
+      <td class="mono">${esc(r.origem||'—')}</td>
+      <td class="mono">${esc(r.predio_codigo||'—')}</td>
+      <td class="mono">${esc(r.embaixador_codigo||'—')}</td>
+      <td class="num">${brl(parseFloat(r.valor)||0)}</td>
+      <td>${stPill(r.status)}</td>
+    </tr>`).join('')
+    : `<tr><td colspan="8" class="empty">Sem solicitações no período</td></tr>`;
+}
+
+function agrupa(rows, keyFn){
+  const g = {};
+  rows.forEach(r => {
+    const k = keyFn(r);
+    (g[k] = g[k] || { chave: k, count: 0, itens: [] });
+    g[k].count++;
+    g[k].itens.push(r);
+  });
+  return g;
+}
+function renderRows(map, _cols, rowFn){
+  const list = Object.values(map).sort((a,b)=> b.count - a.count).slice(0, 40);
+  if(!list.length) return `<tr><td colspan="3" class="empty">Sem dados no período</td></tr>`;
+  return list.map(rowFn).join('');
+}
+
+document.getElementById('periodo').addEventListener('change', carregar);
+verificarSessao();
+
+/*
+Para o dashboard funcionar, precisa desta policy no Supabase (rodar uma vez):
+
+CREATE POLICY "auth_select_art"
+  ON public.solicitacoes_art
+  FOR SELECT
+  TO authenticated
+  USING (true);
+
+Isso libera SELECT para qualquer usuário autenticado. Se quiser restringir só
+a determinados perfis (equipe, não síndico), trocar o USING por uma expressão
+que verifique role em public.user_condos.
+*/
+</script>
+</body>
+</html>

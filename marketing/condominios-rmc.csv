@@ -1,58 +1,73 @@
 codigo,nome,cidade,bairro,endereco,incorporadora,unidades,data_entrega,status,perfil,padrao,fonte,confianca,prioridade,landing_slug,observacoes
-CPS001,Alenza Cambuí,Campinas,Cambuí,Rua Dr. Emílio Ribas 314,Prado Gonçalves,,2024-02,confirmado_entregue,vertical,alto,Prado Gonçalves site + Foxter,alta,A,alenza-cambui,Aptos 157m2 e duplex 281m2 alto padrão janela ideal fev24
-CPS002,Cyrela Haus Nova Campinas,Campinas,Nova Campinas,Rua Dr. Antônio Arruda Camargo 225,Cyrela,85,2024-10,confirmado_entregue,vertical,alto,Cyrela site + Provectum,alta,A,cyrela-haus-nova-campinas,Aptos 120-145m2 torre única 85 residências entregue out24 (2025-01 é reforço)
-CPS003,Vitra Cambuí,Campinas,Cambuí,,Plaenge,,2024,confirmado_entregue,vertical,alto,Plaenge blog,alta,A,vitra-cambui,Primeiro empreendimento Plaenge em Campinas
-CPS004,Hub Cambuí,Campinas,Cambuí,Rua Coronel Quirino 982,Prado Gonçalves,,2024-05,confirmado_entregue,misto,alto,Prado Gonçalves site + Instagram @hubcambuicampinas,alta,A,hub-cambui,Uso misto residencial+comercial entrega maio24
-CPS005,Una Proença,Campinas,Jardim Proença,Rua Serra Dourada 101,Prado Gonçalves,,2024-02,confirmado_entregue,vertical,medio,Prado Gonçalves site + Instagram @unaproencacampinas,alta,A,una-proenca,Aptos 47-55m2 2 dorm próximo ao centro entrega fev24
-CPS006,Campinas Boulevard,Campinas,Vila Industrial,,,,2024,confirmado_entregue,vertical,medio,Campinas na Planta,media,B,campinas-boulevard,100% vendido área de lazer 4000m2
-CPS007,Sensia Parque Prado,Campinas,Parque Prado,Rua Tabelião Agnaldo Xavier de Souza 121,,,2024-12,confirmado_entregue,vertical,medio,QuintoAndar + Fabiana Tenan,alta,A,sensia-parque-prado,Aptos 64-66m2 2 dorm 1 suíte varanda gourmet entregue dez24
-CPS008,Sirius Patriani,Campinas,Centro,Avenida Aquidaban 130,Patriani,,2025-05,confirmado_entregue,vertical,alto,Patriani site + Colombos,alta,A,sirius-patriani,43 andares prédio mais alto de Campinas studios 46m2 janela ideal mai25
-CPS009,Legacy Paineiras,Campinas,Nova Campinas,,,,2025-09,em_obras,vertical,alto,Campinas na Planta,media,A,legacy-paineiras,Entrega set25 janela ideal quando abrir
-CPS010,Orion Norte Sul,Campinas,,R Nuporanga,Patriani,,2025-12,em_obras,vertical,alto,Patriani + Campinas na Planta,alta,A,orion-norte-sul,Entrega dez25 aptos 81-98m2 hobby room 2-3 suítes
-CPS011,Living Cyrela Cambuí,Campinas,Cambuí,,Cyrela/Living,,2025-12,em_obras,vertical,alto,Cyrela site,alta,A,living-cyrela-cambui,Entrega dez25 porte-cochère alto padrão
-CPS012,Living Grand Wish,Campinas,Nova Campinas,,Cyrela/Living,,,confirmado_entregue,vertical,alto,Conexão X Imóveis,media,B,living-grand-wish,Últimas unidades sugere já entregue verificar data
-CPS013,Mood Cambuí,Campinas,Cambuí,,,,2026-02,em_obras,vertical,alto,pesquisa,media,C,mood-cambui,Entrega fev26 fora janela ainda
-CPS014,Elegância no Cambuí,Campinas,Cambuí,,,,2026-10,em_obras,vertical,alto,pesquisa,baixa,C,elegancia-cambui,Entrega out26 fora janela ainda
-CPS015,Authentic Cambuí,Campinas,Cambuí,R Antônio Lapa,Plaenge,,,em_obras,vertical,alto,Plaenge + Panorama Negócios,alta,B,authentic-cambui,Lançado jul24 sétimo empreendimento Plaenge Campinas
-CPS016,Frame Nova Campinas,Campinas,Nova Campinas,,,,,em_obras,vertical,medio_alto,Novo Metro,media,C,frame-nova-campinas,50-120m2 1-3 dorm arquitetura contemporânea
+CPS009,Legacy Paineiras,Campinas,Nova Campinas,,Cyrela/Prado Gonçalves,98,2025-06,confirmado_entregue,vertical,alto,Prado Gonçalves site,alta,A,legacy-paineiras,Torre única 98 unidades 105-125m2 entrega jun25 dentro da janela
+CPS010,Orion Norte Sul,Campinas,,R Nuporanga,Patriani,,2025-12,em_obras,vertical,alto,Patriani + Campinas na Planta,alta,A,orion-norte-sul,Entrega dez25 aptos 81-98m2 hobby room 2-3 suítes janela quente
+CPS011,Living Cyrela Cambuí,Campinas,Cambuí,,Cyrela/Living,,2025-12,em_obras,vertical,alto,Cyrela site,alta,A,living-cyrela-cambui,Entrega dez25 porte-cochère alto padrão janela quente
+VLH001,Bella Vita Valinhos,Valinhos,Vila Olivo,Av Independência,,,2025-07,em_obras,vertical,medio_alto,Seina Imóveis,media,A,bella-vita-valinhos,Entrega jul25 2-3 dorm 1 suíte janela quente borderline
+CPS052,MRV Cidade Sete Sóis Dunlop,Campinas,Campo Grande,Av John Boyd Dunlop,MRV,,2026-05,em_obras,vertical,MCMV,MRV site + imoveistco,alta,A,mrv-cidade-sete-sois-dunlop,MCMV grande volume entrega mai26 dentro da janela cores do poente+ilha+colina
+CPS008,Sirius Patriani,Campinas,Centro,Avenida Aquidaban 130,Patriani,,2025-05,confirmado_entregue,vertical,alto,Patriani site + Colombos,alta,B,sirius-patriani,43 andares studios 46m2 entrega mai25 borderline 1S25 fora janela mas mercado quente pra investidor/inquilino
+CPS022,Reserva Prado,Campinas,Parque Prado,,Patriani,,2026-12,em_obras,vertical,alto,Patriani + Patriarca,alta,B,reserva-prado,Aptos 124-148m2 3 suítes entrega dez26 pré-janela ativar mídia mar-abr26
+CPS041,Reserva Bosque Jequitibás,Campinas,Bosque,Rua Luzitana 59,,,,confirmado_entregue,vertical,medio,Campinas na Planta,media,B,reserva-bosque-jequitibas,Pronto morar 2-3 dorm 64-85m2 confirmar data Habite-se via LAI
+CPS042,Vita Parque,Campinas,Parque Industrial,,Living,,,confirmado_entregue,vertical,medio,QuintoAndar + Provectum,media,B,vita-parque,Pronto morar 2-3 dorm 54-66m2 100% vendido confirmar data Habite-se
+CPS043,Essence Residencial,Campinas,Jardim Aurélia,,,,,confirmado_entregue,vertical,medio,Campinas na Planta,media,B,essence-aurelia,Pronto morar 2-3 dorm suíte varanda confirmar data Habite-se
+CPS044,Villa Garden,Campinas,Parque Industrial,,,,2025-05,em_obras,vertical,medio,Novo Metro,media,B,villa-garden,Entrega mai25 borderline 1S25 15 meses da janela
+CPS045,MarienPlatz Residence,Campinas,Cambuí,,,,,confirmado_entregue,vertical,medio,Campinas na Planta,media,B,marienplatz-cambui,Pronto morar 1-2 dorm 39-60m2 confirmar data
+CPS046,Residencial Allegria,Campinas,,,,,,confirmado_entregue,vertical,medio,Chaves na Mão,baixa,B,residencial-allegria,Pronto morar 2 quartos 49m2 confirmar bairro e data
+CPS023,HM Intense Campinas,Campinas,Jardim Ibirapuera,,HM Engenharia,,,em_obras,vertical,MCMV,HM site,alta,B,hm-intense-campinas,Volume MCMV grande sem data explícita validar Habite-se
+CPS024,HM Intense Campos Elíseos,Campinas,Campos Elíseos,R Danilo Glauco Pereiro Villagelin 121,HM Engenharia,,,em_obras,vertical,MCMV,HM site + Gazeta Pinheiros,alta,B,hm-intense-campos-eliseos,MCMV 2 quartos validar data entrega
+CPS025,HM Maxi Campinas,Campinas,Bonfim,,HM Engenharia,,,em_obras,vertical,MCMV,HM site,alta,B,hm-maxi-campinas,MCMV 10min do centro validar data entrega
 CPS017,Wide Nova Campinas,Campinas,Nova Campinas,,Prado Gonçalves,,,em_obras,vertical,alto,Prado Gonçalves site,media,B,wide-nova-campinas,Verificar status entrega
-CPS018,Signature Cambuí,Campinas,Cambuí,,Plaenge,,,em_obras,vertical,alto,Prado Gonçalves site,media,B,signature-cambui,Aptos 190-196m2 alto padrão
-CPS019,Casa Prado Residence,Campinas,Parque Prado,,,,,em_obras,vertical,medio_alto,Campinas na Planta,media,B,casa-prado-residence,Verificar entrega
-CPS020,Splendor Campinas,Campinas,,,Patriani,,,em_obras,vertical,alto,Patriani site,alta,B,splendor-patriani,Verificar status
-CPS021,Meraki Patriani,Campinas,,,Patriani,,,em_obras,vertical,alto,Patriani site,alta,B,meraki-patriani,3 suítes verificar cronograma
-CPS022,Reserva Prado,Campinas,Parque Prado,,Patriani,,2026-10,em_obras,vertical,alto,Patriarca Corretor,media,C,reserva-prado,Aptos 124-148m2 2-3 suítes entrega out26
-CPS023,HM Intense Campinas,Campinas,Jardim Ibirapuera,,HM Engenharia,,,em_obras,vertical,MCMV,HM site,alta,A,hm-intense-campinas,Alto volume unidades MCMV validar data
-CPS024,HM Intense Campos Elíseos,Campinas,Campos Elíseos,R Danilo Glauco Pereiro Villagelin 121,HM Engenharia,,,em_obras,vertical,MCMV,HM site + Gazeta Pinheiros,alta,A,hm-intense-campos-eliseos,MCMV 2 quartos lazer completo
-CPS025,HM Maxi Campinas,Campinas,Bonfim,,HM Engenharia,,,em_obras,vertical,MCMV,HM site,alta,A,hm-maxi-campinas,10min do centro MCMV
-CPS026,HM Smart Bem Morar Ouro Verde,Campinas,Ouro Verde,,HM Engenharia,,,em_obras,vertical,MCMV,HM site,alta,B,hm-smart-ouro-verde,MCMV grande volume
-CPS027,HM Smart Bem Morar Parque São Jorge,Campinas,Parque São Jorge,,HM Engenharia,,,em_obras,vertical,MCMV,HM site,alta,B,hm-smart-parque-sao-jorge,MCMV grande volume
-CPS028,MRV Cores do Poente,Campinas,Campo Grande,,MRV,,,lancamento,vertical,MCMV,MRV site,alta,B,mrv-cores-do-poente,Aptos 40m2 2 dorm entrada MCMV
-CPS029,MRV Cores da Ilha,Campinas,Campo Grande,,MRV,,2028-10,em_obras,vertical,MCMV,MRV site,alta,C,mrv-cores-da-ilha,Entrega 2028 fora janela ainda
-CPS030,MRV Colina do Sol,Campinas,Campo Grande,,MRV,,,em_obras,vertical,MCMV,MRV site,media,B,mrv-colina-do-sol,MCMV Campo Grande
-CPS031,MRV City Galleria,Campinas,Fazenda São Quirino,,MRV,,2028-10,em_obras,vertical,medio,MRV site,alta,C,mrv-city-galleria,Entrega out28 fora janela ainda
-CPS032,MRV Portal dos Buritis,Campinas,Parque Prado/Panamby,,MRV,,,lancamento,vertical,MCMV,MRV site,media,C,mrv-portal-buritis,Fase de breve lançamento
+CPS015,Authentic Cambuí,Campinas,Cambuí,R Antônio Lapa,Plaenge,,,em_obras,vertical,alto,Plaenge + Panorama Negócios,alta,B,authentic-cambui,Lançado jul24 sétimo Plaenge Campinas validar data
+SUM001,Portal do Horto,Sumaré,Jd Marchissolo,,,,,confirmado_entregue,vertical,MCMV,Nosso Teto Imóveis,media,B,portal-do-horto-sumare,Blocos 12 aptos 58m2 2 dorm últimas unidades validar data
+PLN004,Auten Paulínia,Paulínia,Santa Terezinha,Avenida José Paulino,Auten,,,confirmado_entregue,vertical,alto,Auten site + Novo Metro,alta,A,auten-paulinia,DENTRO JANELA + Diagnóstika forte em Paulínia 2 torres 108-119m2 3 suítes já entregue pronto morar
+CPS001,Alenza Cambuí,Campinas,Cambuí,Rua Dr. Emílio Ribas 314,Prado Gonçalves,,2024-02,confirmado_entregue,vertical,alto,Prado Gonçalves site + Foxter,alta,C,alenza-cambui,SATURADO entregue fev24 (30 meses) 157-281m2 alto padrão só SEO orgânico
+CPS002,Cyrela Haus Nova Campinas,Campinas,Nova Campinas,Rua Dr. Antônio Arruda Camargo 225,Cyrela,85,2024-10,confirmado_entregue,vertical,alto,Cyrela site + Provectum,alta,C,cyrela-haus-nova-campinas,SATURADO entregue out24 (22 meses) torre única 85 unidades só SEO orgânico
+CPS003,Vitra Cambuí,Campinas,Cambuí,,Plaenge,,2024,confirmado_entregue,vertical,alto,Plaenge blog,alta,C,vitra-cambui,SATURADO entregue 2024 primeiro Plaenge Campinas só SEO orgânico
+CPS004,Hub Cambuí,Campinas,Cambuí,Rua Coronel Quirino 982,Prado Gonçalves,,2024-05,confirmado_entregue,misto,alto,Prado Gonçalves site,alta,C,hub-cambui,SATURADO entregue mai24 (27 meses) uso misto só SEO orgânico
+CPS005,Una Proença,Campinas,Jardim Proença,Rua Serra Dourada 101,Prado Gonçalves,,2024-02,confirmado_entregue,vertical,medio,Prado Gonçalves site,alta,C,una-proenca,SATURADO entregue fev24 (30 meses) 47-55m2 só SEO orgânico
+CPS007,Sensia Parque Prado,Campinas,Parque Prado,Rua Tabelião Agnaldo Xavier de Souza 121,,,2024-12,confirmado_entregue,vertical,medio,QuintoAndar + Fabiana Tenan,alta,C,sensia-parque-prado,SATURADO entregue dez24 (20 meses) 64-66m2 só SEO orgânico
+CPS048,YARD Cambuí,Campinas,Cambuí,Rua Coronel Francisco Andrade Coutinho 122,Tegra,100,2024-11,confirmado_entregue,vertical,alto,Tegra site + Novo Metro,alta,C,yard-cambui,SATURADO entregue nov24 (21 meses) 100 unidades 126-221m2 só SEO orgânico
+CPS036,Joy Garden,Campinas,,,Prado Gonçalves,122,2024-12,confirmado_entregue,horizontal,alto,Prado Gonçalves site,alta,C,joy-garden,SATURADO 122 casas 208m2 alto padrão entrega dez24 só SEO
+CPS006,Campinas Boulevard,Campinas,Vila Industrial,,,,2024,confirmado_entregue,vertical,medio,Campinas na Planta,media,C,campinas-boulevard,SATURADO entregue 2024 100% vendido só SEO
+PLN001,Città Di Módena,Paulínia,,Próx Av José Paulino,,,2024-04,confirmado_entregue,vertical,medio,Campinas na Planta,media,C,citta-di-modena,SATURADO entregue abr24 (28 meses) só SEO orgânico
+PLN002,Dreams Residencial Paulínia,Paulínia,,,,,,confirmado_entregue,vertical,medio,Campinas na Planta,media,C,dreams-residencial-paulinia,SATURADO 100% vendido pronto data anterior a 2024 só SEO
+PLN003,Residencial Paris,Paulínia,Jardim dos Calegaris,,,,,confirmado_entregue,vertical,medio,pesquisa,baixa,C,residencial-paris-paulinia,SATURADO 2 dorm pronto data anterior só SEO
+CPS012,Living Grand Wish,Campinas,Nova Campinas,,Cyrela/Living,,,confirmado_entregue,vertical,alto,Conexão X Imóveis,media,C,living-grand-wish,Últimas unidades sugere já entregue anterior a 2S25 provavelmente SATURADO
+CPS013,Mood Cambuí,Campinas,Cambuí,,,,2026-02,em_obras,vertical,alto,pesquisa,media,C,mood-cambui,Fora janela solicitada entrega fev26 (7 meses) pode virar B em jan27
+CPS014,Elegância no Cambuí,Campinas,Cambuí,,,,2026-10,em_obras,vertical,alto,pesquisa,baixa,C,elegancia-cambui,Fora janela entrega out26 futuro
+CPS016,Frame Nova Campinas,Campinas,Nova Campinas,,,,,em_obras,vertical,medio_alto,Novo Metro,media,C,frame-nova-campinas,50-120m2 1-3 dorm sem data
+CPS018,Signature Cambuí,Campinas,Cambuí,,Plaenge,,,em_obras,vertical,alto,Prado Gonçalves site,media,C,signature-cambui,Aptos 190-196m2 alto padrão futuro
+CPS019,Casa Prado Residence,Campinas,Parque Prado,,,,,em_obras,vertical,medio_alto,Campinas na Planta,media,C,casa-prado-residence,Verificar entrega
+CPS020,Splendor Campinas,Campinas,,,Patriani,,,em_obras,vertical,alto,Patriani site,alta,C,splendor-patriani,Verificar status
+CPS021,Meraki Patriani,Campinas,,,Patriani,,,em_obras,vertical,alto,Patriani site,alta,C,meraki-patriani,3 suítes verificar cronograma
+CPS026,HM Smart Bem Morar Ouro Verde,Campinas,Ouro Verde,,HM Engenharia,,,em_obras,vertical,MCMV,HM site,alta,C,hm-smart-ouro-verde,MCMV volume grande sem data
+CPS027,HM Smart Bem Morar Parque São Jorge,Campinas,Parque São Jorge,,HM Engenharia,,,em_obras,vertical,MCMV,HM site,alta,C,hm-smart-parque-sao-jorge,MCMV volume grande sem data
+CPS028,MRV Cores do Poente,Campinas,Campo Grande,,MRV,,,lancamento,vertical,MCMV,MRV site,alta,C,mrv-cores-do-poente,Parte do Cidade Sete Sóis Dunlop lançamento entrega junto mai26 (ver CPS052)
+CPS029,MRV Cores da Ilha,Campinas,Campo Grande,,MRV,,2028-10,em_obras,vertical,MCMV,MRV site,alta,C,mrv-cores-da-ilha,Entrega 2028 futuro
+CPS030,MRV Colina do Sol,Campinas,Campo Grande,,MRV,,,em_obras,vertical,MCMV,MRV site,media,C,mrv-colina-do-sol,Parte Dunlop MCMV
+CPS031,MRV City Galleria,Campinas,Fazenda São Quirino,,MRV,,2028-10,em_obras,vertical,medio,MRV site,alta,C,mrv-city-galleria,Entrega out28 futuro
+CPS032,MRV Portal dos Buritis,Campinas,Parque Prado/Panamby,,MRV,,,lancamento,vertical,MCMV,MRV site,media,C,mrv-portal-buritis,Breve lançamento
 CPS033,MRV Portal dos Jatobás,Campinas,Parque Prado,,MRV,,,lancamento,vertical,MCMV,MRV site,media,C,mrv-portal-jatobas,Breve lançamento
-CPS034,MRV Residencial Canoas,Campinas,Jardim Morumbi,,MRV,,2027,em_obras,vertical,MCMV,MRV site,alta,C,mrv-residencial-canoas,Entrega 2027 fora janela ainda
-CPS035,MRV Canto da Mata,Campinas,Região do Matão,,MRV,,,em_obras,vertical,MCMV,MRV site,media,B,mrv-canto-da-mata-campinas,MCMV
-PLN001,Città Di Módena,Paulínia,,Próx Av José Paulino,,,2024-04,confirmado_entregue,vertical,medio,Campinas na Planta,media,A,citta-di-modena,Entrega abr24 2 dorm 1 suíte terraço gourmet
-PLN002,Dreams Residencial Paulínia,Paulínia,,,,,,confirmado_entregue,vertical,medio,Campinas na Planta,media,B,dreams-residencial-paulinia,100% vendido 67-85m2 entrega recente
-PLN003,Residencial Paris,Paulínia,Jardim dos Calegaris,,,,,confirmado_entregue,vertical,medio,pesquisa,baixa,B,residencial-paris-paulinia,2 dorm entrega recente
-PLN004,Auten Paulínia,Paulínia,,,Auten,,,em_obras,vertical,alto,Auten site,alta,B,auten-paulinia,108-119m2 3 suítes terraço gourmet
-VLH001,Bella Vita Valinhos,Valinhos,Vila Olivo,Av Independência,,,2025-07,em_obras,vertical,medio_alto,Seina Imóveis,media,A,bella-vita-valinhos,Incorporação registrada 10-07-2025 2-3 dorm 1 suíte
-VLH002,The Landscape Valinhos,Valinhos,,,,,,em_obras,vertical,alto,pesquisa,media,B,landscape-valinhos,Aptos 79m2 3 dorm 1 suíte 2 elevadores
-VLH003,Maestro Carlos Gomes,Valinhos,,,,,,em_obras,vertical,medio,pesquisa,baixa,B,maestro-carlos-gomes,Aptos 62-65m2 2 dorm
-VLH004,Milão Residencial,Valinhos,Vila Faustina II,R Kamekichi Ohnuma 400,IAS,,2026-09,em_obras,vertical,medio,Campinas na Planta,alta,C,milao-valinhos,Aptos 83m2 2-3 dorm entrega set26 fora janela
-VDO001,Villaggio Santa Anna,Vinhedo,Centro,,,,17,,em_obras,horizontal,alto,Campinas na Planta,media,B,villaggio-santa-anna,17 casas isoladas 117m2 3 suítes próx Mosteiro
-VDO002,San Pietro,Vinhedo,,,,,,em_obras,vertical,medio,Pazim Imóveis,baixa,B,san-pietro-vinhedo,Aptos 70m2 2 dorm
-VDO003,Residencial Village Vitorino,Vinhedo,Mirante Estrelas,R Três Marias 471,,,,em_obras,horizontal,medio_alto,Seina Imóveis,media,B,village-vitorino,Casas em condomínio 5min centro Vinhedo
-VDO004,Villa Arte 28,Vinhedo,,,,,,em_obras,vertical,medio,V2J,baixa,B,villa-arte-28,Verificar cronograma
-SUM001,Portal do Horto,Sumaré,Jd Marchissolo,,,,,confirmado_entregue,vertical,MCMV,Nosso Teto Imóveis,media,A,portal-do-horto-sumare,Blocos com 12 aptos cada 58m2 2 dorm 1 vaga últimas unidades
-SUM002,MRV Canto da Mata Sumaré,Sumaré,Nova Veneza,,MRV,,,em_obras,vertical,MCMV,PD Linhares,media,B,mrv-canto-mata-sumare,MCMV lazer completo
-IND001,Vivere Residencial,Indaiatuba,,,,,,em_obras,vertical,medio,Realize Imóveis,baixa,B,vivere-indaiatuba,Verificar cronograma
-IND002,Vetia Residence,Indaiatuba,,,,,,em_obras,vertical,medio,pesquisa,baixa,B,vetia-indaiatuba,Verificar
-IND003,Manai Residence,Indaiatuba,,,,,,em_obras,vertical,medio,pesquisa,baixa,B,manai-indaiatuba,Verificar
-CPS036,Joy Garden,Campinas,,,Prado Gonçalves,122,2024-12,confirmado_entregue,horizontal,alto,Prado Gonçalves site,alta,B,joy-garden,122 casas 208m2 alto padrão entrega dez24
-CPS037,Mansões Residencial Yees,Campinas,Mansões Santo Antônio,,Prado Gonçalves,,,em_obras,vertical,alto,Prado Gonçalves site,alta,B,mansoes-yees,Verificar cronograma
-CPS038,Algarve Residencial,Campinas,,,Prado Gonçalves,,,em_obras,vertical,medio_alto,Prado Gonçalves site,media,B,algarve-residencial,Verificar cronograma
+CPS034,MRV Residencial Canoas,Campinas,Jardim Morumbi,,MRV,,2027,em_obras,vertical,MCMV,MRV site,alta,C,mrv-residencial-canoas,Entrega 2027 futuro
+CPS035,MRV Canto da Mata,Campinas,Região do Matão,,MRV,,,em_obras,vertical,MCMV,MRV site,media,C,mrv-canto-da-mata-campinas,MCMV
+CPS037,Mansões Residencial Yees,Campinas,Mansões Santo Antônio,,Prado Gonçalves,,,em_obras,vertical,alto,Prado Gonçalves site,alta,C,mansoes-yees,Verificar cronograma
+CPS038,Algarve Residencial,Campinas,,,Prado Gonçalves,,,em_obras,vertical,medio_alto,Prado Gonçalves site,media,C,algarve-residencial,Verificar cronograma
 CPS039,Intento Cambuí,Campinas,Cambuí,,,,,lancamento,vertical,alto,Campinas na Planta,media,C,intento-cambui,Breve lançamento
-CPS040,Supremo Patriani,Campinas,Nova Campinas,,Patriani,100,2028-10,lancamento,vertical,alto,Apto vc,alta,C,supremo-patriani,Lançado out25 2 torres 100 residências entrega out28
+CPS040,Supremo Patriani,Campinas,Nova Campinas,,Patriani,100,2028-10,lancamento,vertical,alto,Apto vc,alta,C,supremo-patriani,Lançado out25 entrega out28 futuro
+CPS049,Vivio Cambuí,Campinas,Cambuí,Rua Santo Antônio 390,Congesa,25,2028-05,em_obras,vertical,alto,Congesa site,alta,C,vivio-cambui,Boutique 25 residências 112-196m2 entrega mai28 futuro
+CPS050,Essential Plaenge,Campinas,Cambuí,Rua Padre Almeida 677,Plaenge,,,em_obras,vertical,alto,Plaenge site,alta,C,essential-plaenge,25 andares 170m2 sem data provável futuro validar
+CPS051,Platina Norte Sul Patriani,Campinas,Chácara da Barra,Rua Maestro Agide Azzoni,Patriani,144,,em_obras,vertical,medio,Patriani site,alta,C,platina-norte-sul-patriani,144 unidades studios 47m2 duplex 74m2 provável futuro validar
+VLH004,Milão Residencial,Valinhos,Vila Faustina II,R Kamekichi Ohnuma 400,IAS,,2026-09,em_obras,vertical,medio,Campinas na Planta,alta,C,milao-valinhos,Aptos 83m2 entrega set26 pré-janela ativar em jul26
+VLH002,The Landscape Valinhos,Valinhos,,,,,,em_obras,vertical,alto,pesquisa,media,C,landscape-valinhos,Aptos 79m2 sem data validar
+VLH003,Maestro Carlos Gomes,Valinhos,,,,,,em_obras,vertical,medio,pesquisa,baixa,C,maestro-carlos-gomes,Aptos 62-65m2 sem data
+VDO001,Villaggio Santa Anna,Vinhedo,Centro,,,17,,em_obras,horizontal,alto,Campinas na Planta,media,C,villaggio-santa-anna,17 casas isoladas 117m2 3 suítes próx Mosteiro sem data
+VDO002,San Pietro,Vinhedo,,,,,,em_obras,vertical,medio,Pazim Imóveis,baixa,C,san-pietro-vinhedo,Aptos 70m2 2 dorm sem data
+VDO003,Residencial Village Vitorino,Vinhedo,Mirante Estrelas,R Três Marias 471,,,,em_obras,horizontal,medio_alto,Seina Imóveis,media,C,village-vitorino,Casas em condomínio 5min centro Vinhedo sem data
+VDO004,Villa Arte 28,Vinhedo,,,,,,em_obras,vertical,medio,V2J,baixa,C,villa-arte-28,Sem cronograma
+SUM002,MRV Canto da Mata Sumaré,Sumaré,Nova Veneza,,MRV,,,em_obras,vertical,MCMV,PD Linhares,media,C,mrv-canto-mata-sumare,MCMV
+IND001,Vivere Residencial,Indaiatuba,,,,,,em_obras,vertical,medio,Realize Imóveis,baixa,C,vivere-indaiatuba,Sem cronograma
+IND002,Vetia Residence,Indaiatuba,,,,,,em_obras,vertical,medio,pesquisa,baixa,C,vetia-indaiatuba,Sem data
+IND003,Manai Residence,Indaiatuba,,,,,,em_obras,vertical,medio,pesquisa,baixa,C,manai-indaiatuba,Sem data
+PLN005,Tons do Morumbi,Paulínia,Morumbi,,,,,confirmado_entregue,vertical,medio,Requinte Imóveis,media,A,tons-do-morumbi,DENTRO JANELA + Diagnóstika forte em Paulínia 2-3 dorm 71-92m2 pronto morar
+PLN006,Residencial Dreams Morumbi,Paulínia,Morumbi,,,,,confirmado_entregue,vertical,medio_alto,Requinte Imóveis,media,A,residencial-dreams-morumbi,DENTRO JANELA + Diagnóstika forte em Paulínia 3 dorm 1 suíte planejados 2 vagas R550k pronto morar
+HRT001,Reserva Premium Da Mata,Hortolândia,Jardim das Colinas,Av. Thereza Ana Cecon Breda 1501,,,,confirmado_entregue,vertical,medio,ISMNI + Innovar,media,A,reserva-premium-da-mata,DENTRO JANELA + Diagnóstika forte em Hortolândia aceita FGTS pronto morar
+HRT002,Residencial Ponte Estaiada,Hortolândia,Próx Prefeitura Nova,,,,2026-06,em_obras,vertical,medio,Vista360 Imóveis,media,A,residencial-ponte-estaiada-hortolandia,DENTRO JANELA + Diagnóstika forte em Hortolândia 58m2 2 dorm suíte varanda gourmet região em valorização entrega jun26

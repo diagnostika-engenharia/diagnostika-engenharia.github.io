@@ -14,6 +14,9 @@ Plano operacional para levar emissão de ART semiautomática direto ao morador d
 7. **[scripts/gerar-landings.js](./scripts/gerar-landings.js)** — gerador de landings SEO por prédio.
 8. **[../dashboard-marketing.html](../dashboard-marketing.html)** — dashboard de conversão (login com Supabase, mesma senha do portal).
 
+## Apresentação executiva
+- **[apresentacao-socio.md](./apresentacao-socio.md)** — pitch completo para decisão executiva. Unit economics reais (R$ 108,39 CREA / R$ 241,61 margem), estratégia autônoma em 7 canais, 3 cenários financeiros, cronograma de 90 dias, **metas semana a semana até 24 semanas**, riscos, opções de investimento (A/B/C), decisões que precisam do sócio.
+
 ## Execução dia 1
 - **[setup-supabase.sql](./setup-supabase.sql)** — rodar UMA vez no Supabase antes do deploy (ALTER TABLE + policies + indexes + view auxiliar).
 - **[dia-1-midia-paga.md](./dia-1-midia-paga.md)** — copy Meta Ads + Google Ads pronto para os 7 prédios A + orçamento R$ 220/dia + KPIs esperados.

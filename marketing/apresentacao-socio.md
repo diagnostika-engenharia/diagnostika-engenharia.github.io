@@ -17,7 +17,9 @@
 
 **Investimento necessário:** R$ 0 a R$ 6.600/mês (dependendo do modelo escolhido). Toda infraestrutura já está pronta (site, formulário, PIX, dashboard, 44 landings SEO). Custo de desenvolvimento afundado — só custo variável a partir daqui.
 
-**Diferencial estratégico:** operação **100% autônoma**. Não dependemos de indicação de síndico, de resposta de prefeitura, de parceria com incorporadora. Os dados vêm de fontes públicas na internet, os leads vêm de canais que a gente controla, o funil roda sozinho.
+**Diferencial competitivo real** (após pesquisa dos concorrentes no Google): somos o único jogador com **base local em Campinas, preço publicado, 100% online** e especialização em morador de condomínio recém entregue. Sysbuild e Laudo ART são online mas nacionais (São Paulo capital); Comdominium, Cruzeiro Engenharia e D'Limas atendem Campinas mas exigem visita técnica e não publicam preço. Nossa posição de nicho é defensável, não a diferenciação genérica de "mais rápido, mais barato".
+
+**Autonomia operacional:** os dados vêm de fontes públicas na internet, os leads vêm de canais que a gente controla, o funil roda sozinho — sem depender de síndico, prefeitura ou incorporadora.
 
 **Risco principal:** o funil ainda não foi testado com volume. Recomendação: começar com **modelo orgânico (custo R$ 0)** por 30-60 dias pra validar taxas de conversão reais. Escalar com mídia paga só depois.
 
@@ -466,14 +468,53 @@ Nosso dashboard (`/dashboard-marketing.html`) já entrega automaticamente:
 
 ## 10. Diferenciação Competitiva
 
-| Concorrente | Preço | Prazo | Diferencial nosso |
-|---|---:|---|---|
-| Arquiteto/Escritório | R$ 800-1.500 | 5-15 dias | 2× mais barato, 5× mais rápido |
-| Engenheiro autônomo indicado | R$ 500-800 | 3-7 dias | Padronizado, com plataforma, com dashboard |
-| Habitíssimo / GetNinjas | R$ 400-600 (variável) | 5-10 dias | Especialistas em ART, não marketplace genérico |
-| **Diagnóstika** | **R$ 350 fixo** | **24-48h** | **Único 100% online + preço fixo + preso à região** |
+Pesquisa direta no Google por "ART reforma apartamento Campinas". O mercado é mais competitivo do que costuma-se assumir.
 
-**Barreira de entrada pra copiar:** 6-12 meses (infra + dados curados + reputação local). Nossa vantagem é temporal — enquanto os outros pensam, a gente já está indexado no Google.
+### Concorrentes locais em Campinas (exigem visita técnica, preço sob orçamento)
+
+| Empresa | Preço | Modelo | Reputação online |
+|---|---|---|---|
+| Comdominium | Sob orçamento | Vistoria + emissão · Campinas + 100km | Sem selo Reclame Aqui |
+| Cruzeiro Engenharia | Sob orçamento | Vistoria + ART + monitoramento · 36 anos · 20 engenheiros | Estabelecida, atende SP + Campinas |
+| D'Limas Engenharia | Sob orçamento | Vistoria · CREA-SP 5070338835 · foco Campinas | Baixa presença digital |
+| Arquitetos / escritórios | R$ 800–2.500 | Projeto completo + ART | Mercado tradicional local |
+
+### Concorrentes 100% online (sede em SP capital, nacionais)
+
+| Empresa | Preço final* | Prazo | Cobertura |
+|---|---|---|---|
+| RGS Laudos | R$ 99,99 (a partir de) | — | São Paulo capital |
+| Sysbuild | R$ 298,29 (189,90 + CREA) | Rápido | SP · 10+ anos · Pix/cartão |
+| Laudo ART | R$ 308,29 (199,90 + CREA) | 24h (4h se Pix) | SP, GO, MT, MS, MG, RJ |
+| Habitíssimo/GetNinjas | R$ 300–1.000 | Variável | Nacional (qualidade variável) |
+| **Diagnóstika** | **R$ 350 fixo (CREA incluso)** | **24–48h** | **RMC Campinas (local)** |
+
+\* Preço final: total que o cliente paga incluindo taxa CREA de R$ 108,39 quando cobrada à parte.
+
+### Nossa posição defensável — quadrante vazio
+
+|  | Preço publicado | Sob orçamento |
+|---|---|---|
+| **100% online** | **← Diagnóstika (local Campinas) + Sysbuild/Laudo ART (SP capital)** | — |
+| **Exige visita** | — | Comdominium, Cruzeiro, D'Limas (Campinas) · Arquitetos tradicionais |
+
+Não somos os mais baratos nem os únicos online. Mas ocupamos um quadrante vazio: **empresa local em Campinas com preço publicado e operação 100% online**. Todo concorrente cai em um dos outros quadrantes.
+
+### Diferenciais reais e defensáveis
+
+- **Único jogador local com preço publicado** — reduz atrito de decisão; 100% dos concorrentes de Campinas trabalha com orçamento sob consulta.
+- **Único 100% online sediado em Campinas** — Sysbuild/Laudo ART não têm endereço aqui; Comdominium/Cruzeiro exigem visita física.
+- **SEO hiper-específico por prédio** — nenhum concorrente tem página dedicada por empreendimento. Quando o morador do Alenza Cambuí busca, só a gente aparece com o nome do prédio no título.
+- **Programa Morador Embaixador** — canal único de aquisição via WhatsApp do condomínio. Nenhum concorrente faz.
+- **Reputação local em Paulínia e Hortolândia** — regiões onde a Diagnóstika já é conhecida antes do lead virar cliente.
+- **One-stop shop pós-ART** — laudos, vistorias, memoriais integrados no mesmo portal.
+- **Preço fixo R$ 350 com CREA incluso** — Sysbuild cobra R$ 189,90 mas soma R$ 108,39 depois; nosso preço é o final, sem surpresa.
+
+### Reconhecimento honesto
+
+**Não somos os mais baratos.** Sysbuild e Laudo ART são R$ 40–50 mais baratos. RGS Laudos anuncia "a partir de R$ 99,99". Nossa aposta é ser o **mais confiável e mais fácil de resolver** para o morador da RMC — não vencer guerra de centavos com players nacionais que operam por volume.
+
+**Barreira de entrada pra replicar:** 6–12 meses pra qualquer concorrente montar (infra de landings por prédio + base curada de condomínios + reputação local + programa embaixador estruturado). É vantagem temporal — enquanto os outros pensam, a gente já está indexado no Google e com embaixadores ativos.
 
 ---
 

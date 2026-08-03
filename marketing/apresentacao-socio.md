@@ -1,19 +1,22 @@
 # Plano de Aceleração — Emissão de ART Semiautomática
-## Meta: 20 ART/dia (~440/mês) atendendo direto o morador na RMC Campinas
+## Meta: 20 ART/dia em operação 24/7 (~600/mês) atendendo direto o morador na RMC Campinas
 
 ---
 
 ## Sumário executivo (1 página)
 
-**O que estamos propondo:** transformar a Diagnóstika na primeira escolha para emissão de ART de reforma de apartamentos na Região Metropolitana de Campinas, atingindo **20 ART/dia úteis** em 90 dias, através de uma operação de captação **direta ao morador**, autônoma (sem depender de indicações ou de órgãos públicos) e escalável.
+**O que estamos propondo:** transformar a Diagnóstika na primeira escolha para emissão de ART de reforma de apartamentos na Região Metropolitana de Campinas, atingindo **20 ART/dia em operação 24/7 (~600/mês)** em 90 dias, através de uma operação de captação **direta ao morador**, autônoma (sem depender de indicações ou de órgãos públicos) e escalável.
+
+**A parte difícil já está pronta:** o motor de emissão já opera — o robô rascunha a ART, loga no CREA, preenche a documentação e baixa o documento pronto. Sobra de manual só confirmar o rascunho, pagar a taxa CREA e enviar ao cliente (~25 min/dia para 600 ART/mês após otimizações). O gargalo de escala não é produzir ART; é gerar demanda — que é o que este plano resolve.
 
 **Por que agora:** o volume de apartamentos entregues na RMC nos últimos 12-18 meses cria uma janela de conversão irrepetível. Cada morador de prédio recém entregue precisa de ART antes de reformar — é lei (NBR 16.280) e é exigência do síndico. Hoje eles resolvem via arquiteto (caro, demorado) ou não resolvem (ilegal, arriscado). Nossa proposta: **ART em 24-48h, 100% online, R$ 350 fixo, Pix**.
 
-**Unit economics validado:**
+**Unit economics (com o motor de emissão automatizado):**
 - Receita por ART: R$ 350,00
 - Custo variável (taxa CREA): R$ 108,39
 - **Margem bruta por ART: R$ 241,61 (69%)**
-- Meta 440 ART/mês → **Margem bruta mensal: R$ 106.308**
+- Custo operacional real (robô + Megazap + ~3 min humano): ~R$ 12/ART → **margem líquida operacional R$ 229,61 (66%)**
+- Meta 600 ART/mês → **Margem bruta mensal: R$ 144.966 · Margem operacional ~R$ 110k/mês · Run-rate ~R$ 1,31M/ano**
 
 **Investimento necessário:** R$ 0 a R$ 6.600/mês (dependendo do modelo escolhido). Toda infraestrutura já está pronta (site, formulário, PIX, dashboard, 44 landings SEO). Custo de desenvolvimento afundado — só custo variável a partir daqui.
 
@@ -61,7 +64,7 @@ Preço 2× menor que o mercado, entrega 5× mais rápida, 100% online.
 - 70-80% dos moradores reformam nos primeiros 90 dias após chaves
 - **Mercado potencial: ~2.500-4.500 ARTs por trimestre**
 
-Nossa meta de 440/mês (~1.320/trimestre) representa **30-50% de share** desse mercado potencial. Ambicioso mas realista se formos o único player com proposta online-first e preço agressivo.
+Nossa meta de 600/mês (~1.800/trimestre) representa **40-70% de share** desse mercado potencial. Agressivo — por isso a meta plena é o topo da rampa (mês 6), não o ponto de partida, e Paulínia/Hortolândia (onde já temos reputação) entram cedo pra encurtar o caminho.
 
 **Regiões prioritárias:**
 1. **Campinas** — Cambuí, Nova Campinas, Parque Prado, Bosque, Jardim Proença (alto padrão + médio padrão)
@@ -166,18 +169,20 @@ Motor principal da meta.
 | Receita bruta | R$ 350,00 |
 | Taxa CREA | (R$ 108,39) |
 | **Margem bruta** | **R$ 241,61 (69%)** |
-| Custos operacionais alocados (engenheiro, plataforma) | (R$ 40,00) |
-| **Margem líquida operacional** | **R$ 201,61 (58%)** |
+| Custo operacional real (robô + Megazap + ~3 min humano) | (R$ 12,00) |
+| **Margem líquida operacional** | **R$ 229,61 (66%)** |
+
+> O motor de emissão já é automatizado (robô rascunha, registra no CREA, baixa a ART). Por isso o custo operacional por ART é ~R$ 12, não R$ 40 de emissão manual.
 
 ### Break-even por modelo de aquisição
 
 | Canal | CAC esperado | Margem líquida/ART | Break-even mensal |
 |---|---:|---:|---:|
-| SEO orgânico | R$ 0 | R$ 201,61 | 0 ART (é lucro puro) |
-| Embaixador | R$ 60 | R$ 141,61 | Depende do canal |
-| Google Ads long-tail | R$ 40-60 | R$ 141-161 | Baixo |
-| Meta Ads | R$ 80-120 | R$ 81-121 | Médio |
-| Google genérico | R$ 100-150 | R$ 51-101 | Alto |
+| SEO orgânico | R$ 0 | R$ 229,61 | 0 ART (é lucro puro) |
+| Embaixador | R$ 60 | R$ 169,61 | Depende do canal |
+| Google Ads long-tail | R$ 40-60 | R$ 169-189 | Baixo |
+| Meta Ads | R$ 80-120 | R$ 109-149 | Médio |
+| Google genérico | R$ 100-150 | R$ 79-129 | Alto |
 
 **Todo canal fica positivo.** O Meta Ads é o mais apertado no piloto (aprendizado do pixel eleva CAC nos primeiros 30 dias), mas sai bem depois.
 
@@ -204,14 +209,14 @@ Assumindo mídia paga R$ 6.600/mês do dia 1 (cenário mais caro):
 
 Menor risco, crescimento mais lento, mas sem drawdown. Recomendado como fase 1.
 
-### Meta em regime (dia 90+)
+### Meta em regime (600/mês · 20/dia · 30 dias)
 
-- **440 ART/mês** (20/dia útil)
-- Receita bruta: **R$ 154.000/mês**
-- Margem bruta: **R$ 106.308/mês**
-- Custo mídia + embaixadores: ~R$ 15.000/mês
-- Margem operacional: ~R$ 88.000/mês
-- **Margem operacional anual: ~R$ 1.056.000**
+- **600 ART/mês** (20/dia · operação 24/7)
+- Receita bruta: **R$ 210.000/mês**
+- Margem bruta: **R$ 144.966/mês**
+- Custos: ops R$ 7.200 + embaixador R$ 21.600 + mídia R$ 6.600 = ~R$ 35.400/mês
+- Margem operacional: **~R$ 109.566/mês (~R$ 110k)**
+- **Run-rate anual em regime: ~R$ 1,31 milhão**
 
 ---
 
@@ -251,7 +256,7 @@ Menor risco, crescimento mais lento, mas sem drawdown. Recomendado como fase 1.
 - [ ] Piloto Google Ads R$ 500/mês (long-tail em 7 prédios A)
 - [ ] Escalar programa embaixador pra 20-30 ativos
 - [ ] Publicar 3 posts Instagram/semana
-- [ ] Meta: 40 ART no mês (2/dia útil)
+- [ ] Meta: 60-100 ART no mês (2-3/dia)
 
 **Marco:** primeira validação de CAC real.
 
@@ -261,7 +266,7 @@ Menor risco, crescimento mais lento, mas sem drawdown. Recomendado como fase 1.
 - [ ] Escalar programa embaixador pra 60 ativos
 - [ ] Abrir Meta Ads pros 30 prédios B
 - [ ] YouTube Shorts (1 vídeo por prédio A)
-- [ ] Meta: 20 ART/dia útil (440/mês)
+- [ ] Meta: 20 ART/dia (600/mês, operação 24/7)
 
 **Marco:** meta atingida.
 
@@ -269,68 +274,39 @@ Menor risco, crescimento mais lento, mas sem drawdown. Recomendado como fase 1.
 
 ## 6.1 Metas Semanais — 24 semanas até meta plena
 
-Uma curva realista de rampa. Semana útil = 5 dias. Base do cenário realista de recuperação de piloto, com transição progressiva de canais orgânicos → mistos → escala.
+Curva de rampa com operação 24/7 (30 dias/mês). O gargalo não é produzir ART — o robô já faz isso — é acelerar a geração de demanda. A rampa reflete quão rápido os canais de captação maturam: orgânico → misto → escala. Meta plena = 20 ART/dia = ~600/mês, no mês 6.
 
 **Premissas fixas por ART:**
 - Receita bruta: R$ 350,00
 - Taxa CREA: R$ 108,39 (30,97%)
 - Margem bruta: R$ 241,61 (69,03%)
-- Custo operacional alocado (engenheiro + plataforma): R$ 40,00
-- **Margem líquida operacional por ART: R$ 201,61**
-- Comissão embaixador: R$ 60 (só quando aplicável — assumimos 60% das ART vêm via embaixador a partir do mês 2)
+- Custo operacional real (robô + Megazap + ~3 min humano): R$ 12,00
+- **Margem líquida operacional por ART: R$ 229,61**
+- Comissão embaixador: R$ 60 (só nas ART via embaixador — blend ~60% a partir do mês 2)
 
-### Cenário Recomendado (Opção A → B → C progressivamente)
+### Trajetória por semana (ART/dia alvo)
 
-| Sem | Fase | ART/sem | Receita/sem | Custo mídia/sem | Comissão embaixador/sem | Custos ops fixos/sem | **Lucro/sem** | Lucro acum. |
-|---|---|---:|---:|---:|---:|---:|---:|---:|
-| **Mês 1 — Setup + primeiros leads (R$ 0 mídia)** ||||||||
-| 1 | Deploy + testes | 0 | R$ 0 | R$ 0 | R$ 0 | R$ 115 | **−R$ 115** | −R$ 115 |
-| 2 | 1os posts GBP + scraper | 2 | R$ 700 | R$ 0 | R$ 0 | R$ 115 | **+R$ 288** | +R$ 173 |
-| 3 | SEO começa indexar | 8 | R$ 2.800 | R$ 0 | R$ 240 | R$ 115 | **+R$ 1.258** | +R$ 1.431 |
-| 4 | 1os embaixadores ativos | 15 | R$ 5.250 | R$ 0 | R$ 540 | R$ 115 | **+R$ 2.369** | +R$ 3.800 |
-| **Mês 1 total** ||**25**|**R$ 8.750**|**R$ 0**|**R$ 780**|**R$ 460**|**+R$ 3.800**||
-| **Mês 2 — Piloto pago R$ 350/sem (Opção B) + escala embaixador** ||||||||
-| 5 | Meta+Google piloto | 8 | R$ 2.800 | R$ 350 | R$ 288 | R$ 115 | **+R$ 859** | +R$ 4.659 |
-| 6 | Learning phase Meta | 10 | R$ 3.500 | R$ 350 | R$ 360 | R$ 115 | **+R$ 1.191** | +R$ 5.850 |
-| 7 | 1a otimização | 12 | R$ 4.200 | R$ 350 | R$ 432 | R$ 115 | **+R$ 1.523** | +R$ 7.373 |
-| 8 | Ads começam converter | 15 | R$ 5.250 | R$ 350 | R$ 540 | R$ 115 | **+R$ 1.847** | +R$ 9.220 |
-| **Mês 2 total** ||**45**|**R$ 15.750**|**R$ 1.400**|**R$ 1.620**|**R$ 460**|**+R$ 7.417**||
-| **Mês 3 — CAC estabiliza, embaixador em regime** ||||||||
-| 9 | Escala orgânico | 15 | R$ 5.250 | R$ 350 | R$ 540 | R$ 115 | **+R$ 1.716** | +R$ 10.936 |
-| 10 | 20 embaixadores | 18 | R$ 6.300 | R$ 350 | R$ 648 | R$ 115 | **+R$ 2.194** | +R$ 13.130 |
-| 11 | Novos prédios da coleta | 20 | R$ 7.000 | R$ 350 | R$ 720 | R$ 115 | **+R$ 2.427** | +R$ 15.557 |
-| 12-13 | Base saudável | 22 | R$ 7.700 | R$ 350 | R$ 792 | R$ 115 | **+R$ 2.639** | +R$ 18.196 |
-| **Mês 3 total** ||**75**|**R$ 26.250**|**R$ 1.400**|**R$ 2.700**|**R$ 460**|**+R$ 11.360**||
-| **Mês 4 — Escalar orçamento (Opção C: R$ 1.650/sem)** ||||||||
-| 14 | Meta+Google full | 35 | R$ 12.250 | R$ 1.650 | R$ 1.260 | R$ 115 | **+R$ 3.031** | +R$ 21.227 |
-| 15 | Retargeting ativo | 40 | R$ 14.000 | R$ 1.650 | R$ 1.440 | R$ 115 | **+R$ 3.860** | +R$ 25.087 |
-| 16 | Prédios B entram | 50 | R$ 17.500 | R$ 1.650 | R$ 1.800 | R$ 115 | **+R$ 5.512** | +R$ 30.599 |
-| 17 | 40 embaixadores | 55 | R$ 19.250 | R$ 1.650 | R$ 1.980 | R$ 115 | **+R$ 6.343** | +R$ 36.942 |
-| **Mês 4 total** ||**180**|**R$ 63.000**|**R$ 6.600**|**R$ 6.480**|**R$ 460**|**+R$ 18.747**||
-| **Mês 5 — Rampa final** ||||||||
-| 18 | Loop prova social | 65 | R$ 22.750 | R$ 1.650 | R$ 2.340 | R$ 115 | **+R$ 7.999** | +R$ 44.941 |
-| 19 | YouTube Shorts | 70 | R$ 24.500 | R$ 1.650 | R$ 2.520 | R$ 115 | **+R$ 8.827** | +R$ 53.768 |
-| 20 | Nova incorporadora canal | 80 | R$ 28.000 | R$ 1.650 | R$ 2.880 | R$ 115 | **+R$ 10.484** | +R$ 64.252 |
-| 21 | Fluxo estabilizado | 85 | R$ 29.750 | R$ 1.650 | R$ 3.060 | R$ 115 | **+R$ 11.313** | +R$ 75.565 |
-| **Mês 5 total** ||**300**|**R$ 105.000**|**R$ 6.600**|**R$ 10.800**|**R$ 460**|**+R$ 38.623**||
-| **Mês 6 — Meta plena** ||||||||
-| 22 | 60 embaixadores | 95 | R$ 33.250 | R$ 1.650 | R$ 3.420 | R$ 115 | **+R$ 12.970** | +R$ 88.535 |
-| 23 | Escala Paulínia/Hortolândia | 105 | R$ 36.750 | R$ 1.650 | R$ 3.780 | R$ 115 | **+R$ 14.629** | +R$ 103.164 |
-| 24 | **META** | 115 | R$ 40.250 | R$ 1.650 | R$ 4.140 | R$ 115 | **+R$ 16.287** | +R$ 119.451 |
-| 25+ | Regime | 110 | R$ 38.500 | R$ 1.650 | R$ 3.960 | R$ 115 | **+R$ 15.485** | mensal |
-| **Mês 6 total** ||**440**|**R$ 154.000**|**R$ 6.600**|**R$ 15.840**|**R$ 460**|**+R$ 88.298**||
+| Mês | Semanas | ART/dia | ART/semana | Fase de captação |
+|---|---|---|---|---|
+| 1 | 1–4 | 0 → 2,5 | 0 · 7 · 11 · 17 | Deploy + SEO + 1os embaixadores (R$ 0 mídia) |
+| 2 | 5–8 | 2 → 3 | 12 · 14 · 16 · 18 | Piloto pago + escala embaixador |
+| 3 | 9–12 | 3 → 4 | 22 · 24 · 26 · 28 | CAC estabiliza, base saudável |
+| 4 | 13–16 | 7 → 10 | 50 · 58 · 66 · 71 | Escala orçamento + prédios B |
+| 5 | 17–20 | 12 → 16 | 88 · 96 · 104 · 112 | Loop prova social + YouTube |
+| 6 | 21–24 | 20 → 22 | 140 · 148 · 155 · 157 | Meta plena · Paulínia + Hortolândia |
 
-### Resumo por mês (Cenário Recomendado)
+### Cenário Recomendado — resumo financeiro mensal
 
-| Mês | Meta ART | Receita | Margem bruta | Custos total | **Lucro operacional** | Lucro acumulado |
-|---|---:|---:|---:|---:|---:|---:|
-| 1 | 25 | R$ 8.750 | R$ 6.040 | R$ 2.240 | **R$ 3.800** | R$ 3.800 |
-| 2 | 45 | R$ 15.750 | R$ 10.872 | R$ 3.480 | **R$ 7.392** | R$ 11.192 |
-| 3 | 75 | R$ 26.250 | R$ 18.120 | R$ 6.760 | **R$ 11.360** | R$ 22.552 |
-| 4 | 180 | R$ 63.000 | R$ 43.489 | R$ 24.742 | **R$ 18.747** | R$ 41.299 |
-| 5 | 300 | R$ 105.000 | R$ 72.483 | R$ 33.860 | **R$ 38.623** | R$ 79.922 |
-| 6 | 440 | R$ 154.000 | R$ 106.308 | R$ 66.010 | **R$ 88.298** | R$ 168.220 |
-| **12** | **5.280/ano** | **~R$ 1,85M** | **~R$ 1,28M** | **~R$ 792k** | **~R$ 1,06M/ano** | |
+| Mês | ART | Receita | Margem bruta | Ops | Embaixador | Mídia | **Lucro op.** | Acumulado |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 · Deploy + orgânico | 35 | R$ 12.250 | R$ 8.456 | R$ 420 | R$ 350 | R$ 0 | **+R$ 7.686** | R$ 7.686 |
+| 2 · Piloto pago | 60 | R$ 21.000 | R$ 14.497 | R$ 720 | R$ 1.200 | R$ 1.500 | **+R$ 11.077** | R$ 18.763 |
+| 3 · CAC estabiliza | 100 | R$ 35.000 | R$ 24.161 | R$ 1.200 | R$ 2.400 | R$ 1.500 | **+R$ 19.061** | R$ 37.824 |
+| 4 · Escala orçamento | 245 | R$ 85.750 | R$ 59.194 | R$ 2.940 | R$ 6.600 | R$ 6.600 | **+R$ 43.054** | R$ 80.878 |
+| 5 · Rampa final | 400 | R$ 140.000 | R$ 96.644 | R$ 4.800 | R$ 12.000 | R$ 6.600 | **+R$ 73.244** | R$ 154.122 |
+| **6 · META (20/dia)** | **600** | **R$ 210.000** | **R$ 144.966** | **R$ 7.200** | **R$ 21.600** | **R$ 6.600** | **+R$ 109.566** | **R$ 263.688** |
+
+**Consolidado:** lucro acumulado nos 6 meses de rampa = **R$ 263.688**. Run-rate ao fim do mês 6 = **~R$ 110k/mês**. Projeção ano 1 completo (rampa + 6 meses de regime) = **~R$ 920k**. Run-rate anual em regime = **~R$ 1,31 milhão**.
 
 ### Marcos críticos (comparar com a realidade toda semana)
 
@@ -351,9 +327,9 @@ Se tudo demorar mais do que o esperado — funil converte pior, embaixadores dem
 | 2 | 20 | +R$ 3.000 |
 | 3 | 35 | +R$ 5.500 |
 | 4 | 60 | +R$ 8.500 |
-| 5 | 100 | +R$ 14.000 |
-| 6 | 160 | +R$ 25.000 |
-| **8** | **440** | **+R$ 88k/mês** |
+| 5 | 130 | +R$ 22.000 |
+| 6 | 220 | +R$ 38.000 |
+| **8** | **600** | **+R$ 110k/mês** |
 
 Meta plena atingida no mês 8 em vez do mês 6. Nenhum mês fica no vermelho (por causa da margem alta de 69%).
 
@@ -370,9 +346,9 @@ Meta plena atingida no mês 8 em vez do mês 6. Nenhum mês fica no vermelho (po
    - Meta CAC agregado: < R$ 100 no mês 3, < R$ 80 no mês 6
    - Se > R$ 150 sustentado por 3 semanas → cortar canal pior e realocar
 
-3. **Fila de emissão sustenta o volume?**
-   - Se ART/dia > capacidade do engenheiro → contratar 2º engenheiro (ponto de escala)
-   - Ponto de referência: 15 ART/dia = 1 engenheiro em regime confortável
+3. **A confirmação de rascunhos acompanha o volume?**
+   - O robô produz; o humano só confirma o rascunho antes de liberar
+   - Ponto de referência: ~30-40 ART/dia = 1 pessoa confortável no checkpoint. Acima disso, treinar 2ª pessoa
 
 ### Como o dashboard reporta essas metas
 

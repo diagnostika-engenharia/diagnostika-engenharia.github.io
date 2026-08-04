@@ -327,10 +327,20 @@ fs.writeFileSync(path.join(OUT_DIR, 'index.html'), indexHTML(rows));
 console.log(`✓ index.html (${rows.length} condomínios)`);
 
 // sitemap.xml no root — Google indexa mais rápido
+// URLs das páginas de topo/meio de funil (home do serviço + guias por ambiente),
+// geradas por gerar-guias.js. Merge no sitemap se o arquivo existir.
+let guiasUrls = [];
+try {
+  const gp = path.join(REPO, 'marketing', '.urls-guias.json');
+  if (fs.existsSync(gp)) guiasUrls = JSON.parse(fs.readFileSync(gp, 'utf8'));
+} catch (_) {}
+
 const sitemapUrls = [
   `${SITE_ORIGIN}/`,
+  `${SITE_ORIGIN}/art/`,
   `${SITE_ORIGIN}/solicitar-art.html`,
   `${SITE_ORIGIN}/condominio/`,
+  ...guiasUrls.filter(u => u !== `${SITE_ORIGIN}/art/`),
   ...rows.map(r => `${SITE_ORIGIN}/condominio/${r.landing_slug}.html`)
 ];
 const sitemap = `<?xml version="1.0" encoding="UTF-8"?>

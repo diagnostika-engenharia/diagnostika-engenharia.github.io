@@ -1,8 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://diagnostika-engenharia.github.io/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://diagnostika-engenharia.github.io/art/</loc><changefreq>weekly</changefreq></url>
   <url><loc>https://diagnostika-engenharia.github.io/solicitar-art.html</loc><changefreq>weekly</changefreq></url>
   <url><loc>https://diagnostika-engenharia.github.io/condominio/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://diagnostika-engenharia.github.io/reforma/banheiro.html</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://diagnostika-engenharia.github.io/reforma/cozinha.html</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://diagnostika-engenharia.github.io/reforma/parede.html</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://diagnostika-engenharia.github.io/reforma/eletrica.html</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://diagnostika-engenharia.github.io/reforma/piso.html</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://diagnostika-engenharia.github.io/reforma/sacada.html</loc><changefreq>weekly</changefreq></url>
   <url><loc>https://diagnostika-engenharia.github.io/condominio/legacy-paineiras.html</loc><changefreq>weekly</changefreq></url>
   <url><loc>https://diagnostika-engenharia.github.io/condominio/orion-norte-sul.html</loc><changefreq>weekly</changefreq></url>
   <url><loc>https://diagnostika-engenharia.github.io/condominio/living-cyrela-cambui.html</loc><changefreq>weekly</changefreq></url>

@@ -1,0 +1,46 @@
+name: Regerar landings por prédio
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'marketing/condominios-rmc.csv'
+      - 'marketing/scripts/gerar-landings.js'
+      - '.github/workflows/gerar-landings.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gerar-landings
+  cancel-in-progress: false
+
+jobs:
+  regerar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Rodar gerador
+        run: node marketing/scripts/gerar-landings.js
+
+      - name: Commit e push se mudou
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add condominio/ sitemap.xml robots.txt
+          if git diff --cached --quiet; then
+            echo "Nada mudou."
+          else
+            git commit -m "chore(landings): regerar a partir de condominios-rmc.csv [skip ci]"
+            git push origin main
+          fi

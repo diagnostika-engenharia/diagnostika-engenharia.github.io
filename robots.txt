@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://diagnostika-engenharia.github.io/sitemap.xml

@@ -89,6 +89,9 @@ footer a{color:var(--turq);text-decoration:none}
 </header>
 
 <main>
+  <div id="predio-badge" class="hide" style="max-width:480px;margin:0 auto 14px;background:rgba(0,180,172,.1);border:1px solid rgba(0,180,172,.3);border-radius:12px;padding:10px 14px;font-size:13px;color:var(--teal);text-align:center">
+    Solicitação para o <b id="predio-badge-nome"></b>
+  </div>
   <div class="steps" id="steps">
     <div class="s on"></div>
     <div class="s"></div>
@@ -230,6 +233,24 @@ const PIX_NAME='DIAGNOSTIKA ENGENHARIA';
 const PIX_CITY='CAMPINAS';
 const VALOR_PADRAO = parseFloat(new URLSearchParams(location.search).get('valor')||'350') || 350;
 
+// ===== UTM / rastreio de origem =====
+// URLs de campanha:
+//   ?p=CPS001         código do prédio (planilha marketing/condominios-rmc.csv)
+//   ?e=EMB042         código do embaixador (programa Morador Embaixador)
+//   ?src=meta         canal: meta | google | portaria | wpp-share | seo-landing | insta-org | panfleto | nutri1..3
+//   ?c=v1a            criativo específico (ver marketing/criativos.md)
+//   ?pn=Nome Prédio   nome legível do prédio (para exibir na tela; opcional)
+const _qs = new URLSearchParams(location.search);
+const _cleanId = v => (v||'').replace(/[^A-Za-z0-9_-]/g,'').slice(0,32);
+const _cleanText = v => (v||'').slice(0,80);
+const UTM = {
+  predio_codigo: _cleanId(_qs.get('p')),
+  embaixador_codigo: _cleanId(_qs.get('e')),
+  origem_canal: _cleanId(_qs.get('src')),
+  criativo: _cleanId(_qs.get('c')),
+  predio_nome: _cleanText(_qs.get('pn')),
+};
+
 const FORM={};
 let CUR=1;
 
@@ -250,6 +271,13 @@ function maskTel(v){
 }
 $('f-cpf').addEventListener('input',e=>{e.target.value=maskCPF(e.target.value)});
 $('f-tel').addEventListener('input',e=>{e.target.value=maskTel(e.target.value)});
+
+// Se veio de landing de prédio, mostra badge e pré-preenche o campo "Condomínio"
+if(UTM.predio_nome){
+  $('predio-badge-nome').textContent = UTM.predio_nome;
+  $('predio-badge').classList.remove('hide');
+  $('f-cond').value = UTM.predio_nome;
+}
 
 // ===== Validador CPF =====
 function isCPF(cpf){
@@ -398,7 +426,10 @@ async function confirmar(){
     metragem: FORM.metragem, descricao: FORM.descricao, previsao_inicio: FORM.inicio||null,
     valor: FORM._valor, pix_txid: FORM._txid, pix_payload: FORM._pix,
     status: 'aguardando_pagamento',
-    origem: 'form-art'
+    origem: UTM.origem_canal || 'form-art',
+    predio_codigo: UTM.predio_codigo || null,
+    embaixador_codigo: UTM.embaixador_codigo || null,
+    criativo: UTM.criativo || null
   };
   try{
     const r = await fetch(SUPABASE_URL+'/rest/v1/solicitacoes_art', {
@@ -449,10 +480,24 @@ CREATE TABLE IF NOT EXISTS public.solicitacoes_art (
   pix_payload TEXT,
   status TEXT DEFAULT 'aguardando_pagamento',
   origem TEXT,
+  predio_codigo TEXT,
+  embaixador_codigo TEXT,
+  criativo TEXT,
   observacao_interna TEXT
 );
 ALTER TABLE public.solicitacoes_art ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "anon_insert_art" ON public.solicitacoes_art FOR INSERT TO anon WITH CHECK (true);
+
+-- Migração se a tabela já existir sem os campos de rastreio:
+ALTER TABLE public.solicitacoes_art
+  ADD COLUMN IF NOT EXISTS predio_codigo TEXT,
+  ADD COLUMN IF NOT EXISTS embaixador_codigo TEXT,
+  ADD COLUMN IF NOT EXISTS criativo TEXT;
+
+-- Indexes úteis para relatórios de conversão por canal/prédio/embaixador:
+CREATE INDEX IF NOT EXISTS ix_art_predio ON public.solicitacoes_art(predio_codigo);
+CREATE INDEX IF NOT EXISTS ix_art_embaixador ON public.solicitacoes_art(embaixador_codigo);
+CREATE INDEX IF NOT EXISTS ix_art_origem ON public.solicitacoes_art(origem);
 */
 </script>
 </body>

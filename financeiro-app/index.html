@@ -647,6 +647,7 @@ body.capturing .rel-acao{display:none!important}
           <div class="kpi red"><label>Total Vencido</label><div class="val" id="kp-venc">—</div></div>
           <div class="kpi" style="border-color:var(--warn)"><label>A Vencer</label><div class="val" id="kp-avenc">—</div></div>
           <div class="kpi gray"><label>Pago no Mês</label><div class="val" id="kp-mes">—</div></div>
+          <div class="kpi blue"><label>Total do Filtro</label><div class="val" id="kp-filtro">—</div></div>
         </div>
         <div class="filters" style="flex-wrap:wrap;align-items:center;gap:8px">
           <select id="fp-status" onchange="loadPagar()"><option value="">Todos</option><option value="Aguardando aprovação">Aguardando aprovação</option><option value="Pendente">Pendente</option><option value="Pago">Pago</option></select>
@@ -2665,9 +2666,11 @@ async function loadPagar(){
   const venc=rows.filter(r=>r.status==='Pendente'&&!r.estornado&&r.data_vencimento<hj).reduce((s,r)=>s+r.valor,0);
   const avenc=rows.filter(r=>r.status==='Pendente'&&!r.estornado&&r.data_vencimento>=hj).reduce((s,r)=>s+r.valor,0);
   const mes=rows.filter(r=>r.status==='Pago'&&!r.estornado&&r.data_pagamento&&r.data_pagamento.startsWith(mesAtual)).reduce((s,r)=>s+r.valor,0);
+  const totalFiltro=rows.filter(r=>!r.estornado).reduce((s,r)=>s+r.valor,0);
   document.getElementById('kp-venc').textContent=fmt(venc);
   document.getElementById('kp-avenc').textContent=fmt(avenc);
   document.getElementById('kp-mes').textContent=fmt(mes);
+  document.getElementById('kp-filtro').textContent=fmt(totalFiltro);
   _pagarRows=rows;
   renderPagar();
 }

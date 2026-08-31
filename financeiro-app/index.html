@@ -649,7 +649,7 @@ body.capturing .rel-acao{display:none!important}
           <div class="kpi gray"><label>Pago no Mês</label><div class="val" id="kp-mes">—</div></div>
         </div>
         <div class="filters" style="flex-wrap:wrap;align-items:center;gap:8px">
-          <select id="fp-status" onchange="loadPagar()"><option value="">Todos</option><option value="Pendente">Pendente</option><option value="Pago">Pago</option></select>
+          <select id="fp-status" onchange="loadPagar()"><option value="">Todos</option><option value="Aguardando aprovação">Aguardando aprovação</option><option value="Pendente">Pendente</option><option value="Pago">Pago</option></select>
           <select id="fp-cat" onchange="loadPagar()">
             <option value="">Todas as categorias</option>
             <option>Aluguel</option><option>Energia</option><option>Internet</option>
@@ -2611,7 +2611,8 @@ async function loadPagar(){
   const cat=document.getElementById('fp-cat').value;
   const de=document.getElementById('fp-de')?.value, ate=document.getElementById('fp-ate')?.value;
   const inclPL=document.getElementById('fp-incl-pl')?.checked&&cat!=='Pró-Labore';
-  if(st)q=q.eq('status',st);
+  if(st==='Pendente')q=q.in('status',['Pendente',ST_AGUARDANDO]);
+  else if(st)q=q.eq('status',st);
   if(cat&&cat!=='Pró-Labore')q=q.eq('categoria',cat);
   if(de)q=q.gte('data_vencimento',de);
   if(ate)q=q.lte('data_vencimento',ate);

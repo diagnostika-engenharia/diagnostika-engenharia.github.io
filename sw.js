@@ -1,4 +1,4 @@
-const CACHE = 'portal-diagnostika-v5';
+const CACHE = 'portal-diagnostika-v6';
 const ASSETS = ['./', './index.html', './manifest.json', './assets/logo-dark.png', './assets/icon.png'];
 
 self.addEventListener('install', e => {
@@ -16,7 +16,7 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   // Não intercepta sub-apps nem chamadas ao server RPA local
-  if (url.pathname.startsWith('/pmp/') || url.pathname.startsWith('/admin/')) return;
+  if (url.pathname.startsWith('/pmp/') || url.pathname.startsWith('/admin/') || url.pathname.startsWith('/obra/')) return;
   if (url.hostname === '127.0.0.1' || url.hostname === 'localhost') return;
 
   const isHTML = e.request.mode === 'navigate' ||

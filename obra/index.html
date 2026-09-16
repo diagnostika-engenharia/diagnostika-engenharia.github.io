@@ -167,7 +167,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpbW1qZ2R3aGlmc3JyYnJlY2hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzU2NDIsImV4cCI6MjA5NTE1MTY0Mn0.eAmMS95M8BkfX3NCcOtHnhKWXy0jkvXwSGEoqv_Q21Q';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20260916-2';
+const APP_BUILD='20260916-3';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -277,6 +277,7 @@ async function sincronizar(){
           const {error}=await sb.from('obra_registros').upsert(row,{onConflict:'id'});if(error)throw error;
         }
         else if(op.kind==='registro_update'){const {error}=await sb.from('obra_registros').update(op.patch).eq('id',op.id);if(error)throw error;}
+        else if(op.kind==='registros_delete_tipos'){const {error}=await sb.from('obra_registros').delete().eq('visita_id',op.visita_id).in('tipo',op.tipos);if(error)throw error;}
         await idb.del(op.id);
       }catch(e){console.warn('sync falhou, mantém na fila:',e);break;}
     }
@@ -353,7 +354,7 @@ function novaVisita(){
   enfileirar({kind:'visita',row:rowVisita()});
   tab='inicio';go('visita');
 }
-function rowVisita(){const {checklist,servicos,registros,...row}=visita;return row;}
+function rowVisita(){const {checklist,servicos,registros,reaberta,...row}=visita;return row;}
 function rVisita(){
   if(!visita){setTitle('Vistoria','nenhuma em andamento');$('view').innerHTML=`<div class="empty">Nenhuma vistoria em andamento.<br><br><button class="btn" onclick="novaVisita()">＋ Iniciar nova vistoria</button></div>`;return;}
   setTitle(`Vistoria ${fmtBR(visita.data)}`,`${visita.engenheiro} · desde ${visita.hora_inicio}`);
@@ -427,6 +428,8 @@ async function copiarResumo(){try{await navigator.clipboard.writeText(textoResum
 async function encerrarVisita(){
   if(!confirm('Encerrar esta vistoria? Os dados serão enviados ao histórico.')) return;
   visita.hora_fim=visita.hora_fim||agora();visita.status='concluida';
+  // vistoria reaberta: apaga checklist/serviços antigos antes de regravar
+  if(visita.reaberta) await idb.add({kind:'registros_delete_tipos',visita_id:visita.id,tipos:['checklist','servico'],ts:Date.now()});
   // checklist + serviços viram registros
   for(const [k,c] of Object.entries(visita.checklist)){
     const label=CHECKLIST.flatMap(g=>g.itens).find(i=>i[0]===k)?.[1]||k;
@@ -518,8 +521,78 @@ async function rDetalhe(){
   if(sv.length){const byF={};sv.forEach(r=>{(byF[r.fachada]=byF[r.fachada]||[]).push(r);});
     h+=`<div class="card"><h3>Serviços por fachada</h3>${Object.entries(byF).map(([f,arr])=>`<b style="font-size:13px;display:block;margin:8px 0 4px">${esc(f)}</b>${arr.map(r=>`<div class="ck"><span class="lb">${esc(r.item)}</span><span class="tag ${r.status==='concluido'?'ok':'oc'}">${r.status==='concluido'?'concluído':'em andamento'} ${r.percentual??0}%</span></div>`).join('')}`).join('')}</div>`;}
   if(ck.length) h+=`<div class="card"><h3>Checklist</h3>${ck.map(r=>`<div class="ck"><span class="lb">${esc(r.item)}${r.descricao?`<small>${esc(r.descricao)}</small>`:''}</span><span class="tag ${r.status==='nc'?'nc':r.status==='ok'?'ok':''}">${r.status==='na'?'N/A':r.status}</span></div>`).join('')}</div>`;
-  h+=`<div class="card"><h3>Registros (${outros.length})</h3>${outros.length?outros.map(regItem).join(''):'<div class="empty">Sem registros.</div>'}</div>`;
+  h+=`<div class="card"><h3>Registros (${outros.length})</h3>${outros.length?outros.map(r=>`<div>${regItem(r)}<div style="text-align:right;margin:-6px 0 6px"><button class="btn sm sec" style="color:var(--red);padding:4px 10px;font-size:12px" onclick="excluirRegistro('${r.id}')">🗑 excluir</button></div></div>`).join(''):'<div class="empty">Sem registros.</div>'}</div>
+  <div class="card"><h3>Ações</h3>
+    <button class="btn sec" onclick="editarVisita('${esc(v.id)}')">✏️ Editar dados (data, horário, clima, resumo)</button>
+    <button class="btn sec" style="margin-top:8px" onclick="reabrirVisita('${esc(v.id)}')">🔓 Reabrir para alterar checklist, fachadas e registros</button>
+    <button class="btn sec" style="margin-top:8px;color:var(--red)" onclick="excluirVisita('${esc(v.id)}')">🗑 Excluir vistoria inteira</button>
+  </div>`;
   $('detRegs').innerHTML=h;
+  cacheRegs[id]=rs;
+}
+// ── editar / reabrir / excluir ──
+function editarVisita(id){
+  const v=cacheVisitas.find(x=>x.id===id);if(!v)return;
+  const ef=v.efetivo||{};
+  $('sheet').innerHTML=`<h2>Editar vistoria</h2>
+    <div class="row"><div><label class="f">Data</label><input class="f" type="date" id="ev_data" value="${esc(v.data)}"></div><div><label class="f">Engenheiro</label><input class="f" id="ev_eng" value="${esc(v.engenheiro||'')}"></div></div>
+    <div class="row"><div><label class="f">Início</label><input class="f" type="time" id="ev_hi" value="${esc((v.hora_inicio||'').slice(0,5))}"></div><div><label class="f">Saída</label><input class="f" type="time" id="ev_hf" value="${esc((v.hora_fim||'').slice(0,5))}"></div></div>
+    <div class="row"><div><label class="f">Clima</label><select class="f" id="ev_clima"><option value="">—</option>${CLIMAS.map(c=>`<option ${v.clima===c?'selected':''}>${c}</option>`).join('')}</select></div><div><label class="f">Temp. (°C)</label><input class="f" id="ev_temp" inputmode="numeric" value="${esc(v.temperatura||'')}"></div></div>
+    <label class="f" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="ev_par" ${v.paralisacao?'checked':''} style="width:20px;height:20px"> Obra paralisada</label>
+    <label class="f">Encarregado</label><input class="f" id="ev_enc" value="${esc(v.encarregado||'')}">
+    <label class="f">Efetivo</label>${FUNCOES.map(f=>`<div class="ck"><span class="lb">${f}</span><input class="pct" inputmode="numeric" data-ef="${f}" value="${ef[f]??''}" placeholder="0"></div>`).join('')}
+    <label class="f">Resumo</label><textarea class="f" id="ev_res">${esc(v.resumo||'')}</textarea>
+    <button class="btn" style="margin-top:16px" onclick="salvarEdicaoVisita('${esc(id)}')">Salvar alterações</button>
+    <button class="btn sec" style="margin-top:8px" onclick="fecharModal()">Cancelar</button>`;
+  $('modal').classList.add('show');
+}
+async function salvarEdicaoVisita(id){
+  const v=cacheVisitas.find(x=>x.id===id);if(!v)return;
+  const efetivo={};document.querySelectorAll('#sheet [data-ef]').forEach(i=>{if(+i.value>0)efetivo[i.dataset.ef]=+i.value;});
+  Object.assign(v,{data:$('ev_data').value||v.data,engenheiro:$('ev_eng').value,hora_inicio:$('ev_hi').value||null,hora_fim:$('ev_hf').value||null,clima:$('ev_clima').value,temperatura:$('ev_temp').value,paralisacao:$('ev_par').checked,encarregado:$('ev_enc').value,efetivo,resumo:$('ev_res').value});
+  const {obra_visitas,...row}=v;
+  $('modal').classList.remove('show');
+  await enfileirar({kind:'visita',row});
+  toast('Vistoria atualizada');render();
+}
+async function reabrirVisita(id){
+  if(visita){toast('Encerre a vistoria em andamento antes de reabrir outra');return;}
+  const v=cacheVisitas.find(x=>x.id===id);if(!v)return;
+  if(!confirm(`Reabrir a vistoria de ${fmtBR(v.data)}? Ela volta para edição; ao encerrar de novo, o checklist e os serviços são regravados.`))return;
+  let rs=cacheRegs[id];
+  if(!rs){const {data}=await sb.from('obra_registros').select('*').eq('visita_id',id).order('created_at');rs=data||[];}
+  const checklist={},servicos={};
+  const byLabel=Object.fromEntries(CHECKLIST.flatMap(g=>g.itens).map(([k,l])=>[l,k]));
+  rs.filter(r=>r.tipo==='checklist').forEach(r=>{const k=byLabel[r.item];if(k)checklist[k]={status:r.status,obs:r.descricao||undefined};});
+  rs.filter(r=>r.tipo==='servico').forEach(r=>{servicos[r.fachada+'|'+r.item]={status:r.status,pct:r.percentual??undefined};});
+  const registros=rs.filter(r=>!['checklist','servico'].includes(r.tipo));
+  const {obra_visitas,...row}=v;
+  visita={...row,hora_inicio:(row.hora_inicio||'').slice(0,5),hora_fim:null,status:'em_andamento',efetivo:row.efetivo||{},temperatura:row.temperatura||'',clima:row.clima||'',encarregado:row.encarregado||'',resumo:row.resumo||'',checklist,servicos,registros,reaberta:true};
+  saveVisita();
+  await enfileirar({kind:'visita',row:rowVisita()});
+  tab='inicio';go('visita');toast('Vistoria reaberta');
+}
+async function excluirVisita(id){
+  const v=cacheVisitas.find(x=>x.id===id);if(!v)return;
+  if(!navigator.onLine){toast('Excluir exige conexão');return;}
+  if(!confirm(`Excluir a vistoria de ${fmtBR(v.data)} com TODOS os registros e fotos? Não dá para desfazer.`))return;
+  const {data:rs}=await sb.from('obra_registros').select('fotos,audio_path').eq('visita_id',id);
+  const paths=(rs||[]).flatMap(r=>[...(r.fotos||[]),...(r.audio_path?[r.audio_path]:[])]);
+  if(paths.length) await sb.storage.from(BUCKET).remove(paths);
+  const {error}=await sb.from('obra_visitas').delete().eq('id',id);
+  if(error){toast('Erro ao excluir: '+error.message);return;}
+  cacheVisitas=cacheVisitas.filter(x=>x.id!==id);delete cacheRegs[id];
+  toast('Vistoria excluída');navStack=[];go('historico');
+}
+async function excluirRegistro(rid){
+  if(!navigator.onLine){toast('Excluir exige conexão');return;}
+  if(!confirm('Excluir este registro (e suas fotos)?'))return;
+  const {data:r}=await sb.from('obra_registros').select('fotos,audio_path').eq('id',rid).maybeSingle();
+  const paths=[...(r?.fotos||[]),...(r?.audio_path?[r.audio_path]:[])];
+  if(paths.length) await sb.storage.from(BUCKET).remove(paths);
+  const {error}=await sb.from('obra_registros').delete().eq('id',rid);
+  if(error){toast('Erro: '+error.message);return;}
+  toast('Registro excluído');render();
 }
 
 // ═══════════════ PENDÊNCIAS (NCs abertas) ═══════════════

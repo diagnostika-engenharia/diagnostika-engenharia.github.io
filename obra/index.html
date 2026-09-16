@@ -167,7 +167,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpbW1qZ2R3aGlmc3JyYnJlY2hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzU2NDIsImV4cCI6MjA5NTE1MTY0Mn0.eAmMS95M8BkfX3NCcOtHnhKWXy0jkvXwSGEoqv_Q21Q';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20260916-1';
+const APP_BUILD='20260916-2';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -438,7 +438,7 @@ async function encerrarVisita(){
   }
   await idb.add({kind:'visita',row:rowVisita(),ts:Date.now()});
   visita=null;saveVisita();
-  toast('Vistoria encerrada');atualizarSync();sincronizar();go('home');
+  toast('Vistoria encerrada');atualizarSync();await sincronizar();go('home');
 }
 function descartarVisita(){if(!confirm('Descartar esta vistoria? Registros já sincronizados permanecem no histórico.'))return;visita=null;saveVisita();go('home');}
 

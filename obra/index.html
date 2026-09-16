@@ -167,7 +167,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpbW1qZ2R3aGlmc3JyYnJlY2hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzU2NDIsImV4cCI6MjA5NTE1MTY0Mn0.eAmMS95M8BkfX3NCcOtHnhKWXy0jkvXwSGEoqv_Q21Q';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20260916-3';
+const APP_BUILD='20260916-4';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -253,8 +253,16 @@ async function atualizarSync(){
   else if(n>0){el.textContent=`⏳ ${n} pendente${n>1?'s':''}`;el.className='pend';}
   else{el.textContent='✓ sincronizado';el.className='';}
 }
+let syncAgain=false;
+// Se já há uma sincronização em curso, espera ela terminar e roda de novo (garante que
+// quem chamou "await sincronizar()" só continua com a fila realmente esvaziada).
 async function sincronizar(){
-  if(syncing||!navigator.onLine||!sb) return; syncing=true;
+  if(!navigator.onLine||!sb) return;
+  if(syncing){syncAgain=true;return syncing;}
+  syncing=(async()=>{do{syncAgain=false;await sincronizarFila();}while(syncAgain);})().finally(()=>{syncing=null;atualizarSync();});
+  return syncing;
+}
+async function sincronizarFila(){
   try{
     const ops=await idb.all();
     for(const op of ops){
@@ -281,7 +289,7 @@ async function sincronizar(){
         await idb.del(op.id);
       }catch(e){console.warn('sync falhou, mantém na fila:',e);break;}
     }
-  }finally{syncing=false;atualizarSync();}
+  }catch(e){console.warn('sync:',e);}
 }
 window.addEventListener('online',()=>{atualizarSync();sincronizar();});
 window.addEventListener('offline',atualizarSync);

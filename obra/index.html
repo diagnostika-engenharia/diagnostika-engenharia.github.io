@@ -144,7 +144,7 @@ body.auth-checking #app>*{visibility:hidden}
   <div id="header">
     <button class="back" id="btnBack" onclick="goBack()">‹</button>
     <div class="ttl" id="hTitle">Vistoria de Obra<span class="sub" id="hSub">Diagnóstika Engenharia</span></div>
-    <span id="sync">✓ sincronizado</span>
+    <span id="sync" onclick="abrirFila()" style="cursor:pointer">✓ sincronizado</span>
   </div>
   <div id="view"></div>
   <button class="fab" id="fab" onclick="abrirRegistro()">+</button>
@@ -167,7 +167,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpbW1qZ2R3aGlmc3JyYnJlY2hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzU2NDIsImV4cCI6MjA5NTE1MTY0Mn0.eAmMS95M8BkfX3NCcOtHnhKWXy0jkvXwSGEoqv_Q21Q';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20260916-5';
+const APP_BUILD='20260916-6';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -287,9 +287,41 @@ async function sincronizarFila(){
         else if(op.kind==='registro_update'){const {error}=await sb.from('obra_registros').update(op.patch).eq('id',op.id);if(error)throw error;}
         else if(op.kind==='registros_delete_tipos'){const {error}=await sb.from('obra_registros').delete().eq('visita_id',op.visita_id).in('tipo',op.tipos);if(error)throw error;}
         await idb.del(op.id);
-      }catch(e){console.warn('sync falhou, mantém na fila:',e);break;}
+      }catch(e){
+        // Erros permanentes (ex.: vistoria já excluída → violação de FK) nunca vão passar: descarta o item
+        if(ERROS_PERMANENTES.has(String(e?.code||''))){console.warn('sync: item descartado (erro permanente):',e,op);await idb.del(op.id);ultimoErroSync=null;continue;}
+        ultimoErroSync=e?.message||String(e);console.warn('sync falhou, mantém na fila:',e);break;
+      }
     }
   }catch(e){console.warn('sync:',e);}
+}
+const ERROS_PERMANENTES=new Set(['23503','23514','23502','22P02','PGRST204']);
+let ultimoErroSync=null;
+function descreverOp(op){
+  if(op.kind==='visita')return `Vistoria ${fmtBR(op.row?.data)} (${op.row?.status==='concluida'?'encerrar':'dados'})`;
+  if(op.kind==='registro')return `${(op.row?.tipo||'registro').toUpperCase()} · ${op.row?.item||op.row?.descricao?.slice(0,40)||''}${op.blobs?.length?` · ${op.blobs.length} foto(s)`:''}`;
+  if(op.kind==='registro_update')return 'Atualização de registro';
+  if(op.kind==='registros_delete_tipos')return 'Regravação de checklist/serviços';
+  return op.kind;
+}
+async function abrirFila(){
+  const ops=await idb.all();
+  $('sheet').innerHTML=`<h2>Fila de sincronização</h2>
+    <p class="muted" style="font-size:13px;margin-bottom:10px">${ops.length?`${ops.length} item(ns) aguardando envio.`:'Nada pendente. Tudo sincronizado.'}${!navigator.onLine?' Você está offline.':''}</p>
+    ${ultimoErroSync?`<div class="card" style="background:var(--red-lt);border-color:var(--red-lt);font-size:12px;color:var(--red)">Último erro: ${esc(ultimoErroSync)}</div>`:''}
+    ${ops.map(o=>`<div class="ck"><div class="lb">${esc(descreverOp(o))}<small style="color:var(--gray4)">${new Date(o.ts).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})}</small></div><button class="btn sm sec" onclick="descartarOp(${o.id})">🗑</button></div>`).join('')}
+    <div class="row" style="margin-top:14px">
+      <button class="btn sec" onclick="fecharModal()">Fechar</button>
+      ${ops.length?`<button class="btn" onclick="fecharModal();sincronizar().then(()=>toast('Sincronização tentada'))">🔄 Tentar agora</button>`:''}
+    </div>
+    ${ops.length?`<button class="btn red" style="margin-top:8px" onclick="descartarFila()">Descartar tudo (${ops.length})</button>`:''}`;
+  $('modal').classList.add('show');
+}
+async function descartarOp(id){await idb.del(id);atualizarSync();abrirFila();}
+async function descartarFila(){
+  if(!confirm('Descartar todos os itens pendentes? Eles NÃO serão enviados ao servidor.'))return;
+  for(const o of await idb.all())await idb.del(o.id);
+  ultimoErroSync=null;atualizarSync();fecharModal();toast('Fila limpa');
 }
 window.addEventListener('online',()=>{atualizarSync();sincronizar();});
 window.addEventListener('offline',atualizarSync);

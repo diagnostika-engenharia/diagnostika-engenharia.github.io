@@ -1,4 +1,4 @@
-const CACHE = 'obra-dk-v5';
+const CACHE = 'obra-dk-v6';
 const ASSETS = ['./', './index.html', './manifest.json', '../assets/logo-dark.png', '../assets/icon.png'];
 
 self.addEventListener('install', e => {

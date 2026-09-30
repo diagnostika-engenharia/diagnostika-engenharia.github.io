@@ -195,7 +195,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpbW1qZ2R3aGlmc3JyYnJlY2hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzU2NDIsImV4cCI6MjA5NTE1MTY0Mn0.eAmMS95M8BkfX3NCcOtHnhKWXy0jkvXwSGEoqv_Q21Q';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20260930-2';
+const APP_BUILD='20260930-3';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -492,7 +492,7 @@ function tFim(){
   <button class="btn sec" style="margin-top:8px;color:var(--red)" onclick="descartarVisita()">Descartar vistoria</button>`;
 }
 function textoResumo(){
-  const ef=Object.entries(visita.efetivo).filter(([,n])=>+n>0).map(([f,n])=>`${n} ${f.toLowerCase()}${n>1?'s':''}`).join(', ');
+  const ef=Object.entries(visita.efetivo).filter(([,n])=>+n>0).map(([f,n])=>`${n} ${plural(f,n)}`).join(', ');
   const ncs=visita.registros.filter(r=>r.tipo==='nc').map(r=>`- ${r.item||''}${r.fachada?' ('+r.fachada.split(' — ')[0]+')':''}: ${r.descricao||''}`);
   const serv=Object.entries(visita.servicos).filter(([,v])=>v.status&&v.status!=='nao_iniciado').map(([k,v])=>{const [f,s]=k.split('|');return `- ${f.split(' — ')[0]}: ${s} — ${v.status==='concluido'?'concluído':'em andamento'} (${v.pct??0}%)`;});
   return `Vistoria de obra — ${obra.nome}\nData: ${fmtBR(visita.data)} ${visita.hora_inicio}${visita.hora_fim?' às '+visita.hora_fim:''}\nResponsável: ${visita.engenheiro}\nClima: ${visita.clima||'—'}${visita.temperatura?' · '+visita.temperatura+'°C':''}${visita.paralisacao?' · OBRA PARALISADA':''}\nEfetivo: ${ef||'não informado'}${visita.encarregado?' (enc. '+visita.encarregado+')':''}\n\nServiços:\n${serv.join('\n')||'- sem alteração registrada'}\n\nNão conformidades:\n${ncs.join('\n')||'- nenhuma'}\n\n${visita.resumo||''}`.trim();
@@ -755,7 +755,7 @@ function relatorioCorpo(v,rs){
   let h=relCabecalho('Relatório de Vistoria de Obra')+`<h2>Dados da vistoria</h2><table>
     <tr><th style="width:22%">Data</th><td>${fmtBR(v.data)}</td><th style="width:22%">Horário</th><td>${esc((v.hora_inicio||'').slice(0,5))}${v.hora_fim?' às '+esc(String(v.hora_fim).slice(0,5)):''}</td></tr>
     <tr><th>Responsável</th><td>${esc(v.engenheiro||'—')}</td><th>Clima</th><td>${esc(v.clima||'—')}${v.temperatura?' · '+esc(v.temperatura)+' °C':''}${v.paralisacao?' · <span class="st-nc">obra paralisada</span>':''}</td></tr>
-    <tr><th>Efetivo</th><td colspan="3">${ef.length?ef.map(([f,n])=>`${n} ${esc(f.toLowerCase())}`).join(', ')+` (total ${ef.reduce((a,[,n])=>a+(+n),0)})`:'não informado'}${v.encarregado?' · encarregado: '+esc(v.encarregado):''}</td></tr></table>`;
+    <tr><th>Efetivo</th><td colspan="3">${ef.length?ef.map(([f,n])=>`${n} ${esc(plural(f,n))}`).join(', ')+` (total ${ef.reduce((a,[,n])=>a+(+n),0)})`:'não informado'}${v.encarregado?' · encarregado: '+esc(v.encarregado):''}</td></tr></table>`;
   if(sv.length){const byF={};sv.forEach(r=>{(byF[r.fachada]=byF[r.fachada]||[]).push(r);});
     h+=`<h2>Serviços por fachada</h2><table><tr><th>Fachada / local</th><th>Serviço</th><th>Situação</th><th style="width:12%">%</th></tr>${Object.entries(byF).map(([f,a])=>a.map((r,i)=>`<tr>${i?'':`<td rowspan="${a.length}">${esc(f)}</td>`}<td>${esc(r.item)}</td><td>${stTxt[r.status]||esc(r.status)}</td><td>${r.percentual??0}%</td></tr>`).join('')).join('')}</table>`;}
   if(ck.length) h+=`<h2>Checklist</h2><table><tr><th>Item</th><th style="width:18%">Resultado</th></tr>${ck.map(r=>`<tr><td>${esc(r.item)}${r.descricao?`<br><span class="st-na">${esc(r.descricao)}</span>`:''}</td><td class="st-${r.status}">${stTxt[r.status]||esc(r.status)}</td></tr>`).join('')}</table>`;
@@ -764,6 +764,7 @@ function relatorioCorpo(v,rs){
   if(v.resumo) h+=`<h2>Observações gerais</h2><div style="white-space:pre-wrap">${esc(v.resumo)}</div>`;
   return h+relRodape();
 }
+const plural=(f,n)=>{f=f.toLowerCase();return +n>1?f+(f.endsWith('r')?'es':'s'):f;};
 function nomeRelatorio(v){return `Relatorio_Vistoria_Menotti_${(v.data||'').replace(/-/g,'')}.pdf`;}
 async function imprimirRelatorio(id){
   const w=window.open('','_blank');if(!w){toast('Libere pop-ups para imprimir');return;}

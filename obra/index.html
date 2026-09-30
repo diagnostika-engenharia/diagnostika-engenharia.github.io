@@ -131,6 +131,8 @@ textarea.f{min-height:76px;resize:vertical}
 .lightbox img{max-width:100%;max-height:100%}
 .lightbox button{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.2);border:0;color:#fff;font-size:24px;width:40px;height:40px;border-radius:50%}
 .muted{color:var(--text2);font-size:12px}
+.and-grid{display:grid;grid-template-columns:1fr;gap:0}
+@media (min-width:900px){.and-grid{grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}.and-grid .card{margin:0}}
 body.auth-checking #app>*{visibility:hidden}
 #gate{position:fixed;inset:0;background:linear-gradient(135deg,#0D3C44,#155B67);color:#fff;display:flex;align-items:center;justify-content:center;z-index:99;font-size:14px;padding:20px;text-align:center}
 #gate .bx{background:#fff;color:var(--text);border-radius:16px;padding:28px;max-width:400px}
@@ -176,6 +178,7 @@ body.auth-checking #app>*{visibility:hidden}
   <div id="nav">
     <button data-v="home" onclick="go('home')"><span class="ic">🏗️</span>Obra</button>
     <button data-v="visita" onclick="go('visita')"><span class="ic">📋</span>Vistoria</button>
+    <button data-v="andamento" onclick="go('andamento')"><span class="ic">📊</span>Andamento</button>
     <button data-v="historico" onclick="go('historico')"><span class="ic">🗂️</span>Histórico</button>
     <button data-v="ncs" onclick="go('ncs')"><span class="ic">⚠️</span>Pendências</button>
   </div>
@@ -192,7 +195,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpbW1qZ2R3aGlmc3JyYnJlY2hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzU2NDIsImV4cCI6MjA5NTE1MTY0Mn0.eAmMS95M8BkfX3NCcOtHnhKWXy0jkvXwSGEoqv_Q21Q';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20260930-1';
+const APP_BUILD='20260930-2';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -379,10 +382,13 @@ function render(){
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===view.split(':')[0]));
   $('btnBack').classList.toggle('show',navStack.length>0);
   $('fab').classList.toggle('show',view==='visita'&&!!visita);
-  const r={home:rHome,visita:rVisita,historico:rHistorico,ncs:rNcs,detalhe:rDetalhe}[view.split(':')[0]];
+  const r={home:rHome,visita:rVisita,historico:rHistorico,ncs:rNcs,detalhe:rDetalhe,andamento:rAndamento}[view.split(':')[0]];
+  // mesma tela (ex.: marcar OK/NC no checklist) mantém a posição; troca de tela volta ao topo
+  const key=view+'|'+tab, st=$('view').scrollTop, mesma=key===ultimaTela; ultimaTela=key;
   r&&r();
-  $('view').scrollTop=0;
+  $('view').scrollTop=mesma?st:0;
 }
+let ultimaTela='';
 
 // ═══════════════ HOME ═══════════════
 async function rHome(){
@@ -452,14 +458,15 @@ function ck(k,st){
   if(st==='nc') abrirRegistro({tipo:'nc',item:label,ckKey:k}); else render();
 }
 function tServicos(){
-  $('tabBody').innerHTML=obra.fachadas.map(f=>{
+  $('tabBody').innerHTML=obra.fachadas.map((f,fi)=>{
     const pcts=SERVICOS.map(s=>visita.servicos[f+'|'+s]?.pct??0);const media=Math.round(pcts.reduce((a,b)=>a+b,0)/SERVICOS.length);
-    return `<details class="fach"><summary><span>${esc(f)}</span><span class="bar"><i style="width:${media}%"></i></span></summary><div class="body">
+    return `<details class="fach" ${fachAbertas.has(fi)?'open':''} ontoggle="this.open?fachAbertas.add(${fi}):fachAbertas.delete(${fi})"><summary><span>${esc(f)}</span><span class="bar"><i style="width:${media}%"></i></span></summary><div class="body">
     ${SERVICOS.map(s=>{const v=visita.servicos[f+'|'+s]||{};const st=v.status||'';return `<div class="ck"><span class="lb">${s}</span>
       <div class="seg"><button class="${st==='nao_iniciado'?'s0':''}" onclick="sv('${esc(f)}','${s}','nao_iniciado')">–</button><button class="${st==='andamento'?'s1':''}" onclick="sv('${esc(f)}','${s}','andamento')">▶</button><button class="${st==='concluido'?'s2':''}" onclick="sv('${esc(f)}','${s}','concluido')">✓</button></div>
       <input class="pct" inputmode="numeric" placeholder="%" value="${v.pct??''}" onchange="svp('${esc(f)}','${s}',this.value)"></div>`;}).join('')}
     <button class="btn sec sm" style="margin:8px 0 4px" onclick="abrirRegistro({tipo:'foto',fachada:'${esc(f)}'})">📷 Foto desta fachada</button></div></details>`;}).join('');
 }
+const fachAbertas=new Set();
 function sv(f,s,st){const k=f+'|'+s;const v=visita.servicos[k]||{};v.status=st;if(st==='concluido')v.pct=100;if(st==='nao_iniciado')v.pct=0;visita.servicos[k]=v;saveVisita();render();}
 function svp(f,s,p){const k=f+'|'+s;const v=visita.servicos[k]||{};v.pct=Math.max(0,Math.min(100,+p||0));if(!v.status)v.status=v.pct>=100?'concluido':v.pct>0?'andamento':'nao_iniciado';visita.servicos[k]=v;saveVisita();render();}
 function tRegistros(){
@@ -481,6 +488,7 @@ function tFim(){
   </div>
   <button class="btn lime" onclick="encerrarVisita()">✓ Encerrar e sincronizar vistoria</button>
   <button class="btn sec" style="margin-top:8px" onclick="copiarResumo()">📋 Copiar resumo (WhatsApp)</button>
+  <div class="row" style="margin-top:8px"><button class="btn sec" onclick="imprimirRelatorio('${esc(visita.id)}')">🖨️ Imprimir / PDF</button><button class="btn sec" onclick="compartilharRelatorio('${esc(visita.id)}')">📤 Compartilhar PDF</button></div>
   <button class="btn sec" style="margin-top:8px;color:var(--red)" onclick="descartarVisita()">Descartar vistoria</button>`;
 }
 function textoResumo(){
@@ -587,6 +595,9 @@ async function rDetalhe(){
     h+=`<div class="card"><h3>Serviços por fachada</h3>${Object.entries(byF).map(([f,arr])=>`<b style="font-size:13px;display:block;margin:8px 0 4px">${esc(f)}</b>${arr.map(r=>`<div class="ck"><span class="lb">${esc(r.item)}</span><span class="tag ${r.status==='concluido'?'ok':'oc'}">${r.status==='concluido'?'concluído':'em andamento'} ${r.percentual??0}%</span></div>`).join('')}`).join('')}</div>`;}
   if(ck.length) h+=`<div class="card"><h3>Checklist</h3>${ck.map(r=>`<div class="ck"><span class="lb">${esc(r.item)}${r.descricao?`<small>${esc(r.descricao)}</small>`:''}</span><span class="tag ${r.status==='nc'?'nc':r.status==='ok'?'ok':''}">${r.status==='na'?'N/A':r.status}</span></div>`).join('')}</div>`;
   h+=`<div class="card"><h3>Registros (${outros.length})</h3>${outros.length?outros.map(r=>`<div>${regItem(r)}<div style="text-align:right;margin:-6px 0 6px"><button class="btn sm sec" style="color:var(--red);padding:4px 10px;font-size:12px" onclick="excluirRegistro('${r.id}')">🗑 excluir</button></div></div>`).join(''):'<div class="empty">Sem registros.</div>'}</div>
+  <div class="card"><h3>Relatório</h3>
+    <div class="row"><button class="btn" onclick="imprimirRelatorio('${esc(v.id)}')">🖨️ Imprimir / salvar PDF</button><button class="btn" onclick="compartilharRelatorio('${esc(v.id)}')">📤 Compartilhar PDF</button></div>
+  </div>
   <div class="card"><h3>Ações</h3>
     <button class="btn sec" onclick="editarVisita('${esc(v.id)}')">✏️ Editar dados (data, horário, clima, resumo)</button>
     <button class="btn sec" style="margin-top:8px" onclick="reabrirVisita('${esc(v.id)}')">🔓 Reabrir para alterar checklist, fachadas e registros</button>
@@ -675,6 +686,118 @@ async function resolverNc(id){
   if(!confirm('Marcar esta não conformidade como resolvida?'))return;
   await enfileirar({kind:'registro_update',id,patch:{nc_resolvida:true,nc_resolvida_em:new Date().toISOString()}});
   toast('NC marcada como resolvida');setTimeout(render,600);
+}
+
+// ═══════════════ ANDAMENTO GLOBAL ═══════════════
+// Situação mais recente de cada serviço em cada fachada, somando todas as vistorias encerradas.
+async function rAndamento(){
+  setTitle('Andamento da obra',obra.nome);
+  $('view').innerHTML=`<div class="empty">Carregando…</div>`;
+  const [{data:sv},{data:ncs}]=await Promise.all([
+    sb.from('obra_registros').select('fachada,item,status,percentual,created_at,obra_visitas(data)').eq('obra_id',OBRA_ID).eq('tipo','servico').limit(5000),
+    sb.from('obra_registros').select('fachada').eq('obra_id',OBRA_ID).eq('nc_resolvida',false).or('tipo.eq.nc,status.eq.nc').limit(1000)
+  ]);
+  if(view!=='andamento')return;
+  const ult={};
+  (sv||[]).forEach(r=>{const k=r.fachada+'|'+r.item;const d=(r.obra_visitas?.data||'')+r.created_at;if(!ult[k]||d>ult[k].d)ult[k]={...r,d};});
+  const pct=(f,s)=>ult[f+'|'+s]?.percentual??(ult[f+'|'+s]?.status==='concluido'?100:0);
+  const mediaF=f=>Math.round(SERVICOS.reduce((a,s)=>a+pct(f,s),0)/SERVICOS.length);
+  const geral=Math.round(obra.fachadas.reduce((a,f)=>a+mediaF(f),0)/obra.fachadas.length);
+  const ncF={};(ncs||[]).forEach(r=>{const k=r.fachada||'Sem local';ncF[k]=(ncF[k]||0)+1;});
+  const datas=Object.values(ult).map(r=>r.obra_visitas?.data).filter(Boolean).sort();
+  const bar=(p,h=8)=>`<span style="display:block;height:${h}px;background:var(--gray2);border-radius:${h/2}px;overflow:hidden"><i style="display:block;height:100%;width:${p}%;background:${p>=100?'var(--green)':'var(--lime)'}"></i></span>`;
+  $('view').innerHTML=`<div class="obra-hd"><b>Andamento geral: ${geral}%</b>${bar(geral,10)}<small style="display:block;margin-top:6px">${datas.length?'Última atualização na vistoria de '+fmtBR(datas[datas.length-1]):'Nenhum serviço registrado ainda'} · ${(ncs||[]).length} NC(s) aberta(s)</small></div>
+  <div class="and-grid">${obra.fachadas.map(f=>{const m=mediaF(f);return `<div class="card"><h3 style="display:flex;justify-content:space-between"><span>${esc(f)}</span><span>${m}%</span></h3>${bar(m)}
+    ${ncF[f]?`<p style="margin:8px 0 0"><span class="tag nc">${ncF[f]} NC aberta${ncF[f]>1?'s':''}</span></p>`:''}
+    <div style="margin-top:8px">${SERVICOS.map(s=>{const p=pct(f,s),u=ult[f+'|'+s];return `<div style="padding:6px 0;border-bottom:1px solid var(--gray2)"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>${esc(s)}</span><b style="color:${p>=100?'var(--green)':p>0?'var(--amber)':'var(--gray4)'}">${p}%</b></div>${bar(p,5)}${u?`<small class="muted">atualizado em ${fmtBR(u.obra_visitas?.data)}</small>`:''}</div>`;}).join('')}</div></div>`;}).join('')}</div>
+  <p class="muted" style="text-align:center">Considera a informação mais recente de cada serviço nas vistorias encerradas.</p>
+  <button class="btn sec" onclick="imprimirAndamento()">🖨️ Imprimir / salvar PDF do andamento</button>`;
+}
+function imprimirAndamento(){
+  const w=window.open('','_blank');if(!w){toast('Libere pop-ups para imprimir');return;}
+  w.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Andamento — ${esc(obra.nome)}</title><style>:root{--gray2:#E0EAEC;--lime:#8DB72A;--green:#1B8A4A;--amber:#B7791F;--gray4:#5A7A7E}${REL_CSS}.card{border:1px solid #E0EAEC;border-radius:8px;padding:10px 12px;margin-bottom:10px;break-inside:avoid}.card h3{font-size:12px;color:#155B67;margin:0 0 6px}.obra-hd{background:#155B67;color:#fff;border-radius:8px;padding:12px;margin-bottom:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact}.obra-hd b{display:block;margin-bottom:6px}.and-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.and-grid .card{margin:0}.muted{color:#5A7A7E;font-size:10px}.tag{font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;background:#FFEAEA;color:#C00000}i{-webkit-print-color-adjust:exact;print-color-adjust:exact}button{display:none}</style></head><body>${relCabecalho('Andamento da Obra')}${$('view').innerHTML}${relRodape()}</body></html>`);
+  w.document.close();setTimeout(()=>w.print(),600);
+}
+
+// ═══════════════ RELATÓRIO (imprimir / PDF / compartilhar) ═══════════════
+const REL_CSS=`@page{size:A4;margin:14mm}*{box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;color:#1A2E31;font-size:11px;margin:0}
+.rel-hd{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #155B67;padding-bottom:8px;margin-bottom:12px}.rel-hd img{height:38px}.rel-hd div{text-align:right}.rel-hd b{font-size:15px;color:#155B67;display:block}
+h2{font-size:12px;color:#155B67;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid #E0EAEC;padding-bottom:3px;margin:14px 0 6px}
+table{width:100%;border-collapse:collapse}td,th{border:1px solid #E0EAEC;padding:4px 6px;text-align:left;vertical-align:top}th{background:#F0F4F5;font-weight:600}tr{break-inside:avoid}
+.st-ok{color:#1B8A4A;font-weight:700}.st-nc{color:#C00000;font-weight:700}.st-na{color:#5A7A7E}
+.reg{border:1px solid #E0EAEC;border-radius:6px;padding:8px;margin-bottom:8px;break-inside:avoid}.reg.nc{border-left:4px solid #C00000}.reg b{font-size:12px}
+.fotos{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}.fotos img{width:100%;height:150px;object-fit:cover;border-radius:4px}
+.rel-ft{margin-top:18px;border-top:1px solid #E0EAEC;padding-top:6px;font-size:9px;color:#5A7A7E;text-align:center}`;
+function relCabecalho(t){return `<div class="rel-hd"><img src="${new URL('../assets/logo-dark.png',location.href).href}" alt="Diagnóstika"><div><b>${esc(t)}</b>${esc(obra.nome)}<br>${esc(obra.executora||'')}</div></div>`;}
+function relRodape(){return `<div class="rel-ft">Diagnóstika Engenharia · gerado em ${new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})}</div>`;}
+async function dadosRelatorio(id){
+  if(visita&&visita.id===id){
+    const lab=Object.fromEntries(CHECKLIST.flatMap(g=>g.itens));
+    const rs=[...Object.entries(visita.checklist).map(([k,c])=>({tipo:'checklist',item:lab[k]||k,status:c.status,descricao:c.obs||null})),
+      ...Object.entries(visita.servicos).filter(([,x])=>x.status).map(([k,x])=>{const [f,s]=k.split('|');return {tipo:'servico',fachada:f,item:s,status:x.status,percentual:x.pct??null};}),
+      ...visita.registros];
+    return {v:visita,rs};
+  }
+  const v=cacheVisitas.find(x=>x.id===id);if(!v)return null;
+  let rs=cacheRegs[id];
+  if(!rs){const {data}=await sb.from('obra_registros').select('*').eq('visita_id',id).order('created_at');rs=data||[];}
+  return {v,rs};
+}
+function relatorioCorpo(v,rs){
+  const src=p=>p.startsWith('blob:')?p:fotoUrl(p);
+  const ef=Object.entries(v.efetivo||{}).filter(([,n])=>+n>0);
+  const ck=rs.filter(r=>r.tipo==='checklist'),sv=rs.filter(r=>r.tipo==='servico'),outros=rs.filter(r=>!['checklist','servico'].includes(r.tipo));
+  const ncs=outros.filter(r=>r.tipo==='nc'||r.status==='nc'),demais=outros.filter(r=>!(r.tipo==='nc'||r.status==='nc'));
+  const stTxt={ok:'Conforme',nc:'Não conforme',na:'N/A',concluido:'Concluído',andamento:'Em andamento',nao_iniciado:'Não iniciado'};
+  const regH=r=>`<div class="reg ${r.tipo==='nc'||r.status==='nc'?'nc':''}"><b>${esc(TIPOS[r.tipo]||r.tipo)}${r.item?' — '+esc(r.item):''}</b>${r.nc_resolvida?' <span class="st-ok">(resolvida)</span>':''}<br>
+    ${r.fachada||r.pavimento?`<span class="st-na">Local: ${esc([r.fachada,r.pavimento].filter(Boolean).join(' · '))}</span><br>`:''}${r.descricao?`<div style="white-space:pre-wrap;margin-top:3px">${esc(r.descricao)}</div>`:''}
+    ${(r.fotos||[]).length?`<div class="fotos">${r.fotos.map(p=>`<img src="${src(p)}" crossorigin="anonymous">`).join('')}</div>`:''}</div>`;
+  let h=relCabecalho('Relatório de Vistoria de Obra')+`<h2>Dados da vistoria</h2><table>
+    <tr><th style="width:22%">Data</th><td>${fmtBR(v.data)}</td><th style="width:22%">Horário</th><td>${esc((v.hora_inicio||'').slice(0,5))}${v.hora_fim?' às '+esc(String(v.hora_fim).slice(0,5)):''}</td></tr>
+    <tr><th>Responsável</th><td>${esc(v.engenheiro||'—')}</td><th>Clima</th><td>${esc(v.clima||'—')}${v.temperatura?' · '+esc(v.temperatura)+' °C':''}${v.paralisacao?' · <span class="st-nc">obra paralisada</span>':''}</td></tr>
+    <tr><th>Efetivo</th><td colspan="3">${ef.length?ef.map(([f,n])=>`${n} ${esc(f.toLowerCase())}`).join(', ')+` (total ${ef.reduce((a,[,n])=>a+(+n),0)})`:'não informado'}${v.encarregado?' · encarregado: '+esc(v.encarregado):''}</td></tr></table>`;
+  if(sv.length){const byF={};sv.forEach(r=>{(byF[r.fachada]=byF[r.fachada]||[]).push(r);});
+    h+=`<h2>Serviços por fachada</h2><table><tr><th>Fachada / local</th><th>Serviço</th><th>Situação</th><th style="width:12%">%</th></tr>${Object.entries(byF).map(([f,a])=>a.map((r,i)=>`<tr>${i?'':`<td rowspan="${a.length}">${esc(f)}</td>`}<td>${esc(r.item)}</td><td>${stTxt[r.status]||esc(r.status)}</td><td>${r.percentual??0}%</td></tr>`).join('')).join('')}</table>`;}
+  if(ck.length) h+=`<h2>Checklist</h2><table><tr><th>Item</th><th style="width:18%">Resultado</th></tr>${ck.map(r=>`<tr><td>${esc(r.item)}${r.descricao?`<br><span class="st-na">${esc(r.descricao)}</span>`:''}</td><td class="st-${r.status}">${stTxt[r.status]||esc(r.status)}</td></tr>`).join('')}</table>`;
+  h+=`<h2>Não conformidades (${ncs.length})</h2>${ncs.length?ncs.map(regH).join(''):'<p>Nenhuma não conformidade registrada nesta vistoria.</p>'}`;
+  if(demais.length) h+=`<h2>Registros</h2>${demais.map(regH).join('')}`;
+  if(v.resumo) h+=`<h2>Observações gerais</h2><div style="white-space:pre-wrap">${esc(v.resumo)}</div>`;
+  return h+relRodape();
+}
+function nomeRelatorio(v){return `Relatorio_Vistoria_Menotti_${(v.data||'').replace(/-/g,'')}.pdf`;}
+async function imprimirRelatorio(id){
+  const w=window.open('','_blank');if(!w){toast('Libere pop-ups para imprimir');return;}
+  w.document.write('<p style="font-family:sans-serif">Montando relatório…</p>');
+  const d=await dadosRelatorio(id);if(!d){w.close();toast('Vistoria não encontrada');return;}
+  w.document.open();
+  w.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(nomeRelatorio(d.v).replace('.pdf',''))}</title><style>${REL_CSS}</style></head><body>${relatorioCorpo(d.v,d.rs)}</body></html>`);
+  w.document.close();
+  const imgs=[...w.document.images];
+  await Promise.all(imgs.map(i=>i.complete?0:new Promise(r=>{i.onload=i.onerror=r;})));
+  w.focus();w.print();
+}
+function carregarScript(src){return new Promise((res,rej)=>{if(document.querySelector(`script[src="${src}"]`)){res();return;}const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
+async function compartilharRelatorio(id){
+  toast('Gerando PDF…');
+  try{
+    await carregarScript('https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js');
+    const d=await dadosRelatorio(id);if(!d){toast('Vistoria não encontrada');return;}
+    const box=document.createElement('div');
+    box.style.cssText='position:fixed;left:-10000px;top:0;width:760px;background:#fff';
+    box.innerHTML=`<style>${REL_CSS.replace(/@page\{[^}]*\}/,'').replace(/body\{/,'.relpdf{')}</style><div class="relpdf">${relatorioCorpo(d.v,d.rs)}</div>`;
+    document.body.appendChild(box);
+    await Promise.all([...box.querySelectorAll('img')].map(i=>i.complete?0:new Promise(r=>{i.onload=i.onerror=r;})));
+    const nome=nomeRelatorio(d.v);
+    const blob=await html2pdf().set({margin:[10,10,12,10],filename:nome,image:{type:'jpeg',quality:.9},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4'},pagebreak:{mode:['css','legacy'],avoid:['tr','.reg','.rel-hd']}}).from(box.querySelector('.relpdf')).outputPdf('blob');
+    box.remove();
+    const file=new File([blob],nome,{type:'application/pdf'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      try{await navigator.share({files:[file],title:nome.replace('.pdf',''),text:`Relatório de vistoria — ${obra.nome} — ${fmtBR(d.v.data)}`});}catch(e){if(e.name!=='AbortError')throw e;}
+    }else{
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=nome;document.body.appendChild(a);a.click();a.remove();
+      toast('PDF baixado');
+    }
+  }catch(e){console.warn(e);toast('Não foi possível gerar o PDF');}
 }
 </script>
 </body>

@@ -18,7 +18,11 @@ main{padding:12px 16px 90px;max-width:1300px;margin:0 auto;display:grid;gap:12px
 @media(min-width:900px){main{grid-template-columns:minmax(0,1fr) 320px}}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px}
 .card h3{margin:0 0 8px;font-size:14px}
-#cena{position:relative;height:62vh;min-height:360px;padding:0;overflow:hidden}
+#cena{position:relative;height:calc(100vh - 170px);height:calc(100dvh - 170px);min-height:480px;padding:0;overflow:hidden}
+#cena:fullscreen{height:100%;border-radius:0}
+.sobe{position:absolute;right:8px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;align-items:center}
+.sobe button{width:44px;height:44px;border:1px solid var(--bd);background:#fffe;border-radius:50%;font-size:18px;cursor:pointer;box-shadow:0 1px 4px #0002}
+.sobe span{font-size:11px;background:#fffe;border-radius:8px;padding:2px 6px;color:#333;text-align:center}
 #cena canvas{display:block;width:100%;height:100%;touch-action:none}
 .vistas{position:absolute;top:8px;left:8px;right:8px;display:flex;gap:6px;flex-wrap:wrap;pointer-events:none}
 .vistas button{pointer-events:auto;border:1px solid var(--bd);background:#fffe;border-radius:16px;padding:5px 10px;font:inherit;font-size:12px;cursor:pointer}
@@ -55,7 +59,8 @@ header a{color:#fff}
 <main>
  <div class="card" id="cena">
   <div class="vistas" id="vistas"></div>
-  <div class="dica" id="dica">Faixas coloridas = pastilha, divididas por pavimento. Toque para marcar a etapa.</div>
+  <div class="sobe"><button id="tela" title="Tela cheia">⛶</button><button id="up" title="Subir um pavimento">▲</button><span id="altTx">Pav. 8</span><button id="dn" title="Descer um pavimento">▼</button></div>
+  <div class="dica" id="dica">Faixas coloridas = pastilha, divididas por pavimento. Toque para marcar a etapa. ▲ ▼ sobem e descem a vista; arrastar com dois dedos ou botão direito também move.</div>
  </div>
  <div>
   <div class="card"><div class="mut">Revestimento final concluído, ponderado pela área</div><div class="big" id="geral">0%</div>
@@ -111,7 +116,7 @@ box.prepend(renderer.domElement);
 const scene=new THREE.Scene(); scene.background=new THREE.Color('#dfe9ee');
 const cam=new THREE.PerspectiveCamera(45,1,0.5,600);
 const ctl=new THREE.OrbitControls(cam,renderer.domElement);
-ctl.target.set(0,24,0); ctl.enableDamping=true; ctl.maxPolarAngle=Math.PI/2-0.02; ctl.minDistance=8; ctl.maxDistance=220;
+ctl.target.set(0,24,0); ctl.enableDamping=true; ctl.screenSpacePanning=true; ctl.maxPolarAngle=Math.PI/2-0.02; ctl.minDistance=8; ctl.maxDistance=220;
 scene.add(new THREE.HemisphereLight(0xffffff,0x9aa49a,0.75));
 const sol=new THREE.DirectionalLight(0xffffff,0.55); sol.position.set(40,80,30); scene.add(sol);
 
@@ -200,12 +205,23 @@ function atualizaRotulos(){const v=new THREE.Vector2(cam.position.x-ctl.target.x
 // ---------- vistas ----------
 const VISTAS={'3D':[78,46,-64],'Topo':[0,120,0.01],'Frente':[115,30,0],'Piscina':[0,30,-115],'Oposta':[0,30,115],'Fundo':[-115,30,0]};
 let anim=null;
-function irPara(nome){const [x,y,z]=VISTAS[nome]; const de=cam.position.clone(), para=new THREE.Vector3(x,y,z); let t=0;
- anim=()=>{t=Math.min(1,t+0.05); const e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2; cam.position.lerpVectors(de,para,e); if(t>=1) anim=null;};
+function irPara(nome){const [x,y,z]=VISTAS[nome]; const de=cam.position.clone(), para=new THREE.Vector3(x,y,z), tde=ctl.target.clone(), tpara=new THREE.Vector3(0,24,0); let t=0;
+ anim=()=>{t=Math.min(1,t+0.05); const e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2; cam.position.lerpVectors(de,para,e); ctl.target.lerpVectors(tde,tpara,e); if(t>=1) anim=null;};
  document.querySelectorAll('#vistas button').forEach(b=>b.classList.toggle('on',b.textContent===nome));}
 document.getElementById('vistas').innerHTML=Object.keys(VISTAS).map(n=>`<button>${n}</button>`).join('');
 document.querySelectorAll('#vistas button').forEach(b=>b.onclick=()=>irPara(b.textContent));
 cam.position.set(...VISTAS['3D']);
+
+// ---------- subir / descer a vista ----------
+// Move câmera e alvo juntos, um pavimento (3 m) por toque; segurar repete
+function mover(dy){const y=Math.max(0,Math.min(ALT+6,ctl.target.y+dy)), d=y-ctl.target.y; ctl.target.y+=d; cam.position.y+=d;}
+function altTexto(){const p=Math.round(ctl.target.y/HP); document.getElementById('altTx').textContent=p<1?'Térreo':p>PAV?'Topo':`Pav. ${p}`;}
+[['up',HP],['dn',-HP]].forEach(([id,dy])=>{const b=document.getElementById(id); let rep=null;
+  const para=()=>{clearInterval(rep);rep=null;};
+  b.addEventListener('pointerdown',e=>{e.preventDefault(); anim=null; mover(dy); rep=setInterval(()=>mover(dy),180);});
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,para));});
+document.getElementById('tela').onclick=()=>{if(document.fullscreenElement) document.exitFullscreen(); else box.requestFullscreen?.().catch(()=>{});};
+document.addEventListener('fullscreenchange',()=>setTimeout(tamanho,50));
 
 // ---------- toque ----------
 const ray=new THREE.Raycaster(), ptr=new THREE.Vector2(); let down=null;
@@ -245,7 +261,7 @@ document.getElementById('corte').oninput=e=>{corte=+e.target.value;
 
 function tamanho(){const w=box.clientWidth,h=box.clientHeight; renderer.setSize(w,h,false); cam.aspect=w/h; cam.updateProjectionMatrix();}
 addEventListener('resize',tamanho); tamanho(); resumo();
-(function loop(){requestAnimationFrame(loop); if(anim) anim(); ctl.update(); atualizaRotulos(); renderer.render(scene,cam);})();
+(function loop(){requestAnimationFrame(loop); if(anim) anim(); ctl.update(); atualizaRotulos(); altTexto(); renderer.render(scene,cam);})();
 
 // ---------- dados compartilhados ----------
 async function recarregar(){

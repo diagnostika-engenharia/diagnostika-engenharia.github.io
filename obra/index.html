@@ -32,6 +32,8 @@ body{overflow:hidden}
 #header{height:var(--header-h);min-height:var(--header-h);background:var(--teal);color:#fff;display:flex;align-items:center;padding:0 14px;gap:10px;padding-top:env(safe-area-inset-top)}
 #header .back{background:none;border:0;color:#fff;font-size:22px;width:34px;height:34px;border-radius:50%;display:none;align-items:center;justify-content:center}
 #header .back.show{display:flex}
+#header .logo{display:flex;align-items:center;flex:none}
+#header .logo img{height:30px;width:30px;border-radius:8px;background:#fff;padding:2px;display:block}
 #header .ttl{flex:1;font-weight:700;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #header .sub{font-size:11px;opacity:.8;font-weight:400;display:block}
 #sync{font-size:11px;padding:4px 8px;border-radius:12px;background:rgba(255,255,255,.15);white-space:nowrap}
@@ -169,7 +171,8 @@ body.auth-checking #app>*{visibility:hidden}
 <div id="gate"><div>🔒 Verificando acesso…</div></div>
 <div id="app">
   <div id="header">
-    <button class="back" id="btnBack" onclick="goBack()">‹</button>
+    <button class="back show" id="btnBack" onclick="goBack()" title="Voltar">‹</button>
+    <a class="logo" href="../" title="Painel principal"><img src="../assets/icon.png" alt="Diagnóstika"></a>
     <div class="ttl" id="hTitle">Vistoria de Obra<span class="sub" id="hSub">Diagnóstika Engenharia</span></div>
     <span id="sync" onclick="abrirFila()" style="cursor:pointer">✓ sincronizado</span>
   </div>
@@ -195,7 +198,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpbW1qZ2R3aGlmc3JyYnJlY2hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzU2NDIsImV4cCI6MjA5NTE1MTY0Mn0.eAmMS95M8BkfX3NCcOtHnhKWXy0jkvXwSGEoqv_Q21Q';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261001-1';
+const APP_BUILD='20261001-2';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -376,11 +379,12 @@ function go(v,push=false){
   if(push) navStack.push({view,tab}); else navStack=[];
   view=v; render();
 }
-function goBack(){const p=navStack.pop();if(p){view=p.view;tab=p.tab;}else view='home';render();}
+// Voltar: tela anterior; sem histórico, volta ao início da obra; no início, vai ao painel principal
+function goBack(){const p=navStack.pop();if(p){view=p.view;tab=p.tab;}else if(view!=='home') view='home'; else {location.href='../';return;} render();}
 function setTitle(t,s){$('hTitle').innerHTML=`${esc(t)}<span class="sub">${esc(s||'')}</span>`;}
 function render(){
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===view.split(':')[0]));
-  $('btnBack').classList.toggle('show',navStack.length>0);
+  $('btnBack').title=navStack.length||view!=='home'?'Voltar':'Voltar ao painel principal';
   $('fab').classList.toggle('show',view==='visita'&&!!visita);
   const r={home:rHome,visita:rVisita,historico:rHistorico,ncs:rNcs,detalhe:rDetalhe,andamento:rAndamento}[view.split(':')[0]];
   // mesma tela (ex.: marcar OK/NC no checklist) mantém a posição; troca de tela volta ao topo

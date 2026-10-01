@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Modelo 3D — Vistoria de Obra</title>
+<meta name="theme-color" content="#155B67">
+<link rel="icon" href="../assets/icon.png">
+<style>
+:root{--bg:#f6f7f7;--card:#fff;--tx:#1d2b2f;--mut:#667;--bd:#dde2e3;--teal:#0f6e74}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.4 system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx)}
+header{background:var(--teal);color:#fff;padding:12px 16px}
+header h1{font-size:16px;margin:0}
+header p{margin:2px 0 0;font-size:12px;opacity:.85}
+header a{color:#fff}
+main{padding:12px 16px 90px;max-width:1300px;margin:0 auto;display:grid;gap:12px}
+@media(min-width:900px){main{grid-template-columns:minmax(0,1fr) 320px}}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px}
+.card h3{margin:0 0 8px;font-size:14px}
+#cena{position:relative;height:62vh;min-height:360px;padding:0;overflow:hidden}
+#cena canvas{display:block;width:100%;height:100%;touch-action:none}
+.vistas{position:absolute;top:8px;left:8px;right:8px;display:flex;gap:6px;flex-wrap:wrap;pointer-events:none}
+.vistas button{pointer-events:auto;border:1px solid var(--bd);background:#fffe;border-radius:16px;padding:5px 10px;font:inherit;font-size:12px;cursor:pointer}
+.vistas button.on{background:var(--teal);color:#fff;border-color:var(--teal)}
+.dica{position:absolute;bottom:8px;left:8px;right:8px;font-size:11px;color:#555;background:#fffc;border-radius:6px;padding:4px 8px}
+.pal{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--bd);padding:8px 12px;display:flex;gap:6px;overflow-x:auto;z-index:6;justify-content:flex-start}
+@media(min-width:900px){.pal{justify-content:center}}
+.pal button{flex:none;display:flex;align-items:center;gap:6px;border:2px solid var(--bd);background:#fff;border-radius:10px;padding:6px 10px;font:inherit;font-size:13px;cursor:pointer}
+.pal button.on{border-color:var(--tx)}
+.sw{width:16px;height:16px;border-radius:4px;border:1px solid #0003;display:inline-block;vertical-align:-3px}
+.bar{height:8px;background:#e7ebec;border-radius:5px;overflow:hidden;margin:3px 0 8px}
+.bar i{display:block;height:100%;background:#2e7fb0}
+.lin{display:flex;justify-content:space-between;font-size:13px;gap:8px}
+.big{font-size:28px;font-weight:700;color:var(--teal)}
+.mut{color:var(--mut);font-size:12px}
+.acoes{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.acoes button,.acoes label{border:1px solid var(--bd);background:#fff;border-radius:8px;padding:6px 10px;font:inherit;font-size:13px;cursor:pointer;display:flex;gap:6px;align-items:center}
+input[type=range]{width:100%}
+#gate{position:fixed;inset:0;background:linear-gradient(135deg,#0D3C44,#155B67);color:#fff;display:flex;align-items:center;justify-content:center;z-index:99;padding:20px;text-align:center}
+#gate .bx{background:#fff;color:#1d2b2f;border-radius:16px;padding:24px;max-width:380px}
+#gate .bx h2{color:#155B67;font-size:18px;margin:0 0 8px}
+#gate a{display:inline-block;background:#155B67;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;margin-top:10px}
+header a{color:#fff}
+#sync{white-space:nowrap}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="mapa-comum.js"></script>
+</head>
+<body>
+<div id="gate"><div>🔒 Verificando acesso…</div></div>
+<header><h1>Modelo 3D · Ed. Menotti del Picchia</h1>
+<p><a href="./">‹ Voltar ao app</a> · <a href="croqui.html">Planta e fachadas</a> · <span id="sync">carregando…</span></p>
+<p>Arraste para girar, use dois dedos ou a roda do mouse para aproximar. Escolha a etapa embaixo e toque num pavimento de uma faixa.</p></header>
+<main>
+ <div class="card" id="cena">
+  <div class="vistas" id="vistas"></div>
+  <div class="dica" id="dica">Faixas coloridas = pastilha, divididas por pavimento. Toque para marcar a etapa.</div>
+ </div>
+ <div>
+  <div class="card"><div class="mut">Revestimento final concluído, ponderado pela área</div><div class="big" id="geral">0%</div>
+   <div id="porFach"></div></div>
+  <div class="card" style="margin-top:12px"><h3>Ver até o pavimento</h3>
+   <input type="range" id="corte" min="1" max="16" value="16"><div class="mut" id="corteTx">Todos os 16 pavimentos</div>
+   <div class="acoes"><label><input type="checkbox" id="giro"> Girar sozinho</label></div>
+  </div>
+  <div class="card" style="margin-top:12px" id="sel"><h3>Último toque</h3><div class="mut">Nenhum quadro tocado ainda.</div></div>
+  <p class="mut">Contorno e áreas do croqui de pastilhas de 18/12/2025, que não tem escala. As proporções são aproximadas e a altura é de 16 pavimentos de 3 m sobre o térreo. As faixas com medida a conferir aparecem na aba Planta do croqui.</p>
+ </div>
+</main>
+<div class="pal" id="pal"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const ETAPAS=[
+ {n:'Não iniciado',c:'#eceae4'},
+ {n:'Remoção',c:'#e8a33d'},
+ {n:'Tratamento / regularização',c:'#d8c24a'},
+ {n:'Fundo preparador',c:'#8ec1e0'},
+ {n:'Revestimento final',c:'#2e7fb0'},
+ {n:'Aprovado (fiscalização)',c:'#2f9e5b'}];
+const FACHN={rua:'Fachada Rua (Frente)',piscina:'Fachada Piscina',oposta:'Fachada Oposta à Piscina',churrasqueira:'Fachada Churrasqueira (Fundo)'};
+// Mesmas faixas da aba Planta (coordenadas do desenho, ajustadas sobre o contorno). fc = fachada no cronograma AAM
+const FAIXAS=[
+ {id:'b1',pts:[[363,1062],[495,1062]],a:96,fc:'oposta'},{id:'b2',pts:[[495,1062],[637,1062]],a:112,fc:'oposta'},
+ {id:'b3',pts:[[637,1062],[818,1062]],a:147.2,fc:'oposta'},{id:'b4',pts:[[818,1062],[846,1062]],a:32,fc:'oposta'},
+ {id:'b5',pts:[[846,1062],[938,1132]],a:96,fc:'oposta'},{id:'b6',pts:[[938,1132],[1165,1132]],a:216,fc:'oposta'},
+ {id:'b7',pts:[[1165,1132],[1257,1062]],a:96,fc:'oposta'},{id:'b8',pts:[[1257,1062],[1283,1062]],a:32,fc:'oposta'},
+ {id:'b9',pts:[[1283,1062],[1440,1062]],a:147.2,fc:'oposta'},{id:'b10',pts:[[1440,1062],[1583,1062]],a:112,fc:'oposta'},
+ {id:'b11',pts:[[1583,1062],[1694,1062]],a:96,fc:'oposta'},
+ {id:'r1',pts:[[1653,614],[1653,737]],a:96,fc:'piscina'},{id:'r2',pts:[[1653,791],[1694,791]],a:8,fc:'rua'},
+ {id:'r3',pts:[[1694,797],[1694,1055]],a:182.4,fc:'rua'},
+ {id:'f1',pts:[[363,614],[363,737]],a:96,fc:'churrasqueira'},{id:'f2',pts:[[322,791],[363,791]],a:8,fc:'rua'},
+ {id:'f3',pts:[[322,797],[322,1008]],a:121.6,fc:'churrasqueira'},{id:'f4',pts:[[322,1014],[363,1014]],a:16,fc:'churrasqueira'},
+ {id:'t1',pts:[[363,555],[605,555]],a:80,fc:'piscina'},{id:'t2',pts:[[605,485],[605,555]],a:40,fc:'piscina'},
+ {id:'t3',pts:[[605,485],[710,485]],a:96,fc:'piscina'},{id:'t4',pts:[[873,485],[995,485]],a:32,fc:'piscina'},
+ {id:'t5',pts:[[995,485],[1165,485]],a:48,fc:'piscina'},{id:'t6',pts:[[1259,555],[1401,555]],a:144,fc:'piscina'},
+ {id:'t7',pts:[[1401,555],[1653,555]],a:80,fc:'piscina'}];
+const CONTORNO=[[363,555],[605,555],[605,485],[710,485],[765,419],[873,419],[873,485],[1165,485],[1259,555],[1653,555],[1653,791],[1694,791],[1694,1062],[1257,1062],[1165,1132],[938,1132],[846,1062],[363,1062],[363,1014],[322,1014],[322,791],[363,791]];
+const ESC=60, CX=1008, CZ=775, PAV=16, HP=3, PREF='3d:';
+const m=([x,z])=>[(x-CX)/ESC,(z-CZ)/ESC]; // mesma orientação do croqui (piscina à direita de quem está na rua)
+let st={}, meta={}; // st[faixa-pav]=etapa; meta = quem marcou e quando
+let pincel=4, corte=16;
+
+// ---------- cena ----------
+const box=document.getElementById('cena');
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+box.prepend(renderer.domElement);
+const scene=new THREE.Scene(); scene.background=new THREE.Color('#dfe9ee');
+const cam=new THREE.PerspectiveCamera(45,1,0.5,600);
+const ctl=new THREE.OrbitControls(cam,renderer.domElement);
+ctl.target.set(0,24,0); ctl.enableDamping=true; ctl.maxPolarAngle=Math.PI/2-0.02; ctl.minDistance=8; ctl.maxDistance=220;
+scene.add(new THREE.HemisphereLight(0xffffff,0x9aa49a,0.75));
+const sol=new THREE.DirectionalLight(0xffffff,0.55); sol.position.set(40,80,30); scene.add(sol);
+
+// chão
+const chao=new THREE.Mesh(new THREE.CircleGeometry(110,48),new THREE.MeshLambertMaterial({color:'#b9c9a8'}));
+chao.rotation.x=-Math.PI/2; scene.add(chao);
+// piscina
+{const [x1,z1]=m([233,137]),[x2,z2]=m([616,247]);
+ const p=new THREE.Mesh(new THREE.BoxGeometry(Math.abs(x2-x1),0.2,Math.abs(z2-z1)),new THREE.MeshLambertMaterial({color:'#6fb7d6'}));
+ p.position.set((x1+x2)/2,0.1,(z1+z2)/2-4); scene.add(p);}
+
+// prédio (extrusão do contorno)
+const ALT=(PAV+1)*HP;
+function ponto(p){const [x,z]=m(p); return new THREE.Vector2(x,-z);}
+const shape=new THREE.Shape(CONTORNO.map(ponto));
+const geo=new THREE.ExtrudeGeometry(shape,{depth:ALT,bevelEnabled:false}); geo.rotateX(-Math.PI/2);
+const predio=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({color:'#bdbdb8'})); scene.add(predio);
+const predioEdges=new THREE.LineSegments(new THREE.EdgesGeometry(geo),new THREE.LineBasicMaterial({color:'#666'})); scene.add(predioEdges);
+// linhas de pavimento
+const linhas=[];
+for(let p=1;p<=PAV;p++){const g=new THREE.BufferGeometry().setFromPoints(CONTORNO.map(c=>{const [x,z]=m(c);return new THREE.Vector3(x,p*HP,z)}));
+ const l=new THREE.LineLoop(g,new THREE.LineBasicMaterial({color:'#9a9a96'})); l.userData.p=p; scene.add(l); linhas.push(l);}
+
+// teste de ponto dentro do polígono (para achar o lado de fora de cada faixa)
+const POL=CONTORNO.map(m);
+function dentro(x,z){let d=false;for(let i=0,j=POL.length-1;i<POL.length;j=i++){const [xi,zi]=POL[i],[xj,zj]=POL[j];
+ if(((zi>z)!==(zj>z))&&(x<(xj-xi)*(z-zi)/(zj-zi)+xi)) d=!d;} return d;}
+
+// células: faixa × pavimento
+const cels=[], mats={};
+ETAPAS.forEach((e,i)=>mats[i]=new THREE.MeshLambertMaterial({color:e.c,side:THREE.DoubleSide}));
+FAIXAS.forEach(f=>{
+  const [ax,az]=m(f.pts[0]),[bx,bz]=m(f.pts[1]); let dx=bx-ax,dz=bz-az; const L=Math.hypot(dx,dz);
+  let nx=-dz/L,nz=dx/L; const mx=(ax+bx)/2,mz=(az+bz)/2; if(dentro(mx+nx*.3,mz+nz*.3)){nx=-nx;nz=-nz;}
+  f.n=[nx,nz]; f.mid=[mx,mz];
+  const o=0.06;
+  for(let p=1;p<=PAV;p++){
+    const y0=p*HP+0.03,y1=(p+1)*HP-0.03;
+    const v=new Float32Array([ax+nx*o,y0,az+nz*o, bx+nx*o,y0,bz+nz*o, bx+nx*o,y1,bz+nz*o, ax+nx*o,y1,az+nz*o]);
+    const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(v,3)); g.setIndex([0,1,2,0,2,3]); g.computeVertexNormals();
+    const k=`${f.id}-${p}`, mesh=new THREE.Mesh(g,mats[st[k]||0]); mesh.userData={k,f,p};
+    const ed=new THREE.LineSegments(new THREE.EdgesGeometry(g),new THREE.LineBasicMaterial({color:'#555'})); mesh.add(ed);
+    scene.add(mesh); cels.push(mesh);
+  }
+});
+
+// ---------- entorno (Street View e satélite) ----------
+const mat=c=>new THREE.MeshLambertMaterial({color:c});
+function caixa(c,x1,x2,y1,y2,z1,z2){const b=new THREE.Mesh(new THREE.BoxGeometry(x2-x1,y2-y1,z2-z1),mat(c)); b.position.set((x1+x2)/2,(y1+y2)/2,(z1+z2)/2); scene.add(b); return b;}
+function textura(txt,w,h,fundo,cor,fonte){const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');
+ if(fundo){g.fillStyle=fundo;g.fillRect(0,0,w,h);} g.fillStyle=cor;g.font=fonte;g.textAlign='center';g.textBaseline='middle';g.fillText(txt,w/2,h/2+2);
+ const t=new THREE.CanvasTexture(c); t.anisotropy=4; return t;}
+const FR=(1694-CX)/ESC; // face da frente
+// recuo frontal (jardim), calçada, rua e calçada do outro lado
+caixa('#9fbf86',FR,17,0,0.05,-14,14);
+caixa('#d9d4c7',17,20,0,0.18,-70,70);
+const rua=new THREE.Mesh(new THREE.PlaneGeometry(9,140),new THREE.MeshLambertMaterial({color:'#5d6166'}));
+rua.rotation.x=-Math.PI/2; rua.position.set(24.5,0.03,0); scene.add(rua);
+caixa('#d9d4c7',29,32,0,0.18,-70,70);
+for(const z of [-40,0,40]){const t=new THREE.Mesh(new THREE.PlaneGeometry(36,3.2),new THREE.MeshBasicMaterial({map:textura('RUA JOSÉ GUATEMOSIN NOGUEIRA',1024,96,null,'#f2f2f2','bold 52px system-ui,sans-serif'),transparent:true}));
+ t.rotation.set(-Math.PI/2,0,Math.PI/2); t.position.set(24.5,0.06,z); scene.add(t);}
+// portaria: hall de vidro no térreo, marquise vermelha com letreiro, escada até a calçada
+const PZ1=0.6, PZ2=4.4;
+{const v=caixa('#9cc3d2',FR,FR+1.2,0,3,PZ1,PZ2); v.material.transparent=true; v.material.opacity=.85;}
+caixa('#a3392b',FR,15,3.05,3.45,PZ1-0.4,PZ2+0.4);
+{const pl=new THREE.Mesh(new THREE.PlaneGeometry(PZ2-PZ1+0.8,0.4),new THREE.MeshBasicMaterial({map:textura('MENOTTI DEL PICCHIA  58',512,40,'#a3392b','#fff','bold 26px system-ui,sans-serif')}));
+ pl.rotation.y=Math.PI/2; pl.position.set(15.01,3.25,(PZ1+PZ2)/2); scene.add(pl);}
+for(let i=0;i<5;i++) caixa('#e3ddd0',FR+1.2+i*0.9,17,0,1.0-i*0.2,PZ1+0.6,PZ2-0.6);
+// churrasqueira (fundo): quiosque com telhado
+const CQX=(322-CX)/ESC-6;
+caixa('#b5523b',CQX-2.6,CQX+2.6,2.7,3.1,-6.5,-1.5);
+for(const [dx,dz] of [[-2.3,-1.8],[2.3,-1.8],[-2.3,-6.2],[2.3,-6.2]]) caixa('#8a8a86',CQX+dx-0.12,CQX+dx+0.12,0,2.7,dz-0.12,dz+0.12);
+caixa('#c9c2b3',CQX-2.2,CQX-1.2,0,1.1,-5.8,-2.2); caixa('#6b4f3a',CQX-0.6,CQX+1.4,0,0.8,-4.8,-3.2);
+
+// rótulos: escondidos atrás do prédio e quando o lado deles está de costas para a câmera
+const ROT=[];
+function rotulo(txt,x,y,z,dir,tam=2){const s=new THREE.Sprite(new THREE.SpriteMaterial({map:textura(txt,512,96,'rgba(255,255,255,.9)','#1d2b2f','bold 42px system-ui,sans-serif')}));
+ s.scale.set(8*tam,1.5*tam,1); s.position.set(x,y,z); s.userData.dir=dir; scene.add(s); ROT.push(s);}
+rotulo('PORTARIA',16,5.5,(PZ1+PZ2)/2,[1,0],1.4);
+rotulo('PISCINA',-9.7,2.5,-13.7,[0,-1],2);
+rotulo('CHURRASQUEIRA / FUNDO',CQX,5.5,-4,[-1,0],2.4);
+rotulo('OPOSTA À PISCINA',0,3,14,[0,1],2.2);
+function atualizaRotulos(){const v=new THREE.Vector2(cam.position.x-ctl.target.x,cam.position.z-ctl.target.z).normalize(), alto=cam.position.y>95;
+ ROT.forEach(r=>{r.visible=alto||(v.x*r.userData.dir[0]+v.y*r.userData.dir[1])>-0.1;});}
+
+// ---------- vistas ----------
+const VISTAS={'3D':[78,46,-64],'Topo':[0,120,0.01],'Frente':[115,30,0],'Piscina':[0,30,-115],'Oposta':[0,30,115],'Fundo':[-115,30,0]};
+let anim=null;
+function irPara(nome){const [x,y,z]=VISTAS[nome]; const de=cam.position.clone(), para=new THREE.Vector3(x,y,z); let t=0;
+ anim=()=>{t=Math.min(1,t+0.05); const e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2; cam.position.lerpVectors(de,para,e); if(t>=1) anim=null;};
+ document.querySelectorAll('#vistas button').forEach(b=>b.classList.toggle('on',b.textContent===nome));}
+document.getElementById('vistas').innerHTML=Object.keys(VISTAS).map(n=>`<button>${n}</button>`).join('');
+document.querySelectorAll('#vistas button').forEach(b=>b.onclick=()=>irPara(b.textContent));
+cam.position.set(...VISTAS['3D']);
+
+// ---------- toque ----------
+const ray=new THREE.Raycaster(), ptr=new THREE.Vector2(); let down=null;
+renderer.domElement.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY]});
+renderer.domElement.addEventListener('pointerup',e=>{
+  if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>6) return;
+  const r=renderer.domElement.getBoundingClientRect(); ptr.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);
+  ray.setFromCamera(ptr,cam); const hit=ray.intersectObjects([...cels.filter(c=>c.visible),predio],false)[0];
+  if(!hit||!hit.object.userData.k) return;
+  const {k,f,p}=hit.object.userData; if((st[k]||0)===pincel) delete st[k]; else st[k]=pincel;
+  hit.object.material=mats[st[k]||0]; mapaGravar(PREF+k,st[k]||0); meta[k]={user_nome:nomeUser(),updated_at:null}; resumo();
+  document.getElementById('sel').innerHTML=`<h3>Último toque</h3><div class="lin"><span>${FACHN[f.fc]}</span></div>
+   <div class="lin"><span>Faixa de ${String(f.a).replace('.',',')} m², pavimento ${p}</span></div>
+   <div class="lin"><span>Etapa</span><b><span class="sw" style="background:${ETAPAS[st[k]||0].c}"></span> ${ETAPAS[st[k]||0].n}</b></div>
+   <div class="mut">Marcado por ${escH(meta[k].user_nome)} · ${fmtQuando(meta[k].updated_at)}</div>`;
+});
+
+// ---------- percentuais ----------
+function resumo(){
+  const tot={},ac={}; Object.keys(FACHN).forEach(k=>{tot[k]=0;ac[k]=0});
+  FAIXAS.forEach(f=>{for(let p=1;p<=PAV;p++){const a=f.a/PAV; tot[f.fc]+=a; if((st[`${f.id}-${p}`]||0)>=4) ac[f.fc]+=a;}});
+  const T=Object.values(tot).reduce((a,b)=>a+b,0), A=Object.values(ac).reduce((a,b)=>a+b,0), pc=v=>v.toFixed(1).replace('.',',')+'%';
+  document.getElementById('geral').textContent=pc(A/T*100);
+  document.getElementById('porFach').innerHTML=Object.keys(FACHN).map(k=>`<div class="lin"><span>${FACHN[k]}</span><b>${pc(ac[k]/tot[k]*100)}</b></div><div class="bar"><i style="width:${ac[k]/tot[k]*100}%"></i></div>`).join('');
+}
+function pintarTudo(){cels.forEach(c=>c.material=mats[st[c.userData.k]||0]); resumo();}
+
+// ---------- controles ----------
+document.getElementById('pal').innerHTML=ETAPAS.map((e,i)=>`<button data-i="${i}"><span class="sw" style="background:${e.c}"></span>${e.n}</button>`).join('');
+const marcaPal=()=>document.querySelectorAll('#pal button').forEach(b=>b.classList.toggle('on',+b.dataset.i===pincel));
+document.querySelectorAll('#pal button').forEach(b=>b.onclick=()=>{pincel=+b.dataset.i;marcaPal();}); marcaPal();
+document.getElementById('giro').onchange=e=>{ctl.autoRotate=e.target.checked};
+document.getElementById('corte').oninput=e=>{corte=+e.target.value;
+  cels.forEach(c=>c.visible=c.userData.p<=corte); linhas.forEach(l=>l.visible=l.userData.p<=corte);
+  const h=(corte+1)*HP; predio.scale.y=h/ALT; predioEdges.scale.y=h/ALT;
+  document.getElementById('corteTx').textContent=corte===16?'Todos os 16 pavimentos':`Até o ${corte}º pavimento`;};
+
+function tamanho(){const w=box.clientWidth,h=box.clientHeight; renderer.setSize(w,h,false); cam.aspect=w/h; cam.updateProjectionMatrix();}
+addEventListener('resize',tamanho); tamanho(); resumo();
+(function loop(){requestAnimationFrame(loop); if(anim) anim(); ctl.update(); atualizaRotulos(); renderer.render(scene,cam);})();
+
+// ---------- dados compartilhados ----------
+async function recarregar(){
+  try{const d=await mapaCarregar(PREF); st={}; meta={};
+    Object.values(d).forEach(r=>{const k=r.chave.slice(PREF.length); if(r.etapa) st[k]=r.etapa; meta[k]=r;});
+    pintarTudo(); statusSync();
+  }catch(e){document.getElementById('sync').textContent='⚠️ não consegui ler as marcações do servidor';}
+}
+mapaEntrar().then(ok=>{if(!ok) return; recarregar(); document.addEventListener('visibilitychange',()=>{if(!document.hidden) recarregar();});});
+</script>
+</body>
+</html>

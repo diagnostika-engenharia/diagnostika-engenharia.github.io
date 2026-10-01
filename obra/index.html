@@ -195,7 +195,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpbW1qZ2R3aGlmc3JyYnJlY2hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzU2NDIsImV4cCI6MjA5NTE1MTY0Mn0.eAmMS95M8BkfX3NCcOtHnhKWXy0jkvXwSGEoqv_Q21Q';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20260930-3';
+const APP_BUILD='20261001-1';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -396,6 +396,7 @@ async function rHome(){
   $('view').innerHTML=`<div class="obra-hd"><b>${esc(obra.nome)}</b><small>${esc(obra.cliente||'')}${obra.contrato?' · '+esc(obra.contrato):''}</small></div>
   <div class="stats" id="stats"><div class="stat"><b>…</b><small>visitas</small></div><div class="stat"><b>…</b><small>registros</small></div><div class="stat nc"><b>…</b><small>NCs abertas</small></div></div>
   ${visita?`<button class="btn lime" onclick="go('visita')">▶ Continuar vistoria de ${fmtBR(visita.data)}</button>`:`<button class="btn" onclick="novaVisita()">＋ Iniciar nova vistoria</button>`}
+  <div style="display:flex;gap:8px;margin-top:10px"><a class="btn sec" style="flex:1;text-align:center;text-decoration:none" href="croqui.html">🗺️ Planta e fachadas</a><a class="btn sec" style="flex:1;text-align:center;text-decoration:none" href="modelo3d.html">🧊 Modelo 3D</a></div>
   <div class="card" style="margin-top:14px"><h3>Últimas vistorias</h3><div id="ultimas"><div class="empty">Carregando…</div></div></div>
   <p class="muted" style="text-align:center">${esc(nomeUser())} · build ${APP_BUILD}</p>`;
   await carregarVisitas();
@@ -711,6 +712,7 @@ async function rAndamento(){
     ${ncF[f]?`<p style="margin:8px 0 0"><span class="tag nc">${ncF[f]} NC aberta${ncF[f]>1?'s':''}</span></p>`:''}
     <div style="margin-top:8px">${SERVICOS.map(s=>{const p=pct(f,s),u=ult[f+'|'+s];return `<div style="padding:6px 0;border-bottom:1px solid var(--gray2)"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>${esc(s)}</span><b style="color:${p>=100?'var(--green)':p>0?'var(--amber)':'var(--gray4)'}">${p}%</b></div>${bar(p,5)}${u?`<small class="muted">atualizado em ${fmtBR(u.obra_visitas?.data)}</small>`:''}</div>`;}).join('')}</div></div>`;}).join('')}</div>
   <p class="muted" style="text-align:center">Considera a informação mais recente de cada serviço nas vistorias encerradas.</p>
+  <div style="display:flex;gap:8px;margin-bottom:10px"><a class="btn sec" style="flex:1;text-align:center;text-decoration:none" href="croqui.html">🗺️ Planta e fachadas</a><a class="btn sec" style="flex:1;text-align:center;text-decoration:none" href="modelo3d.html">🧊 Marcar no 3D</a></div>
   <button class="btn sec" onclick="imprimirAndamento()">🖨️ Imprimir / salvar PDF do andamento</button>`;
 }
 function imprimirAndamento(){

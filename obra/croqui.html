@@ -174,6 +174,8 @@ const FAIXAS=[
  {id:'t5',pts:[[995,485],[1165,485]],c:3,a:48,fc:'piscina',fd:'piscina',conf:'48 ÷ 3,00 = 16 m de altura.'},
  {id:'t6',pts:[[1259,555],[1401,555]],c:3,a:144,fc:'piscina',fd:'piscina',esc:1},
  {id:'t7',pts:[[1401,555],[1653,555]],c:5,a:80,fc:'piscina',fd:'piscina',conf:'80 ÷ 5,00 = 16 m de altura. Pastilha só em parte da altura?'}];
+aplicarBase(FAIXAS);
+function trocaBase(b){aplicarBase(FAIXAS,b);render();}
 const CRONO={piscina:616,oposta:1182.4,rua:198.4,churrasqueira:233.6};
 const COR={piscina:'#4f86b5',oposta:'#a8743f',rua:'#0f6e74',churrasqueira:'#7d8a2e'};
 let selF=null, divisao='fc';
@@ -205,6 +207,7 @@ function painelPlanta(){
   const soma={}; FACH.forEach(F=>soma[F.id]=0); FAIXAS.forEach(f=>soma[f[divisao]]+=f.a);
   const tot=FAIXAS.reduce((s,f)=>s+f.a,0);
   let h=`<div class="card"><h3>Áreas de pastilha por fachada</h3>
+  ${seletorBase('trocaBase')}
   <div class="acoes" style="margin:0 0 10px"><label><input type="radio" name="dv" ${divisao==='fc'?'checked':''} onchange="divisao='fc';render()"> Como no cronograma AAM</label>
   <label><input type="radio" name="dv" ${divisao==='fd'?'checked':''} onchange="divisao='fd';render()"> Como no desenho</label></div>`;
   FACH.forEach(F=>{const p=pct(F);
@@ -218,9 +221,10 @@ function painelPlanta(){
     <div class="lin"><span>Largura (cota)</span><b>${f.c?br(f.c)+' m':'sem cota'}</b></div>
     <div class="lin"><span>Altura implícita</span><b>${f.c?br(+(f.a/f.c).toFixed(1))+' m':'—'}</b></div>
     <div class="lin"><span>Pastilha</span><b>${f.esc?'escura':'clara'}</b></div>
+    ${f.nota?`<p class="mut" style="margin:8px 0">Projeto original: ${f.nota}</p>`:''}
     ${f.conf?`<p style="background:#fff6cc;border:1px solid #f2c200;border-radius:8px;padding:8px;margin:8px 0">A conferir: ${f.conf}</p>`:''}
     <div class="acoes"><button onclick="aba='${F.id}';render()">Abrir ${F.n}</button></div></div>`;}
-  h+=`<p class="mut" style="margin-top:10px">Contorno e áreas (m²) do croqui de pastilhas da Diagnóstika de 18/12/2025, sem escala. Borda amarela = medida a conferir em campo. Toque numa faixa para ver o detalhe.</p>`;
+  h+=`<p class="mut" style="margin-top:10px">${BASE==='projeto'?'Áreas (m²) medidas nas elevações do projeto original (Badaró, esc. 1:50) em 04/10/2026; contorno do croqui, sem escala.':'Contorno e áreas (m²) do croqui de pastilhas da Diagnóstika de 18/12/2025, sem escala.'} Borda amarela = medida a conferir em campo. Toque numa faixa para ver o detalhe.</p>`;
   return h;
 }
 
@@ -247,7 +251,7 @@ function render(){
   <div class="acoes"><label><input type="checkbox" ${verLaudo?'checked':''} onchange="verLaudo=this.checked;render()"> Patologias do laudo</label>
 </div>
   <p class="mut" style="margin-top:10px">Bolinha vermelha = quadrante com patologia no laudo. Faixas marcadas como Sacadas ficam fora da remoção (regularização sobre a pastilha + revestimento). Proporções tiradas dos desenhos do laudo; ainda não conferidas em campo.</p></div></div></div>`;
-  document.getElementById('svg').addEventListener('click',ev=>{const k=ev.target.dataset&&ev.target.dataset.k; if(!k)return;
+  document.getElementById('svg').addEventListener('click',ev=>{if(SO_LEITURA) return; const k=ev.target.dataset&&ev.target.dataset.k; if(!k)return;
     st[F.id]=st[F.id]||{}; if((st[F.id][k]||0)===pincel) delete st[F.id][k]; else st[F.id][k]=pincel; mapaGravar(PREF+F.id+':'+k,st[F.id][k]||0); render();});
   document.getElementById('pal').innerHTML=ETAPAS.map((e,i)=>`<button class="${pincel===i?'on':''}" onclick="pincel=${i};render()"><span class="sw" style="background:${e.c}"></span>${e.n}</button>`).join('');
 }

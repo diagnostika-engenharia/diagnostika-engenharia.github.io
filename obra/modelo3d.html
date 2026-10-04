@@ -70,7 +70,8 @@ header a{color:#fff}
    <div class="acoes"><label><input type="checkbox" id="giro"> Girar sozinho</label></div>
   </div>
   <div class="card" style="margin-top:12px" id="sel"><h3>Último toque</h3><div class="mut">Nenhum quadro tocado ainda.</div></div>
-  <p class="mut">Contorno e áreas do croqui de pastilhas de 18/12/2025, que não tem escala. As proporções são aproximadas e a altura é de 16 pavimentos de 3 m sobre o térreo. As faixas com medida a conferir aparecem na aba Planta do croqui.</p>
+  <div class="card" style="margin-top:12px"><h3>Base das áreas</h3><div id="baseSel"></div><p class="mut" id="baseTx" style="margin:0"></p></div>
+  <div class="card so-equipe" style="margin-top:12px" id="compartilhar"></div>
  </div>
 </main>
 <div class="pal" id="pal"></div>
@@ -102,6 +103,9 @@ const FAIXAS=[
  {id:'t3',pts:[[605,485],[710,485]],a:96,fc:'piscina'},{id:'t4',pts:[[873,485],[995,485]],a:32,fc:'piscina'},
  {id:'t5',pts:[[995,485],[1165,485]],a:48,fc:'piscina'},{id:'t6',pts:[[1259,555],[1401,555]],a:144,fc:'piscina'},
  {id:'t7',pts:[[1401,555],[1653,555]],a:80,fc:'piscina'}];
+aplicarBase(FAIXAS);
+function trocaBase(b){aplicarBase(FAIXAS,b);resumo();document.getElementById('baseTx').innerHTML=textoBase();}
+function textoBase(){return BASE==='projeto'?'Áreas medidas nas elevações do projeto original (Badaró, esc. 1:50) em 04/10/2026. O contorno continua o do croqui, sem escala, com 16 pavimentos de 3 m sobre o térreo. Faixas de retorno sem medida no projeto mantêm a área do croqui.':'Contorno e áreas do croqui de pastilhas de 18/12/2025, que não tem escala. As proporções são aproximadas e a altura é de 16 pavimentos de 3 m sobre o térreo. As faixas com medida a conferir aparecem na aba Planta do croqui.';}
 const CONTORNO=[[363,555],[605,555],[605,485],[710,485],[765,419],[873,419],[873,485],[1165,485],[1259,555],[1653,555],[1653,791],[1694,791],[1694,1062],[1257,1062],[1165,1132],[938,1132],[846,1062],[363,1062],[363,1014],[322,1014],[322,791],[363,791]];
 const ESC=60, CX=1008, CZ=775, PAV=16, HP=3, PREF='3d:';
 const m=([x,z])=>[(x-CX)/ESC,(z-CZ)/ESC]; // mesma orientação do croqui (piscina à direita de quem está na rua)
@@ -227,6 +231,7 @@ document.addEventListener('fullscreenchange',()=>setTimeout(tamanho,50));
 const ray=new THREE.Raycaster(), ptr=new THREE.Vector2(); let down=null;
 renderer.domElement.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY]});
 renderer.domElement.addEventListener('pointerup',e=>{
+  if(SO_LEITURA) return;
   if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>6) return;
   const r=renderer.domElement.getBoundingClientRect(); ptr.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);
   ray.setFromCamera(ptr,cam); const hit=ray.intersectObjects([...cels.filter(c=>c.visible),predio],false)[0];
@@ -261,6 +266,7 @@ document.getElementById('corte').oninput=e=>{corte=+e.target.value;
 
 function tamanho(){const w=box.clientWidth,h=box.clientHeight; renderer.setSize(w,h,false); cam.aspect=w/h; cam.updateProjectionMatrix();}
 addEventListener('resize',tamanho); tamanho(); resumo();
+document.getElementById('baseSel').innerHTML=seletorBase('trocaBase'); document.getElementById('baseTx').innerHTML=textoBase();
 (function loop(){requestAnimationFrame(loop); if(anim) anim(); ctl.update(); atualizaRotulos(); altTexto(); renderer.render(scene,cam);})();
 
 // ---------- dados compartilhados ----------
@@ -270,7 +276,8 @@ async function recarregar(){
     pintarTudo(); statusSync();
   }catch(e){document.getElementById('sync').textContent='⚠️ não consegui ler as marcações do servidor';}
 }
-mapaEntrar().then(ok=>{if(!ok) return; recarregar(); document.addEventListener('visibilitychange',()=>{if(!document.hidden) recarregar();});});
+mapaEntrar().then(ok=>{if(!ok) return; recarregar(); cardCompartilhar(document.getElementById('compartilhar'));
+ if(SO_LEITURA){document.getElementById('dica').textContent='Faixas coloridas = pastilha, por pavimento, na cor da etapa em que estão. ▲ ▼ sobem e descem a vista.'; document.querySelector('header p:last-of-type').textContent='Arraste para girar e use dois dedos ou a roda do mouse para aproximar. Visualização atualizada pela fiscalização da Diagnóstika Engenharia.';} document.addEventListener('visibilitychange',()=>{if(!document.hidden) recarregar();});});
 </script>
 </body>
 </html>

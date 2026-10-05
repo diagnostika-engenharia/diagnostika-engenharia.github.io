@@ -51,13 +51,13 @@ header a{color:#fff}
 <div id="gate"><div>🔒 Verificando acesso…</div></div>
 <header><h1><a href="../" title="Painel principal" style="display:inline-flex;vertical-align:middle;margin-right:8px"><img src="../assets/icon.png" alt="Diagnóstika" style="height:26px;width:26px;border-radius:7px;background:#fff;padding:2px"></a>Planta e Fachadas · Ed. Menotti del Picchia</h1>
 <p><a href="./">‹ Voltar ao app</a> · <a href="modelo3d.html">Modelo 3D</a> · <span id="sync">carregando…</span></p>
-<p>Nas fachadas, escolha a etapa embaixo e toque nos quadros. A grade de pastilhas segue os quadrantes 1 a 9 do laudo.</p></header>
+<p>Nas fachadas, escolha a etapa embaixo e toque nos quadros (tocar de novo desmarca). Cada quadro tem 5 tiras, de baixo para cima: remoção, tratamento, fundo, revestimento e aprovação. A grade de pastilhas segue os quadrantes 1 a 9 do laudo.</p></header>
 <nav class="tabs" id="tabs"></nav>
 <main id="main"></main>
 <div class="pal" id="pal"></div>
 
 <script>
-// Etapas acumulativas: quadro na etapa k tem as etapas 1..k concluídas
+// Cada etapa é registrada à parte (ver etapasMontar em mapa-comum.js); o quadro só conta como concluído com as anteriores registradas
 const ETAPAS=[
  {n:'Não iniciado',c:'var(--s0)'},
  {n:'Remoção',c:'var(--s1)'},
@@ -83,8 +83,9 @@ const LAUDO={
  churrasqueira:{15:[9],13:[2,3],12:[4,5,7],11:[7,8],10:L('2,3,7,8'),9:[1,3,8],8:L('1,2,3,5,6,8'),7:[3,4,6],6:[7,8,9],5:[3],4:[2,5,8],3:L('4,5,7,8,9'),2:[3,7],1:[3,4,7]}};
 
 const PAV=16, PREF='croqui:';
-let st={}; // st[fachada][quadro]=etapa
-let aba='planta', pincel=1, verLaudo=true;
+let st={}; // st[fachada][quadro]={m: etapas feitas (bit s = etapa s), por: quem marcou cada uma e quando}
+let aba='planta', pincel=1, verLaudo=true, modo='tiras', selQ=null;
+const NADA={m:0,por:{},leg:0,step:{}}, CINZA='#e4e2dc', est=(F,k)=>(st[F.id]||{})[k]||NADA, ini=c=>c.t==='s'?2:1; // sacada não tem remoção
 
 // Gera as células de uma fachada: {k, x, y, w, h, tipo, pav, q}
 function celulas(F){
@@ -103,22 +104,26 @@ function celulas(F){
 }
 
 function pct(F){
-  const {out}=celulas(F), s=st[F.id]||{}; const r=[0,0,0,0,0,0]; let tot=0,totRem=0;
-  out.forEach(c=>{const a=c.w*c.h, e=s[c.k]||0; tot+=a; if(c.t!=='s') totRem+=a;
-    for(let k=1;k<=5;k++) if(e>=k){ if(k===1){ if(c.t!=='s') r[1]+=a; } else r[k]+=a; }});
-  // Sacadas não têm remoção: contam a partir do tratamento
-  return {rem:r[1]/totRem*100,k:[0,0,r[2]/tot*100,r[3]/tot*100,r[4]/tot*100,r[5]/tot*100],tot};
+  const {out}=celulas(F); const r=[0,0,0,0,0,0]; let tot=0,totRem=0,ok=0,pul=0;
+  out.forEach(c=>{const a=c.w*c.h, m=est(F,c.k).m; tot+=a; if(c.t!=='s') totRem+=a;
+    for(let k=ini(c);k<=5;k++) if(tem(m,k)) r[k]+=a;
+    if(nivelDe(m,ini(c))>=4) ok+=a; if(faltando(m,ini(c)).length) pul++;});
+  // Sacadas não têm remoção: contam a partir do tratamento. ok = revestimento final com todas as etapas anteriores registradas
+  return {rem:r[1]/totRem*100,k:[0,0,r[2]/tot*100,r[3]/tot*100,r[4]/tot*100,r[5]/tot*100],ok:ok/tot*100,pul,tot};
 }
 
 function desenho(F){
-  const {W,H,out}=celulas(F), s=st[F.id]||{}, lau=LAUDO[F.id]||{}, sx=10;
+  const {W,H,out}=celulas(F), lau=LAUDO[F.id]||{}, sx=10;
   const larg=W*sx, alt=(PAV+1)*H*sx+ (F.terreoFaixa?0:0);
   let g='';
   // térreo
   g+=`<rect x="0" y="${PAV*H*sx}" width="${larg}" height="${H*sx}" fill="var(--cinza)"/>`;
   out.forEach(c=>{
-    const e=s[c.k]||0, X=c.x*sx, Y=c.y*sx, w=c.w*sx, h=c.h*sx;
-    g+=`<rect class="cel" data-k="${c.k}" x="${X}" y="${Y}" width="${w}" height="${h}" fill="${ETAPAS[e].c}"/>`;
+    const o=est(F,c.k), X=c.x*sx, Y=c.y*sx, w=c.w*sx, h=c.h*sx, nv=nivelDe(o.m,ini(c)), pulo=faltando(o.m,ini(c)).length;
+    // 5 tiras de baixo para cima; no modo "atual" o quadro inteiro fica na cor da etapa alcançada sem pulos
+    for(let j=1;j<=5;j++){const cor=modo==='atual'?(nv?ETAPAS[nv].c:CINZA):(j<ini(c)?'#fff':tem(o.m,j)?ETAPAS[j].c:CINZA);
+      g+=`<rect x="${X}" y="${Y+h-j*h/5}" width="${w}" height="${h/5+.3}" fill="${cor}" pointer-events="none"/>`;}
+    g+=`<rect class="cel" data-k="${c.k}" x="${X}" y="${Y}" width="${w}" height="${h}" fill="transparent" stroke="${pulo?'#d62828':selQ===F.id+':'+c.k?'#000':'#fff'}" stroke-width="${pulo||selQ===F.id+':'+c.k?2.4:.6}"/>`;
     if(c.t==='s') g+=`<path d="M${X+3} ${Y+h-12}h${w-6}M${X+3} ${Y+h-18}h${w-6}" stroke="#6b5d3e" stroke-width="1.2" pointer-events="none"/>`;
     if(c.jan){const n=c.jan, jw=Math.min(w*.55/n,42), gap=(w-n*jw)/(n+1);
       for(let j=0;j<n;j++) g+=`<rect x="${X+gap+j*(jw+gap)}" y="${Y+h*.2}" width="${jw}" height="${h*.38}" fill="var(--vid)" stroke="#555" stroke-width=".8" pointer-events="none"/>`;}
@@ -141,7 +146,9 @@ function desenho(F){
 function barras(F){
   const p=pct(F), f=v=>v.toFixed(1).replace('.',',')+'%';
   const it=[[1,p.rem,'Remoção de pastilhas (exceto sacadas)'],[2,p.k[2],'Tratamento / regularização'],[3,p.k[3],'Fundo preparador'],[4,p.k[4],'Revestimento final'],[5,p.k[5],'Aprovado pela fiscalização']];
-  return it.map(([e,v,n])=>`<div class="lin"><span>${n}</span><b>${f(v)}</b></div><div class="bar"><i style="width:${v}%;background:${ETAPAS[e].c}"></i></div>`).join('');
+  return it.map(([e,v,n])=>`<div class="lin"><span>${n}</span><b>${f(v)}</b></div><div class="bar"><i style="width:${v}%;background:${ETAPAS[e].c}"></i></div>`).join('')
+   +`<div class="lin" style="border-top:1px solid var(--bd);padding-top:6px"><span>Concluído com todas as etapas</span><b>${f(p.ok)}</b></div>`
+   +(p.pul?`<p style="background:#fde8e8;border:1px solid #d62828;border-radius:8px;padding:8px;margin:6px 0 0">${p.pul} quadro${p.pul>1?'s':''} com etapa pulada (contorno vermelho). Não ${p.pul>1?'entram':'entra'} como concluído${p.pul>1?'s':''}.</p>`:'');
 }
 
 
@@ -212,7 +219,7 @@ function painelPlanta(){
   <label><input type="radio" name="dv" ${divisao==='fd'?'checked':''} onchange="divisao='fd';render()"> Como no desenho</label></div>`;
   FACH.forEach(F=>{const p=pct(F);
     h+=`<div class="lin" style="cursor:pointer" onclick="aba='${F.id}';render()"><span><span class="sw" style="background:${COR[F.id]};vertical-align:-3px"></span> ${F.n}</span><b>${br(soma[F.id])} m²</b></div>
-    <div class="mut" style="margin:0 0 8px 22px">Cronograma ${br(CRONO[F.id])} m² · revestimento final ${p.k[4].toFixed(1).replace('.',',')}%</div>`;});
+    <div class="mut" style="margin:0 0 8px 22px">Cronograma ${br(CRONO[F.id])} m² · concluído com todas as etapas ${p.ok.toFixed(1).replace('.',',')}%</div>`;});
   h+=`<div class="lin" style="border-top:1px solid var(--bd);padding-top:6px"><span>Total</span><b>${br(tot)} m²</b></div></div>`;
   const f=FAIXAS.find(x=>x.id===selF);
   if(f){const F=FACH.find(x=>x.id===f[divisao]);
@@ -239,8 +246,8 @@ function render(){
     return;
   }
   if(aba==='geral'){
-    let tot=0,ac=0; FACH.forEach(F=>{const p=pct(F); tot+=p.tot; ac+=p.k[4]*p.tot;});
-    M.innerHTML=`<div class="card" style="margin-bottom:12px"><div class="mut">Revestimento final concluído, ponderado pela área desenhada</div><div class="big">${(ac/tot).toFixed(1).replace('.',',')}%</div></div>
+    let tot=0,ac=0; FACH.forEach(F=>{const p=pct(F); tot+=p.tot; ac+=p.ok*p.tot;});
+    M.innerHTML=`<div class="card" style="margin-bottom:12px"><div class="mut">Revestimento final concluído com todas as etapas anteriores registradas, ponderado pela área desenhada</div><div class="big">${(ac/tot).toFixed(1).replace('.',',')}%</div></div>
     <div class="geral">${FACH.map(F=>`<div class="card"><h3>${F.n}</h3>${barras(F)}</div>`).join('')}</div>`;
     document.getElementById('pal').style.display='none'; return;
   }
@@ -250,18 +257,38 @@ function render(){
   <div><div class="card"><h3>${F.n}</h3>${barras(F)}
   <div class="acoes"><label><input type="checkbox" ${verLaudo?'checked':''} onchange="verLaudo=this.checked;render()"> Patologias do laudo</label>
 </div>
-  <p class="mut" style="margin-top:10px">Bolinha vermelha = quadrante com patologia no laudo. Faixas marcadas como Sacadas ficam fora da remoção (regularização sobre a pastilha + revestimento). Proporções tiradas dos desenhos do laudo; ainda não conferidas em campo.</p></div></div></div>`;
-  document.getElementById('svg').addEventListener('click',ev=>{if(SO_LEITURA) return; const k=ev.target.dataset&&ev.target.dataset.k; if(!k)return;
-    st[F.id]=st[F.id]||{}; if((st[F.id][k]||0)===pincel) delete st[F.id][k]; else st[F.id][k]=pincel; mapaGravar(PREF+F.id+':'+k,st[F.id][k]||0); render();});
-  document.getElementById('pal').innerHTML=ETAPAS.map((e,i)=>`<button class="${pincel===i?'on':''}" onclick="pincel=${i};render()"><span class="sw" style="background:${e.c}"></span>${e.n}</button>`).join('');
+  <div class="acoes"><label><input type="radio" name="modo" ${modo==='tiras'?'checked':''} onchange="modo='tiras';render()"> Cada etapa em uma tira</label><label><input type="radio" name="modo" ${modo==='atual'?'checked':''} onchange="modo='atual';render()"> Só a etapa alcançada sem pulos</label></div>
+  ${cartaoQuadro(F)}
+  <p class="mut" style="margin-top:10px">Tiras de baixo para cima: remoção, tratamento, fundo, revestimento e aprovação. Cinza = etapa ainda não registrada; branco = não se aplica (sacada não tem remoção). Contorno vermelho = etapa pulada. Bolinha vermelha = quadrante com patologia no laudo. Faixas marcadas como Sacadas ficam fora da remoção (regularização sobre a pastilha + revestimento). Proporções tiradas dos desenhos do laudo; ainda não conferidas em campo.</p></div></div></div>`;
+  document.getElementById('svg').addEventListener('click',ev=>{const k=ev.target.dataset&&ev.target.dataset.k; if(!k)return;
+    selQ=F.id+':'+k; aviso='';
+    if(!SO_LEITURA){const c=celulas(F).out.find(x=>x.k===k);
+      if(pincel<ini(c)) aviso='Sacada não tem remoção: comece pelo tratamento.';
+      else{const s=st[F.id]=st[F.id]||{}; s[k]=s[k]||{m:0,por:{},leg:0,step:{}}; if(!etapaAlternar(PREF+F.id+':',k,s[k],pincel)) aviso=ETAPAS[pincel].n+' desmarcada.';}}
+    render();});
+  document.getElementById('pal').innerHTML=ETAPAS.map((e,i)=>i===0?'':`<button class="${pincel===i?'on':''}" onclick="pincel=${i};render()"><span class="sw" style="background:${e.c}"></span>${e.n}</button>`).join('');
+}
+
+// Cartão do quadro tocado: as 5 etapas, com quem marcou e quando
+let aviso='';
+function cartaoQuadro(F){
+  if(!selQ||!selQ.startsWith(F.id+':')) return `<p class="mut" style="margin-top:10px">Toque num quadro para ver as etapas registradas.</p>`;
+  const k=selQ.slice(F.id.length+1), c=celulas(F).out.find(x=>x.k===k); if(!c) return '';
+  const o=est(F,k), falta=faltando(o.m,ini(c));
+  return `<div style="border-top:1px solid var(--bd);margin-top:10px;padding-top:8px"><h3 style="margin:0 0 4px">Quadro selecionado</h3>
+   <div class="mut" style="margin-bottom:4px">${c.t==='s'?'Sacada':'Faixa de pastilha'}, pavimento ${c.pav}${c.q?', quadrante '+c.q:''}</div>
+   ${ETAPAS.slice(1).map((e,i)=>{const s=i+1, r=o.por[s]; return `<div class="lin" style="padding:3px 0"><span><span class="sw" style="background:${s<ini(c)?'#fff':tem(o.m,s)?e.c:CINZA};vertical-align:-3px"></span> ${e.n}</span>
+     <span class="mut">${s<ini(c)?'não se aplica':tem(o.m,s)?'✓ '+escH(r?.user_nome||'')+' · '+fmtQuando(r?.updated_at):'não registrada'}</span></div>`;}).join('')}
+   ${falta.length?`<p style="background:#fde8e8;border:1px solid #d62828;border-radius:8px;padding:8px;margin:6px 0 0">Etapa pulada: ${falta.map(s=>ETAPAS[s].n).join(', ')}. Registre antes de considerar o quadro concluído.</p>`:''}
+   ${aviso?`<div class="mut" style="margin-top:6px">${aviso}</div>`:''}</div>`;
 }
 
 render();
 
 // ---------- dados compartilhados ----------
 async function recarregar(){
-  try{const d=await mapaCarregar(PREF); st={};
-    Object.values(d).forEach(r=>{const [f,...k]=r.chave.slice(PREF.length).split(':'); if(r.etapa) (st[f]=st[f]||{})[k.join(':')]=r.etapa;});
+  try{const t=etapasMontar(await mapaCarregar(PREF),PREF); st={};
+    Object.entries(t).forEach(([fk,o])=>{const i=fk.indexOf(':'); (st[fk.slice(0,i)]=st[fk.slice(0,i)]||{})[fk.slice(i+1)]=o;});
     render(); statusSync();
   }catch(e){document.getElementById('sync').textContent='⚠️ não consegui ler as marcações do servidor';}
 }

@@ -55,19 +55,21 @@ header a{color:#fff}
 <div id="gate"><div>🔒 Verificando acesso…</div></div>
 <header><h1><a href="../" title="Painel principal" style="display:inline-flex;vertical-align:middle;margin-right:8px"><img src="../assets/icon.png" alt="Diagnóstika" style="height:26px;width:26px;border-radius:7px;background:#fff;padding:2px"></a>Modelo 3D · Ed. Menotti del Picchia</h1>
 <p><a href="./">‹ Voltar ao app</a> · <a href="croqui.html">Planta e fachadas</a> · <span id="sync">carregando…</span></p>
-<p>Arraste para girar, use dois dedos ou a roda do mouse para aproximar. Escolha a etapa embaixo e toque num pavimento de uma faixa.</p></header>
+<p>Arraste para girar, use dois dedos ou a roda do mouse para aproximar. Escolha a etapa embaixo e toque num pavimento de uma faixa. Tocar de novo desmarca.</p></header>
 <main>
  <div class="card" id="cena">
   <div class="vistas" id="vistas"></div>
   <div class="sobe"><button id="tela" title="Tela cheia">⛶</button><button id="up" title="Subir um pavimento">▲</button><span id="altTx">Pav. 8</span><button id="dn" title="Descer um pavimento">▼</button></div>
-  <div class="dica" id="dica">Faixas coloridas = pastilha, divididas por pavimento. Toque para marcar a etapa. ▲ ▼ sobem e descem a vista; arrastar com dois dedos ou botão direito também move.</div>
+  <div class="dica" id="dica">Cada pavimento de cada faixa tem 5 tiras, de baixo para cima: remoção, tratamento, fundo, revestimento e aprovação. Cinza = etapa ainda não registrada. Contorno vermelho = etapa pulada. ▲ ▼ sobem e descem a vista.</div>
  </div>
  <div>
-  <div class="card"><div class="mut">Revestimento final concluído, ponderado pela área</div><div class="big" id="geral">0%</div>
-   <div id="porFach"></div></div>
+  <div class="card"><div class="mut">Revestimento final concluído com todas as etapas anteriores registradas, ponderado pela área</div><div class="big" id="geral">0%</div>
+   <div id="porFach"></div><div id="pulos"></div></div>
   <div class="card" style="margin-top:12px"><h3>Ver até o pavimento</h3>
    <input type="range" id="corte" min="1" max="16" value="16"><div class="mut" id="corteTx">Todos os 16 pavimentos</div>
    <div class="acoes"><label><input type="checkbox" id="giro"> Girar sozinho</label></div>
+   <h3 style="margin-top:12px">Mostrar</h3>
+   <div class="acoes" style="margin-top:0"><label><input type="radio" name="modo" value="tiras" checked> Cada etapa em uma tira</label><label><input type="radio" name="modo" value="atual"> Só a etapa alcançada sem pulos</label></div>
   </div>
   <div class="card" style="margin-top:12px" id="sel"><h3>Último toque</h3><div class="mut">Nenhum quadro tocado ainda.</div></div>
   <div class="card" style="margin-top:12px"><h3>Base das áreas</h3><div id="baseSel"></div><p class="mut" id="baseTx" style="margin:0"></p></div>
@@ -109,8 +111,9 @@ function textoBase(){return BASE==='projeto'?'Áreas medidas nas elevações do 
 const CONTORNO=[[363,555],[605,555],[605,485],[710,485],[765,419],[873,419],[873,485],[1165,485],[1259,555],[1653,555],[1653,791],[1694,791],[1694,1062],[1257,1062],[1165,1132],[938,1132],[846,1062],[363,1062],[363,1014],[322,1014],[322,791],[363,791]];
 const ESC=60, CX=1008, CZ=775, PAV=16, HP=3, PREF='3d:';
 const m=([x,z])=>[(x-CX)/ESC,(z-CZ)/ESC]; // mesma orientação do croqui (piscina à direita de quem está na rua)
-let st={}, meta={}; // st[faixa-pav]=etapa; meta = quem marcou e quando
-let pincel=4, corte=16;
+let st={}; // st[faixa-pav]={m: etapas feitas (bit s = etapa s), por: quem marcou cada etapa e quando, leg}
+let pincel=1, corte=16, modo='tiras';
+const NADA={m:0,por:{},leg:0,step:{}}, est=k=>st[k]||NADA, CINZA=new THREE.Color('#e4e2dc');
 
 // ---------- cena ----------
 const box=document.getElementById('cena');
@@ -150,8 +153,8 @@ function dentro(x,z){let d=false;for(let i=0,j=POL.length-1;i<POL.length;j=i++){
  if(((zi>z)!==(zj>z))&&(x<(xj-xi)*(z-zi)/(zj-zi)+xi)) d=!d;} return d;}
 
 // células: faixa × pavimento
-const cels=[], mats={};
-ETAPAS.forEach((e,i)=>mats[i]=new THREE.MeshLambertMaterial({color:e.c,side:THREE.DoubleSide}));
+// cada célula tem 5 tiras horizontais (uma por etapa), coloridas pelos vértices
+const cels=[], matCel=new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide}), CORES=ETAPAS.map(e=>new THREE.Color(e.c));
 FAIXAS.forEach(f=>{
   const [ax,az]=m(f.pts[0]),[bx,bz]=m(f.pts[1]); let dx=bx-ax,dz=bz-az; const L=Math.hypot(dx,dz);
   let nx=-dz/L,nz=dx/L; const mx=(ax+bx)/2,mz=(az+bz)/2; if(dentro(mx+nx*.3,mz+nz*.3)){nx=-nx;nz=-nz;}
@@ -159,11 +162,13 @@ FAIXAS.forEach(f=>{
   const o=0.06;
   for(let p=1;p<=PAV;p++){
     const y0=p*HP+0.03,y1=(p+1)*HP-0.03;
-    const v=new Float32Array([ax+nx*o,y0,az+nz*o, bx+nx*o,y0,bz+nz*o, bx+nx*o,y1,bz+nz*o, ax+nx*o,y1,az+nz*o]);
-    const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(v,3)); g.setIndex([0,1,2,0,2,3]); g.computeVertexNormals();
-    const k=`${f.id}-${p}`, mesh=new THREE.Mesh(g,mats[st[k]||0]); mesh.userData={k,f,p};
-    const ed=new THREE.LineSegments(new THREE.EdgesGeometry(g),new THREE.LineBasicMaterial({color:'#555'})); mesh.add(ed);
-    scene.add(mesh); cels.push(mesh);
+    const v=[]; for(let j=0;j<5;j++){const ya=y0+(y1-y0)*j/5, yb=y0+(y1-y0)*(j+1)/5, A=[ax+nx*o,ya,az+nz*o], B=[bx+nx*o,ya,bz+nz*o], C=[bx+nx*o,yb,bz+nz*o], D=[ax+nx*o,yb,az+nz*o];
+      v.push(...A,...B,...C,...A,...C,...D);}
+    const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(v),3)); g.setAttribute('color',new THREE.BufferAttribute(new Float32Array(90),3)); g.computeVertexNormals();
+    const k=`${f.id}-${p}`, mesh=new THREE.Mesh(g,matCel); mesh.userData={k,f,p};
+    const ge=new THREE.BufferGeometry().setFromPoints([[ax,y0,az],[bx,y0,bz],[bx,y0,bz],[bx,y1,bz],[bx,y1,bz],[ax,y1,az],[ax,y1,az],[ax,y0,az]].map(([x,y,z])=>new THREE.Vector3(x+nx*o*1.5,y,z+nz*o*1.5)));
+    const ed=new THREE.LineSegments(ge,new THREE.LineBasicMaterial({color:'#555'})); mesh.add(ed); mesh.userData.ed=ed;
+    scene.add(mesh); cels.push(mesh); pintar(mesh);
   }
 });
 
@@ -231,34 +236,44 @@ document.addEventListener('fullscreenchange',()=>setTimeout(tamanho,50));
 const ray=new THREE.Raycaster(), ptr=new THREE.Vector2(); let down=null;
 renderer.domElement.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY]});
 renderer.domElement.addEventListener('pointerup',e=>{
-  if(SO_LEITURA) return;
   if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>6) return;
   const r=renderer.domElement.getBoundingClientRect(); ptr.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);
   ray.setFromCamera(ptr,cam); const hit=ray.intersectObjects([...cels.filter(c=>c.visible),predio],false)[0];
   if(!hit||!hit.object.userData.k) return;
-  const {k,f,p}=hit.object.userData; if((st[k]||0)===pincel) delete st[k]; else st[k]=pincel;
-  hit.object.material=mats[st[k]||0]; mapaGravar(PREF+k,st[k]||0); meta[k]={user_nome:nomeUser(),updated_at:null}; resumo();
-  document.getElementById('sel').innerHTML=`<h3>Último toque</h3><div class="lin"><span>${FACHN[f.fc]}</span></div>
-   <div class="lin"><span>Faixa de ${String(f.a).replace('.',',')} m², pavimento ${p}</span></div>
-   <div class="lin"><span>Etapa</span><b><span class="sw" style="background:${ETAPAS[st[k]||0].c}"></span> ${ETAPAS[st[k]||0].n}</b></div>
-   <div class="mut">Marcado por ${escH(meta[k].user_nome)} · ${fmtQuando(meta[k].updated_at)}</div>`;
+  if(SO_LEITURA){mostrarSel(hit.object); return;}
+  const {k}=hit.object.userData; st[k]=st[k]||{m:0,por:{},leg:0,step:{}};
+  const on=etapaAlternar(PREF,k,st[k],pincel); pintar(hit.object); resumo(); mostrarSel(hit.object, on);
 });
+// Cartão do quadro: as 5 etapas, com quem marcou e quando
+function mostrarSel(c,on){const {k,f,p}=c.userData, o=est(k), falta=faltando(o.m);
+  document.getElementById('sel').innerHTML=`<h3>${SO_LEITURA?'Quadro selecionado':'Último toque'}</h3><div class="lin"><span>${FACHN[f.fc]}</span></div>
+   <div class="lin" style="margin-bottom:6px"><span>Faixa ${f.id} de ${String(f.a).replace('.',',')} m², pavimento ${p}</span></div>
+   ${ETAPAS.slice(1).map((e,i)=>{const s=i+1, r=o.por[s]; return `<div class="lin" style="padding:3px 0;border-top:1px solid #eee"><span><span class="sw" style="background:${tem(o.m,s)?e.c:'#e4e2dc'};vertical-align:-3px"></span> ${e.n}</span>
+     <span class="mut">${tem(o.m,s)?'✓ '+escH(r?.user_nome||'')+' · '+fmtQuando(r?.updated_at):'não registrada'}</span></div>`;}).join('')}
+   ${falta.length?`<p style="background:#fde8e8;border:1px solid #d62828;border-radius:8px;padding:8px;margin:8px 0 0">Etapa pulada: ${falta.map(s=>ETAPAS[s].n).join(', ')}. Registre antes de considerar o quadro concluído.</p>`:''}
+   ${on===false?`<div class="mut" style="margin-top:6px">${ETAPAS[pincel].n} desmarcada.</div>`:''}`;}
 
 // ---------- percentuais ----------
 function resumo(){
   const tot={},ac={}; Object.keys(FACHN).forEach(k=>{tot[k]=0;ac[k]=0});
-  FAIXAS.forEach(f=>{for(let p=1;p<=PAV;p++){const a=f.a/PAV; tot[f.fc]+=a; if((st[`${f.id}-${p}`]||0)>=4) ac[f.fc]+=a;}});
+  let pul=0; FAIXAS.forEach(f=>{for(let p=1;p<=PAV;p++){const a=f.a/PAV, m=est(`${f.id}-${p}`).m; tot[f.fc]+=a; if(nivelDe(m)>=4) ac[f.fc]+=a; if(faltando(m).length) pul++;}});
   const T=Object.values(tot).reduce((a,b)=>a+b,0), A=Object.values(ac).reduce((a,b)=>a+b,0), pc=v=>v.toFixed(1).replace('.',',')+'%';
   document.getElementById('geral').textContent=pc(A/T*100);
   document.getElementById('porFach').innerHTML=Object.keys(FACHN).map(k=>`<div class="lin"><span>${FACHN[k]}</span><b>${pc(ac[k]/tot[k]*100)}</b></div><div class="bar"><i style="width:${ac[k]/tot[k]*100}%"></i></div>`).join('');
+  document.getElementById('pulos').innerHTML=pul?`<p style="background:#fde8e8;border:1px solid #d62828;border-radius:8px;padding:8px;margin:6px 0 0">${pul} quadro${pul>1?'s':''} com etapa pulada (contorno vermelho). Não ${pul>1?'entram':'entra'} como concluído${pul>1?'s':''}.</p>`:'';
 }
-function pintarTudo(){cels.forEach(c=>c.material=mats[st[c.userData.k]||0]); resumo();}
+// Tiras: cada etapa na sua cor quando registrada, cinza quando não. Modo "atual": a célula toda na cor da etapa alcançada sem pulos.
+function pintar(c){const o=est(c.userData.k), col=c.geometry.attributes.color, nv=nivelDe(o.m);
+  for(let j=0;j<5;j++){const cor=modo==='atual'?(nv?CORES[nv]:CINZA):(tem(o.m,j+1)?CORES[j+1]:CINZA); for(let v=0;v<6;v++) col.setXYZ(j*6+v,cor.r,cor.g,cor.b);}
+  col.needsUpdate=true; c.userData.ed.material.color.set(faltando(o.m).length?'#d62828':'#555');}
+function pintarTudo(){cels.forEach(pintar); resumo();}
 
 // ---------- controles ----------
-document.getElementById('pal').innerHTML=ETAPAS.map((e,i)=>`<button data-i="${i}"><span class="sw" style="background:${e.c}"></span>${e.n}</button>`).join('');
+document.getElementById('pal').innerHTML=ETAPAS.map((e,i)=>i===0?'':`<button data-i="${i}"><span class="sw" style="background:${e.c}"></span>${e.n}</button>`).join('');
 const marcaPal=()=>document.querySelectorAll('#pal button').forEach(b=>b.classList.toggle('on',+b.dataset.i===pincel));
 document.querySelectorAll('#pal button').forEach(b=>b.onclick=()=>{pincel=+b.dataset.i;marcaPal();}); marcaPal();
 document.getElementById('giro').onchange=e=>{ctl.autoRotate=e.target.checked};
+document.querySelectorAll('input[name=modo]').forEach(r=>r.onchange=()=>{modo=r.value; pintarTudo();});
 document.getElementById('corte').oninput=e=>{corte=+e.target.value;
   cels.forEach(c=>c.visible=c.userData.p<=corte); linhas.forEach(l=>l.visible=l.userData.p<=corte);
   const h=(corte+1)*HP; predio.scale.y=h/ALT; predioEdges.scale.y=h/ALT;
@@ -271,13 +286,12 @@ document.getElementById('baseSel').innerHTML=seletorBase('trocaBase'); document.
 
 // ---------- dados compartilhados ----------
 async function recarregar(){
-  try{const d=await mapaCarregar(PREF); st={}; meta={};
-    Object.values(d).forEach(r=>{const k=r.chave.slice(PREF.length); if(r.etapa) st[k]=r.etapa; meta[k]=r;});
+  try{st=etapasMontar(await mapaCarregar(PREF),PREF);
     pintarTudo(); statusSync();
   }catch(e){document.getElementById('sync').textContent='⚠️ não consegui ler as marcações do servidor';}
 }
 mapaEntrar().then(ok=>{if(!ok) return; recarregar(); cardCompartilhar(document.getElementById('compartilhar'));
- if(SO_LEITURA){document.getElementById('dica').textContent='Faixas coloridas = pastilha, por pavimento, na cor da etapa em que estão. ▲ ▼ sobem e descem a vista.'; document.querySelector('header p:last-of-type').textContent='Arraste para girar e use dois dedos ou a roda do mouse para aproximar. Visualização atualizada pela fiscalização da Diagnóstika Engenharia.';} document.addEventListener('visibilitychange',()=>{if(!document.hidden) recarregar();});});
+ if(SO_LEITURA){document.getElementById('dica').textContent='Cada pavimento de cada faixa tem 5 tiras, de baixo para cima: remoção, tratamento, fundo, revestimento e aprovação. Cinza = etapa ainda não registrada. Contorno vermelho = etapa pulada. Toque num quadro para ver as datas.'; document.querySelector('header p:last-of-type').textContent='Arraste para girar e use dois dedos ou a roda do mouse para aproximar. Visualização atualizada pela fiscalização da Diagnóstika Engenharia.';} document.addEventListener('visibilitychange',()=>{if(!document.hidden) recarregar();});});
 </script>
 </body>
 </html>

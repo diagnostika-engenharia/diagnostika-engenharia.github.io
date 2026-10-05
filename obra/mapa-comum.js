@@ -1,5 +1,5 @@
 // Acesso e gravação compartilhada das marcações do croqui e do modelo 3D (tabela obra_mapa).
-// Cada marcação vira uma linha (obra_id, chave, etapa). Sem internet, fica numa fila local e sobe depois.
+// Cada etapa de cada quadro vira uma linha (obra_id, chave, etapa); ver "etapas registradas uma a uma". Sem internet, fica numa fila local e sobe depois.
 const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpbW1qZ2R3aGlmc3JyYnJlY2hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzU2NDIsImV4cCI6MjA5NTE1MTY0Mn0.eAmMS95M8BkfX3NCcOtHnhKWXy0jkvXwSGEoqv_Q21Q';
 const OBRA_ID='menotti', PEND_KEY='obra-mapa-pend';
@@ -53,6 +53,31 @@ function statusSync(){const el=document.getElementById('sync'); if(!el) return; 
   if(SO_LEITURA){el.textContent=`👁 somente visualização · atualizado às ${(verQuando||new Date()).toLocaleTimeString('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit'})}`;return;}
   el.textContent=n?`⏳ ${n} marcação${n>1?'ões':''} aguardando internet`:'✓ salvo para a equipe';}
 const fmtQuando=iso=>{if(!iso) return 'agora (aguardando envio)'; const d=new Date(iso); return d.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});};
+
+// ---------- etapas registradas uma a uma ----------
+// Cada etapa de um quadro é uma linha própria: chave '<quadro>#<etapa>', com etapa = número (feita) ou 0 (desfeita).
+// Assim uma etapa nova não apaga a anterior e dá para ver se alguma foi pulada. Linha antiga sem '#'
+// (quando a cor da etapa substituía a anterior) conta só a etapa que ela registrou.
+const tem=(m,s)=>(m>>s)&1;
+function etapasMontar(d,pref){
+  const out={}, vazio=k=>out[k]=out[k]||{m:0,por:{},leg:0,step:{}};
+  const linhas=Object.values(d).map(r=>{const c=r.chave.slice(pref.length), i=c.lastIndexOf('#'); return {r,k:i<0?c:c.slice(0,i),s:i<0?0:+c.slice(i+1)};});
+  linhas.filter(x=>x.s).forEach(({r,k,s})=>{const o=vazio(k); o.step[s]=1; if(r.etapa){o.m|=1<<s; o.por[s]=r;}});
+  linhas.filter(x=>!x.s).forEach(({r,k})=>{const o=vazio(k); o.leg=r.etapa; if(r.etapa&&!o.step[r.etapa]){o.m|=1<<r.etapa; o.por[r.etapa]=r;}});
+  return out;
+}
+// Última etapa cumprida sem pulos (ini=2 nas sacadas, que não têm remoção)
+function nivelDe(m,ini=1){let n=ini-1; while(n<5&&tem(m,n+1)) n++; return n<ini?0:n;}
+// Etapas que faltam antes da mais avançada registrada
+function faltando(m,ini=1){let top=0; for(let s=1;s<=5;s++) if(tem(m,s)) top=s; const f=[]; for(let s=ini;s<top;s++) if(!tem(m,s)) f.push(s); return f;}
+// Marca ou desmarca a etapa s do quadro k; devolve true se ficou marcada
+function etapaAlternar(pref,k,o,s){
+  const on=!tem(o.m,s);
+  if(on){o.m|=1<<s; o.por[s]={user_nome:nomeUser(),updated_at:null};} else {o.m&=~(1<<s); delete o.por[s];}
+  o.step[s]=1; mapaGravar(pref+k+'#'+s,on?s:0);
+  if(!on&&o.leg===s){o.leg=0; mapaGravar(pref+k,0);}
+  return on;
+}
 
 // ---------- base das áreas: projeto original medido (padrão) ou croqui de 18/12/2025 (mantido para voltar) ----------
 // Medido nas elevações 1 a 4 do projeto Badaró (Folhas 08 a 11, esc. 1:50) em 04/10/2026.

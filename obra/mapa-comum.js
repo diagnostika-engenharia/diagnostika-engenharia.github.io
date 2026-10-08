@@ -1,7 +1,7 @@
 // Acesso e gravação compartilhada das marcações do croqui e do modelo 3D (tabela obra_mapa).
 // Cada etapa de cada quadro vira uma linha (obra_id, chave, etapa); ver "etapas registradas uma a uma". Sem internet, fica numa fila local e sobe depois.
 const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
-const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpbW1qZ2R3aGlmc3JyYnJlY2hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzU2NDIsImV4cCI6MjA5NTE1MTY0Mn0.eAmMS95M8BkfX3NCcOtHnhKWXy0jkvXwSGEoqv_Q21Q';
+const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const OBRA_ID='menotti', PEND_KEY='obra-mapa-pend';
 let sb=null, user=null, enviando=false, pend={};
 // Modo só visualização: link com ?ver=<token> (Conselho, síndica, AAM). Sem login e sem gravação.

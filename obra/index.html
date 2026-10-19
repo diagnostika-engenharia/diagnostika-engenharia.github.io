@@ -199,7 +199,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261019-2';
+const APP_BUILD='20261019-3';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -645,7 +645,7 @@ async function salvarEdicaoVisita(id){
   toast('Vistoria atualizada');render();
 }
 async function reabrirVisita(id){
-  if(visita){toast('Encerre a vistoria em andamento antes de reabrir outra');return;}
+  if(visita){toast('Encerre ou descarte a vistoria em andamento (aba Vistoria: '+fmtBR(visita.data)+(visita.hora_inicio?' '+visita.hora_inicio:'')+') antes de reabrir outra');return;}
   const v=cacheVisitas.find(x=>x.id===id);if(!v)return;
   if(!confirm(`Reabrir a vistoria de ${fmtBR(v.data)}? Ela volta para edição; ao encerrar de novo, o checklist e os serviços são regravados.`))return;
   let rs=cacheRegs[id];

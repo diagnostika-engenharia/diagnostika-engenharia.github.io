@@ -204,7 +204,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261019-12';
+const APP_BUILD='20261019-13';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -244,11 +244,23 @@ const equipeAtiva=()=>equipe.filter(f=>f.ativo!==false);
 const ehEncarregado=f=>/^encarregad/i.test(f||'');
 const ordemFuncao=f=>{if(ehEncarregado(f))return 0;const i=FUNCOES.indexOf(f);return i<0?99:i;};
 // Recalcula o efetivo por função a partir dos presentes nominais (mantém funções sem cadastro informadas à mão)
-function efetivoDosPresentes(pres,efAtual){
-  const ef={...(efAtual||{})};
-  const funcs=new Set([...FUNCOES,...equipe.map(f=>f.funcao)]);
-  funcs.forEach(f=>{const n=pres.filter(p=>p.funcao===f).length;if(n||equipe.some(x=>x.funcao===f))ef[f]=n;});
+// Funções com cadastro (e "Encarregado") são sempre derivadas dos presentes; as demais ficam manuais (gente sem cadastro)
+function efetivoDosPresentes(pres,efAtual,enc){
+  const ef={...(efAtual||{})};pres=pres||[];
+  ['Encarregado',...equipe.map(f=>f.funcao)].forEach(f=>ef[f]=0);
+  let encContado=false;
+  pres.forEach(p=>{const f=(enc&&p.nome===enc)?(encContado=true,'Encarregado'):p.funcao;ef[f]=(ef[f]||0)+1;});
+  if(enc&&!encContado)ef['Encarregado']=1; // encarregado digitado (sem cadastro) conta como presente
   return ef;
+}
+let efExpand=false;
+// Linhas do efetivo: só funções com gente aparecem; "ajustar" mostra todas para digitar função sem cadastro
+function linhasEfetivo(ef,attr,rerender){
+  const funcs=[...new Set([...FUNCOES,...equipe.map(x=>x.funcao)])].sort((a,b)=>ordemFuncao(a)-ordemFuncao(b));
+  const vis=f=>efExpand||+ef[f]>0;
+  const temEq=equipeAtiva().length>0;
+  return funcs.map(f=>`<div class="ck" style="${vis(f)?'':'display:none'}"><span class="lb">${esc(f)}</span><input class="pct" inputmode="numeric" value="${ef[f]??''}" placeholder="0" ${attr(f)}></div>`).join('')
+    +(temEq?`<button type="button" style="background:none;border:0;color:var(--teal,#0f766e);font-size:13px;padding:6px 0;text-decoration:underline" onclick="efExpand=!efExpand;${rerender}">${efExpand?'Ocultar funções zeradas':'+ Ajustar / incluir gente sem cadastro'}</button>`:'');
 }
 function chipsPresentes(pres,onToggle){
   const at=equipeAtiva();if(!at.length)return `<p class="muted">Nenhum funcionário cadastrado. Cadastre a equipe na tela Obra para marcar presença pelo nome.</p>`;
@@ -528,11 +540,11 @@ function tInicio(){
     <div><label class="f">Hora início</label><input class="f" type="time" value="${esc(visita.hora_inicio)}" onchange="upd('hora_inicio',this.value)"></div></div>
     <label class="f" style="display:flex;align-items:center;gap:8px;margin-top:12px"><input type="checkbox" ${visita.paralisacao?'checked':''} onchange="upd('paralisacao',this.checked)" style="width:20px;height:20px"> Obra paralisada hoje (chuva / outro)</label>
   </div>
-  <div class="card"><h3>Efetivo presente (AAM)</h3>
-    <label class="f">Encarregado</label>${selectEncarregado(visita.encarregado,"upd('encarregado',this.value);render()")}
+  ${equipeAtiva().length?(visita.efetivo=efetivoDosPresentes(visita.presentes,visita.efetivo,visita.encarregado),''):''}<div class="card"><h3>Efetivo presente (AAM)</h3>
+    <label class="f">Encarregado</label>${selectEncarregado(visita.encarregado,"setEncarregado(this.value)")}
     <label class="f">Presentes hoje <span class="muted" style="font-weight:400">(toque no nome)</span></label>${chipsPresentes(visita.presentes||[],'togPresente')}
-    <label class="f" style="margin-top:12px">Efetivo por função${equipeAtiva().length?' <span class="muted" style="font-weight:400">(calculado pelos presentes; ajuste se houver gente sem cadastro)</span>':''}</label>
-    ${[...new Set([...FUNCOES,...equipe.map(f=>f.funcao)])].sort((a,b)=>ordemFuncao(a)-ordemFuncao(b)).map(f=>`<div class="ck"><span class="lb">${esc(f)}</span><input class="pct" inputmode="numeric" value="${visita.efetivo[f]??''}" placeholder="0" onchange="visita.efetivo['${esc(f)}']=+this.value||0;saveVisita()"></div>`).join('')}
+    <label class="f" style="margin-top:12px">Efetivo por função${equipeAtiva().length?' <span class="muted" style="font-weight:400">(calculado pelos presentes marcados e pelo encarregado)</span>':''}</label>
+    ${linhasEfetivo(visita.efetivo,f=>`onchange="visita.efetivo['${esc(f)}']=+this.value||0;saveVisita();render()"`,'render()')}
     <p class="muted" style="margin-top:8px">Total: <b id="totEf">${Object.values(visita.efetivo).reduce((a,b)=>a+(+b||0),0)}</b> pessoas</p>
     <button class="btn sec" style="margin-top:10px" onclick="abrirEquipe()">👷 Cadastrar / editar equipe</button>
   </div>`;
@@ -552,10 +564,11 @@ function togPresente(id){
   visita.presentes=visita.presentes||[];
   const i=visita.presentes.findIndex(p=>p.id===id);
   if(i>=0)visita.presentes.splice(i,1);else visita.presentes.push({id:f.id,nome:f.nome,funcao:f.funcao});
-  visita.efetivo=efetivoDosPresentes(visita.presentes,visita.efetivo);
   if(!visita.encarregado&&ehEncarregado(f.funcao)&&i<0)visita.encarregado=f.nome;
+  visita.efetivo=efetivoDosPresentes(visita.presentes,visita.efetivo,visita.encarregado);
   saveVisita();render();
 }
+function setEncarregado(v){visita.encarregado=v;visita.efetivo=efetivoDosPresentes(visita.presentes,visita.efetivo,v);saveVisita();render();}
 // ── cadastro da equipe (obra_funcionarios) ──
 async function abrirEquipe(){
   await carregarEquipe();
@@ -792,23 +805,25 @@ function editarVisita(id){
     <div class="row"><div><label class="f">Início</label><input class="f" type="time" id="ev_hi" value="${esc((v.hora_inicio||'').slice(0,5))}"></div><div><label class="f">Saída</label><input class="f" type="time" id="ev_hf" value="${esc((v.hora_fim||'').slice(0,5))}"></div></div>
     <div class="row"><div><label class="f">Clima</label><select class="f" id="ev_clima"><option value="">—</option>${CLIMAS.map(c=>`<option ${v.clima===c?'selected':''}>${c}</option>`).join('')}</select></div><div><label class="f">Temp. (°C)</label><input class="f" id="ev_temp" inputmode="numeric" value="${esc(v.temperatura||'')}"></div></div>
     <label class="f" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="ev_par" ${v.paralisacao?'checked':''} style="width:20px;height:20px"> Obra paralisada</label>
-    <label class="f">Encarregado</label>${selectEncarregado(v.encarregado||'',"document.getElementById('ev_enc').value=this.value",'ev_enc')}
+    <label class="f">Encarregado</label>${selectEncarregado(v.encarregado||'',"document.getElementById('ev_enc').value=this.value;togPresenteEdicao()",'ev_enc')}
     <label class="f">Presentes</label>${chipsPresentes(v.presentes||[],'togPresenteEdicao')}
-    <label class="f">Efetivo por função</label>${[...new Set([...FUNCOES,...equipe.map(x=>x.funcao)])].sort((a,b)=>ordemFuncao(a)-ordemFuncao(b)).map(f=>`<div class="ck"><span class="lb">${f}</span><input class="pct" inputmode="numeric" data-ef="${f}" value="${ef[f]??''}" placeholder="0"></div>`).join('')}
+    <label class="f">Efetivo por função</label>${linhasEfetivo(ef,f=>`data-ef="${esc(f)}"`,`togPresenteEdicao()`)}
     <label class="f">Resumo</label><textarea class="f" id="ev_res">${esc(v.resumo||'')}</textarea>
     <button class="btn" style="margin-top:16px" onclick="salvarEdicaoVisita('${esc(id)}')">Salvar alterações</button>
     <button class="btn sec" style="margin-top:8px" onclick="fecharModal()">Cancelar</button>`;
   $('modal').classList.add('show');
 }
+// fid opcional: sem fid só relê o formulário e recalcula o efetivo (troca de encarregado / expandir lista)
 function togPresenteEdicao(fid){
-  const f=equipe.find(x=>x.id===fid);const id=edicaoVisitaId;const v=cacheVisitas.find(x=>x.id===id);if(!f||!v)return;
-  v.presentes=v.presentes||[];const i=v.presentes.findIndex(p=>p.id===fid);
-  if(i>=0)v.presentes.splice(i,1);else v.presentes.push({id:f.id,nome:f.nome,funcao:f.funcao});
-  const ef=efetivoDosPresentes(v.presentes,v.efetivo);v.efetivo=ef;
+  const f=fid?equipe.find(x=>x.id===fid):null;const id=edicaoVisitaId;const v=cacheVisitas.find(x=>x.id===id);if(!v||(fid&&!f))return;
+  v.presentes=v.presentes||[];let i=-1;
+  if(f){i=v.presentes.findIndex(p=>p.id===fid);if(i>=0)v.presentes.splice(i,1);else v.presentes.push({id:f.id,nome:f.nome,funcao:f.funcao});}
   const g=k=>$(k)?$(k).value:undefined;
   Object.assign(v,{data:g('ev_data')||v.data,engenheiro:g('ev_eng')??v.engenheiro,hora_inicio:g('ev_hi')||null,hora_fim:g('ev_hf')||null,clima:g('ev_clima')??v.clima,temperatura:g('ev_temp')??v.temperatura,paralisacao:$('ev_par')?$('ev_par').checked:v.paralisacao,resumo:g('ev_res')??v.resumo});
+  const efMan={...(v.efetivo||{})};document.querySelectorAll('#sheet [data-ef]').forEach(x=>{efMan[x.dataset.ef]=+x.value||0;});
   const selv=$('ev_enc_sel')&&$('ev_enc_sel').value;const enc=(selv&&selv!=='__outro'?selv:g('ev_enc'))||'';v.encarregado=enc;
-  if(!enc&&ehEncarregado(f.funcao)&&i<0)v.encarregado=f.nome;
+  if(!enc&&f&&ehEncarregado(f.funcao)&&i<0)v.encarregado=f.nome;
+  v.efetivo=efetivoDosPresentes(v.presentes,efMan,v.encarregado);
   editarVisita(id);
 }
 let edicaoVisitaId=null;

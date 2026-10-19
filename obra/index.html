@@ -204,7 +204,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261019-10';
+const APP_BUILD='20261019-11';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -242,7 +242,8 @@ async function carregarEquipe(){
   return equipe;
 }
 const equipeAtiva=()=>equipe.filter(f=>f.ativo!==false);
-const ordemFuncao=f=>{const i=FUNCOES.indexOf(f);return i<0?99:i;};
+const ehEncarregado=f=>/^encarregad/i.test(f||'');
+const ordemFuncao=f=>{if(ehEncarregado(f))return 0;const i=FUNCOES.indexOf(f);return i<0?99:i;};
 // Recalcula o efetivo por função a partir dos presentes nominais (mantém funções sem cadastro informadas à mão)
 function efetivoDosPresentes(pres,efAtual){
   const ef={...(efAtual||{})};
@@ -553,7 +554,7 @@ function togPresente(id){
   const i=visita.presentes.findIndex(p=>p.id===id);
   if(i>=0)visita.presentes.splice(i,1);else visita.presentes.push({id:f.id,nome:f.nome,funcao:f.funcao});
   visita.efetivo=efetivoDosPresentes(visita.presentes,visita.efetivo);
-  if(!visita.encarregado&&f.funcao==='Encarregado'&&i<0)visita.encarregado=f.nome;
+  if(!visita.encarregado&&ehEncarregado(f.funcao)&&i<0)visita.encarregado=f.nome;
   saveVisita();render();
 }
 // ── cadastro da equipe (obra_funcionarios) ──
@@ -808,7 +809,7 @@ function togPresenteEdicao(fid){
   const g=k=>$(k)?$(k).value:undefined;
   Object.assign(v,{data:g('ev_data')||v.data,engenheiro:g('ev_eng')??v.engenheiro,hora_inicio:g('ev_hi')||null,hora_fim:g('ev_hf')||null,clima:g('ev_clima')??v.clima,temperatura:g('ev_temp')??v.temperatura,paralisacao:$('ev_par')?$('ev_par').checked:v.paralisacao,resumo:g('ev_res')??v.resumo});
   const selv=$('ev_enc_sel')&&$('ev_enc_sel').value;const enc=(selv&&selv!=='__outro'?selv:g('ev_enc'))||'';v.encarregado=enc;
-  if(!enc&&f.funcao==='Encarregado'&&i<0)v.encarregado=f.nome;
+  if(!enc&&ehEncarregado(f.funcao)&&i<0)v.encarregado=f.nome;
   editarVisita(id);
 }
 let edicaoVisitaId=null;

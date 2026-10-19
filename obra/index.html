@@ -204,7 +204,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261019-14';
+const APP_BUILD='20261019-15';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -232,6 +232,10 @@ const SERVICOS=['Remoção de pastilhas','Tratamento do substrato / fissuras','R
 const FUNCOES=['Encarregado','Pedreiro','Servente','Alpinista','Pintor','Ajudante'];
 const TIPOS={nc:'Não conformidade',ocorrencia:'Ocorrência',foto:'Registro fotográfico',material:'Material recebido',observacao:'Observação'};
 const CLIMAS=['Sol','Nublado','Chuva','Chuva forte','Vento forte'];
+// Clima acumulativo: texto "Sol, Vento forte" (mesma coluna text de antes)
+const climaLista=v=>(v||'').split(',').map(x=>x.trim()).filter(Boolean);
+function climaToggle(atual,c){const l=climaLista(atual);const i=l.indexOf(c);if(i>=0)l.splice(i,1);else l.push(c);return CLIMAS.filter(x=>l.includes(x)).concat(l.filter(x=>!CLIMAS.includes(x))).join(', ');}
+const chipsClima=(val,onclick)=>`<div class="chips">${CLIMAS.map(c=>`<button type="button" class="${climaLista(val).includes(c)?'on':''}" onclick="${onclick.replace('%C',c)}">${c}</button>`).join('')}</div>`;
 // Equipe da executora (obra_funcionarios). Cache em localStorage para a vistoria funcionar offline.
 let equipe=[];try{equipe=JSON.parse(localStorage.getItem('obra_equipe_'+OBRA_ID)||'[]');}catch(e){equipe=[];}
 async function carregarEquipe(){
@@ -535,7 +539,7 @@ function rVisita(){
 function upd(k,v){visita[k]=v;saveVisita();}
 function tInicio(){
   $('tabBody').innerHTML=`<div class="card"><h3>Condições</h3>
-    <label class="f">Clima</label><div class="chips">${CLIMAS.map(c=>`<button class="${visita.clima===c?'on':''}" onclick="upd('clima','${c}');render()">${c}</button>`).join('')}</div>
+    <label class="f">Clima <span class="muted" style="font-weight:400">(pode marcar mais de um)</span></label>${chipsClima(visita.clima,"upd('clima',climaToggle(visita.clima,'%C'));render()")}
     <div class="row"><div><label class="f">Temperatura (°C)</label><input class="f" inputmode="numeric" value="${esc(visita.temperatura)}" onchange="upd('temperatura',this.value)"></div>
     <div><label class="f">Hora início</label><input class="f" type="time" value="${esc(visita.hora_inicio)}" onchange="upd('hora_inicio',this.value)"></div></div>
     <label class="f" style="display:flex;align-items:center;gap:8px;margin-top:12px"><input type="checkbox" ${visita.paralisacao?'checked':''} onchange="upd('paralisacao',this.checked)" style="width:20px;height:20px"> Obra paralisada hoje (chuva / outro)</label>
@@ -803,7 +807,8 @@ function editarVisita(id){
   $('sheet').innerHTML=`<h2>Editar vistoria</h2>
     <div class="row"><div><label class="f">Data</label><input class="f" type="date" id="ev_data" value="${esc(v.data)}"></div><div><label class="f">Engenheiro</label><input class="f" id="ev_eng" value="${esc(v.engenheiro||'')}"></div></div>
     <div class="row"><div><label class="f">Início</label><input class="f" type="time" id="ev_hi" value="${esc((v.hora_inicio||'').slice(0,5))}"></div><div><label class="f">Saída</label><input class="f" type="time" id="ev_hf" value="${esc((v.hora_fim||'').slice(0,5))}"></div></div>
-    <div class="row"><div><label class="f">Clima</label><select class="f" id="ev_clima"><option value="">—</option>${CLIMAS.map(c=>`<option ${v.clima===c?'selected':''}>${c}</option>`).join('')}</select></div><div><label class="f">Temp. (°C)</label><input class="f" id="ev_temp" inputmode="numeric" value="${esc(v.temperatura||'')}"></div></div>
+    <label class="f">Clima <span class="muted" style="font-weight:400">(pode marcar mais de um)</span></label><input type="hidden" id="ev_clima" value="${esc(v.clima||'')}">${chipsClima(v.clima,"const h=document.getElementById('ev_clima');h.value=climaToggle(h.value,'%C');this.classList.toggle('on')")}
+    <div class="row"><div><label class="f">Temp. (°C)</label><input class="f" id="ev_temp" inputmode="numeric" value="${esc(v.temperatura||'')}"></div></div>
     <label class="f" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="ev_par" ${v.paralisacao?'checked':''} style="width:20px;height:20px"> Obra paralisada</label>
     <label class="f">Encarregado</label>${selectEncarregado(v.encarregado||'',"document.getElementById('ev_enc').value=this.value;togPresenteEdicao()",'ev_enc')}
     <label class="f">Presentes</label>${chipsPresentes(v.presentes||[],'togPresenteEdicao')}

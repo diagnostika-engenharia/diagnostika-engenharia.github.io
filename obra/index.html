@@ -202,7 +202,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261019-6';
+const APP_BUILD='20261019-7';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -532,7 +532,7 @@ function tRegistros(){
 function regItem(r,editavel){
   const th=r.fotos?.length?`<img class="th" src="${r.fotos[0].startsWith('blob:')?r.fotos[0]:fotoUrl(r.fotos[0])}" onclick="lbSet(${LB_SETS.push(r.fotos.map(p=>p.startsWith('blob:')?p:fotoUrl(p)))-1})">`:`<div class="th">${{nc:'⚠️',ocorrencia:'📌',material:'📦',observacao:'📝',foto:'📷',checklist:'☑️',servico:'🔧'}[r.tipo]||'📄'}</div>`;
   const tag=r.tipo==='nc'||r.status==='nc'?`<span class="tag nc">NC</span>${r.nc_resolvida?'<span class="tag res">resolvida</span>':''}`:`<span class="tag">${esc(TIPOS[r.tipo]||r.tipo)}</span>`;
-  return `<div class="reg">${th}<div class="bd${editavel?' ed':''}"${editavel?` onclick="editarRegistro('${r.id}')"`:''}>${tag}${r.fachada?`<span class="tag">${esc(r.fachada.split(' — ')[0])}</span>`:''}<b>${esc(r.item||'')}</b><p>${esc(r.descricao||'')}</p>${txHtml(r)}${r.fotos?.length>1?`<small>+${r.fotos.length-1} foto(s)</small> `:''}<small>${fmtHora(r.created_at)}</small></div></div>`;
+  return `<div class="reg">${th}<div class="bd${editavel?' ed':''}"${editavel?` onclick="editarRegistro('${r.id}')"`:''}>${tag}${r.fachada?`<span class="tag">${esc(r.fachada.split(' — ')[0])}</span>`:''}<b>${esc(r.item||'')}</b><p>${esc(r.descricao||'')}</p>${txHtml(r)}${r.fotos?.length>1?`<small>+${r.fotos.length-1} foto(s)</small> `:''}<small>${fmtHora(r.created_at)}</small>${editavel?'<span class="edh">✎ toque para editar</span>':''}</div></div>`;
 }
 const LB_SETS=[];let _lb={list:[],i:0};
 function lb(src){lbShow([src],0);}

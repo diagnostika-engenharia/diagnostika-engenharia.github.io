@@ -279,10 +279,13 @@ function pintarTudo(){cels.forEach(pintar); resumo();}
 document.getElementById('pal').innerHTML=ETAPAS.map((e,i)=>i===0?'':`<button data-i="${i}"><span class="sw" style="background:${e.c}"></span>${e.n}</button>`).join('')+`<button data-i="0" class="limpa" title="Apagar marcações em lote">🧹 Limpar</button>`;
 const marcaPal=()=>document.querySelectorAll('#pal button').forEach(b=>b.classList.toggle('on',+b.dataset.i===pincel));
 const DICA_PADRAO=document.getElementById('dica').textContent;
-function trocaPincel(i){pincel=i; marcaPal(); ctl.enabled=pincel!==0;
-  if(pincel===0){document.getElementById('dica').innerHTML='<b>Modo Limpar.</b> Toque num quadro para escolher o alcance (quadro, faixa, pavimento ou fachada) ou <b>arraste um retângulo</b> sobre os quadros. Nada é apagado sem confirmar. Girar fica travado: use as vistas e ▲ ▼.';
-    document.getElementById('sel').innerHTML='<h3>Limpar marcações</h3><div class="mut">Toque num quadro ou arraste um retângulo sobre a fachada.</div>';}
-  else document.getElementById('dica').textContent=DICA_PADRAO;}
+let ultimoPincel=1;
+function trocaPincel(i){if(i===0&&pincel===0) i=ultimoPincel; if(i) ultimoPincel=i; pincel=i; marcaPal(); ctl.enabled=pincel!==0;
+  if(pincel===0){document.getElementById('dica').innerHTML='<b>Modo Limpar.</b> Toque num quadro para escolher o alcance (quadro, faixa, pavimento ou fachada) ou <b>arraste um retângulo</b> sobre os quadros. Nada é apagado sem confirmar. Girar fica travado: use as vistas e ▲ ▼. Para sair, toque de novo em Limpar (ou Esc).';
+    document.getElementById('sel').innerHTML='<h3>Limpar marcações</h3><div class="mut">Toque num quadro ou arraste um retângulo sobre a fachada.</div>'+SAIR;}
+  else{document.getElementById('dica').textContent=DICA_PADRAO; if(/Limpar marcações/.test(document.getElementById('sel').innerHTML)) document.getElementById('sel').innerHTML='<h3>Último toque</h3><div class="mut">Modo Limpar encerrado. Escolha a etapa e toque num quadro.</div>';}}
+const SAIR='<button onclick="trocaPincel(ultimoPincel)" style="margin-top:10px;background:#f3f3f1">↩ Sair do modo Limpar</button>';
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&pincel===0) trocaPincel(ultimoPincel);});
 document.querySelectorAll('#pal button').forEach(b=>b.onclick=()=>trocaPincel(+b.dataset.i)); marcaPal();
 
 // ---------- limpar em lote ----------
@@ -294,7 +297,7 @@ function limparQuadros(lista,rotulo){
   if(!confirm(`Limpar ${rotulo}?\n\n${alvo.length} quadro${alvo.length>1?'s':''} com ${et} etapa${et>1?'s':''} registrada${et>1?'s':''} ${alvo.length>1?'voltam':'volta'} a "não iniciado".\nFica registrado no histórico quem limpou e quando.`)) return;
   alvo.forEach(c=>{const k=c.userData.k; st[k]=st[k]||{m:0,por:{},leg:0,step:{}}; for(let s=1;s<=5;s++) if(tem(st[k].m,s)) etapaAlternar(PREF,k,st[k],s); pintar(c);});
   resumo(); mapaEnviar();
-  document.getElementById('sel').innerHTML=`<h3>Limpar marcações</h3><div class="mut">✓ ${rotulo}: ${alvo.length} quadro${alvo.length>1?'s':''} limpo${alvo.length>1?'s':''}. Toque em outro quadro ou arraste um retângulo.</div>`;
+  document.getElementById('sel').innerHTML=`<h3>Limpar marcações</h3><div class="mut">✓ ${rotulo}: ${alvo.length} quadro${alvo.length>1?'s':''} limpo${alvo.length>1?'s':''}. Toque em outro quadro ou arraste um retângulo.</div>`+SAIR;
 }
 // Cartão de alcance após tocar num quadro no modo Limpar
 function mostrarLimpar(c){const {k,f,p}=c.userData;
@@ -307,7 +310,7 @@ function mostrarLimpar(c){const {k,f,p}=c.userData;
   const el=document.getElementById('sel');
   el.innerHTML=`<h3>Limpar marcações</h3><div class="mut">Quadro tocado: faixa ${f.id}, pavimento ${p}. Escolha o alcance:</div>`+
    ops.map((o,i)=>{const n=marcados(o[2]).length; return `<button data-op="${i}" ${n?'':'disabled style="opacity:.5"'}>${o[0]} <b>· ${n} marcado${n!==1?'s':''}</b></button>`;}).join('');
-  el.querySelectorAll('[data-op]').forEach(b=>b.onclick=()=>{const o=ops[+b.dataset.op]; limparQuadros(o[2],o[1]);});
+  el.insertAdjacentHTML('beforeend',SAIR); el.querySelectorAll('[data-op]').forEach(b=>b.onclick=()=>{const o=ops[+b.dataset.op]; limparQuadros(o[2],o[1]);});
 }
 // Arraste de retângulo: seleciona os quadros visíveis, de frente para a câmera, cujo centro cai dentro do retângulo
 const marq=document.getElementById('marq'); let arr=null;
@@ -322,7 +325,7 @@ renderer.domElement.addEventListener('pointerup',e=>{if(!arr) return; const r=re
     if((cam.position.x-f.mid[0])*f.n[0]+(cam.position.z-f.mid[1])*f.n[1]<=0) return false; // de costas
     v.set(f.mid[0],(p+0.5)*HP,f.mid[1]).project(cam); if(v.z>1) return false;
     const sx=(v.x+1)/2*r.width, sy=(1-v.y)/2*r.height; return sx>=x0&&sx<=x1&&sy>=y0&&sy<=y1;});
-  if(!sel.length){document.getElementById('sel').innerHTML='<h3>Limpar marcações</h3><div class="mut">Nenhum quadro dentro do retângulo. Tente de novo mais de perto.</div>'; return;}
+  if(!sel.length){document.getElementById('sel').innerHTML='<h3>Limpar marcações</h3><div class="mut">Nenhum quadro dentro do retângulo. Tente de novo mais de perto.</div>'+SAIR; return;}
   limparQuadros(sel,`a área selecionada (${sel.length} quadro${sel.length>1?'s':''})`);});
 ['pointercancel','pointerleave'].forEach(ev=>renderer.domElement.addEventListener(ev,()=>{if(arr){arr=null;marq.style.display='none';}}));
 document.getElementById('giro').onchange=e=>{ctl.autoRotate=e.target.checked};

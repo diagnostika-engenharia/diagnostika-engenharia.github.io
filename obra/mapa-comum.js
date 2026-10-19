@@ -48,10 +48,11 @@ async function mapaEnviar(){
     if(!error){rows.forEach(r=>{if(pend[r.chave]===r.etapa) delete pend[r.chave];}); salvaPend();}
   }catch(e){}
   enviando=false; statusSync();
+  if(Object.keys(pend).length&&navigator.onLine!==false) setTimeout(mapaEnviar,300);
 }
 function statusSync(){const el=document.getElementById('sync'); if(!el) return; const n=Object.keys(pend).length;
   if(SO_LEITURA){el.textContent=`👁 somente visualização · atualizado às ${(verQuando||new Date()).toLocaleTimeString('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit'})}`;return;}
-  el.textContent=n?`⏳ ${n} marcação${n>1?'ões':''} aguardando internet`:'✓ salvo para a equipe';}
+  el.textContent=n?`⏳ ${n} ${n>1?'marcações aguardando':'marcação aguardando'} internet`:'✓ salvo para a equipe';}
 const fmtQuando=iso=>{if(!iso) return 'agora (aguardando envio)'; const d=new Date(iso); return d.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});};
 
 // ---------- etapas registradas uma a uma ----------

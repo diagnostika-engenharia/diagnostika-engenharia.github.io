@@ -32,6 +32,11 @@ main{padding:12px 16px 80px;max-width:1900px;margin:0 auto;display:grid;gap:12px
 @media(min-width:900px){.pal{justify-content:center}}
 .pal button{flex:none;display:flex;align-items:center;gap:6px;border:2px solid var(--bd);background:#fff;border-radius:10px;padding:6px 10px;font:inherit;font-size:13px;cursor:pointer}
 .pal button.on{border-color:var(--tx)}
+.pal button.limpa{border-style:dashed;color:#8a2b2b}
+.pal button.limpa.on{background:#fde8e8;border-color:#d62828}
+#marq{position:absolute;border:2px dashed #d62828;background:#d6282822;pointer-events:none;display:none}
+#sel button{border:1px solid var(--bd);background:#fff;border-radius:8px;padding:7px 10px;font:inherit;font-size:13px;cursor:pointer;width:100%;text-align:left;margin-top:6px}
+#sel button b{color:#8a2b2b}
 .sw{width:16px;height:16px;border-radius:4px;border:1px solid #0003;display:inline-block;vertical-align:-3px}
 .bar{height:8px;background:#e7ebec;border-radius:5px;overflow:hidden;margin:3px 0 8px}
 .bar i{display:block;height:100%;background:#2e7fb0}
@@ -55,10 +60,11 @@ header a{color:#fff}
 <div id="gate"><div>🔒 Verificando acesso…</div></div>
 <header><h1><a href="../" title="Painel principal" style="display:inline-flex;vertical-align:middle;margin-right:8px"><img src="../assets/icon.png" alt="Diagnóstika" style="height:26px;width:26px;border-radius:7px;background:#fff;padding:2px"></a>Modelo 3D · Ed. Menotti del Picchia</h1>
 <p><a href="./">‹ Voltar ao app</a> · <a href="croqui.html">Planta e fachadas</a> · <span id="sync">carregando…</span></p>
-<p>Arraste para girar, use dois dedos ou a roda do mouse para aproximar. Escolha a etapa embaixo e toque num pavimento de uma faixa. Tocar de novo desmarca.</p></header>
+<p>Arraste para girar, use dois dedos ou a roda do mouse para aproximar. Escolha a etapa embaixo e toque num pavimento de uma faixa. Tocar de novo desmarca. Para apagar várias de uma vez, use <b>Limpar</b> na barra de baixo.</p></header>
 <main>
  <div class="card" id="cena">
   <div class="vistas" id="vistas"></div>
+  <div id="marq"></div>
   <div class="sobe"><button id="tela" title="Tela cheia">⛶</button><button id="up" title="Subir um pavimento">▲</button><span id="altTx">Pav. 8</span><button id="dn" title="Descer um pavimento">▼</button></div>
   <div class="dica" id="dica">Cada pavimento de cada faixa tem 5 tiras, de baixo para cima: remoção, tratamento, fundo, revestimento e aprovação. Cinza = etapa ainda não registrada. Contorno vermelho = etapa pulada. ▲ ▼ sobem e descem a vista.</div>
  </div>
@@ -241,6 +247,7 @@ renderer.domElement.addEventListener('pointerup',e=>{
   ray.setFromCamera(ptr,cam); const hit=ray.intersectObjects([...cels.filter(c=>c.visible),predio],false)[0];
   if(!hit||!hit.object.userData.k) return;
   if(SO_LEITURA){mostrarSel(hit.object); return;}
+  if(pincel===0){mostrarLimpar(hit.object); return;}
   const {k}=hit.object.userData; st[k]=st[k]||{m:0,por:{},leg:0,step:{}};
   const on=etapaAlternar(PREF,k,st[k],pincel); pintar(hit.object); resumo(); mostrarSel(hit.object, on);
 });
@@ -269,9 +276,55 @@ function pintar(c){const o=est(c.userData.k), col=c.geometry.attributes.color, n
 function pintarTudo(){cels.forEach(pintar); resumo();}
 
 // ---------- controles ----------
-document.getElementById('pal').innerHTML=ETAPAS.map((e,i)=>i===0?'':`<button data-i="${i}"><span class="sw" style="background:${e.c}"></span>${e.n}</button>`).join('');
+document.getElementById('pal').innerHTML=ETAPAS.map((e,i)=>i===0?'':`<button data-i="${i}"><span class="sw" style="background:${e.c}"></span>${e.n}</button>`).join('')+`<button data-i="0" class="limpa" title="Apagar marcações em lote">🧹 Limpar</button>`;
 const marcaPal=()=>document.querySelectorAll('#pal button').forEach(b=>b.classList.toggle('on',+b.dataset.i===pincel));
-document.querySelectorAll('#pal button').forEach(b=>b.onclick=()=>{pincel=+b.dataset.i;marcaPal();}); marcaPal();
+const DICA_PADRAO=document.getElementById('dica').textContent;
+function trocaPincel(i){pincel=i; marcaPal(); ctl.enabled=pincel!==0;
+  if(pincel===0){document.getElementById('dica').innerHTML='<b>Modo Limpar.</b> Toque num quadro para escolher o alcance (quadro, faixa, pavimento ou fachada) ou <b>arraste um retângulo</b> sobre os quadros. Nada é apagado sem confirmar. Girar fica travado: use as vistas e ▲ ▼.';
+    document.getElementById('sel').innerHTML='<h3>Limpar marcações</h3><div class="mut">Toque num quadro ou arraste um retângulo sobre a fachada.</div>';}
+  else document.getElementById('dica').textContent=DICA_PADRAO;}
+document.querySelectorAll('#pal button').forEach(b=>b.onclick=()=>trocaPincel(+b.dataset.i)); marcaPal();
+
+// ---------- limpar em lote ----------
+// Desmarca todas as etapas dos quadros da lista pelo mesmo caminho do toque (etapaAlternar → obra_mapa, com histórico).
+const marcados=lista=>lista.filter(c=>est(c.userData.k).m);
+function limparQuadros(lista,rotulo){
+  const alvo=marcados(lista); if(!alvo.length){alert('Nenhuma marcação em: '+rotulo+'.'); return;}
+  let et=0; alvo.forEach(c=>{for(let s=1;s<=5;s++) if(tem(est(c.userData.k).m,s)) et++;});
+  if(!confirm(`Limpar ${rotulo}?\n\n${alvo.length} quadro${alvo.length>1?'s':''} com ${et} etapa${et>1?'s':''} registrada${et>1?'s':''} ${alvo.length>1?'voltam':'volta'} a "não iniciado".\nFica registrado no histórico quem limpou e quando.`)) return;
+  alvo.forEach(c=>{const k=c.userData.k; st[k]=st[k]||{m:0,por:{},leg:0,step:{}}; for(let s=1;s<=5;s++) if(tem(st[k].m,s)) etapaAlternar(PREF,k,st[k],s); pintar(c);});
+  resumo(); mapaEnviar();
+  document.getElementById('sel').innerHTML=`<h3>Limpar marcações</h3><div class="mut">✓ ${rotulo}: ${alvo.length} quadro${alvo.length>1?'s':''} limpo${alvo.length>1?'s':''}. Toque em outro quadro ou arraste um retângulo.</div>`;
+}
+// Cartão de alcance após tocar num quadro no modo Limpar
+function mostrarLimpar(c){const {k,f,p}=c.userData;
+  const ops=[
+   ['Só este quadro',`faixa ${f.id}, pavimento ${p}`,cels.filter(x=>x.userData.k===k)],
+   [`Pavimento ${p} da ${FACHN[f.fc]}`,`pavimento ${p} da ${FACHN[f.fc]}`,cels.filter(x=>x.userData.p===p&&x.userData.f.fc===f.fc)],
+   [`Pavimento ${p} inteiro (todas as fachadas)`,`pavimento ${p} inteiro`,cels.filter(x=>x.userData.p===p)],
+   [`Faixa ${f.id} inteira (16 pavimentos)`,`faixa ${f.id} inteira`,cels.filter(x=>x.userData.f.id===f.id)],
+   [`${FACHN[f.fc]} inteira`,`${FACHN[f.fc]} inteira`,cels.filter(x=>x.userData.f.fc===f.fc)]];
+  const el=document.getElementById('sel');
+  el.innerHTML=`<h3>Limpar marcações</h3><div class="mut">Quadro tocado: faixa ${f.id}, pavimento ${p}. Escolha o alcance:</div>`+
+   ops.map((o,i)=>{const n=marcados(o[2]).length; return `<button data-op="${i}" ${n?'':'disabled style="opacity:.5"'}>${o[0]} <b>· ${n} marcado${n!==1?'s':''}</b></button>`;}).join('');
+  el.querySelectorAll('[data-op]').forEach(b=>b.onclick=()=>{const o=ops[+b.dataset.op]; limparQuadros(o[2],o[1]);});
+}
+// Arraste de retângulo: seleciona os quadros visíveis, de frente para a câmera, cujo centro cai dentro do retângulo
+const marq=document.getElementById('marq'); let arr=null;
+function retCanvas(){return renderer.domElement.getBoundingClientRect();}
+renderer.domElement.addEventListener('pointerdown',e=>{if(pincel!==0||SO_LEITURA) return; const r=retCanvas(); arr={x:e.clientX-r.left,y:e.clientY-r.top}; try{renderer.domElement.setPointerCapture(e.pointerId)}catch(_){}});
+renderer.domElement.addEventListener('pointermove',e=>{if(!arr) return; const r=retCanvas(), x=e.clientX-r.left, y=e.clientY-r.top;
+  Object.assign(marq.style,{display:'block',left:Math.min(arr.x,x)+'px',top:Math.min(arr.y,y)+'px',width:Math.abs(x-arr.x)+'px',height:Math.abs(y-arr.y)+'px'});});
+renderer.domElement.addEventListener('pointerup',e=>{if(!arr) return; const r=retCanvas(), x=e.clientX-r.left, y=e.clientY-r.top, a=arr; arr=null; marq.style.display='none';
+  if(Math.hypot(x-a.x,y-a.y)<=6) return; // toque simples: tratado pelo outro handler
+  const x0=Math.min(a.x,x),x1=Math.max(a.x,x),y0=Math.min(a.y,y),y1=Math.max(a.y,y), v=new THREE.Vector3();
+  const sel=cels.filter(c=>{if(!c.visible) return false; const {f,p}=c.userData;
+    if((cam.position.x-f.mid[0])*f.n[0]+(cam.position.z-f.mid[1])*f.n[1]<=0) return false; // de costas
+    v.set(f.mid[0],(p+0.5)*HP,f.mid[1]).project(cam); if(v.z>1) return false;
+    const sx=(v.x+1)/2*r.width, sy=(1-v.y)/2*r.height; return sx>=x0&&sx<=x1&&sy>=y0&&sy<=y1;});
+  if(!sel.length){document.getElementById('sel').innerHTML='<h3>Limpar marcações</h3><div class="mut">Nenhum quadro dentro do retângulo. Tente de novo mais de perto.</div>'; return;}
+  limparQuadros(sel,`a área selecionada (${sel.length} quadro${sel.length>1?'s':''})`);});
+['pointercancel','pointerleave'].forEach(ev=>renderer.domElement.addEventListener(ev,()=>{if(arr){arr=null;marq.style.display='none';}}));
 document.getElementById('giro').onchange=e=>{ctl.autoRotate=e.target.checked};
 document.querySelectorAll('input[name=modo]').forEach(r=>r.onchange=()=>{modo=r.value; pintarTudo();});
 document.getElementById('corte').oninput=e=>{corte=+e.target.value;

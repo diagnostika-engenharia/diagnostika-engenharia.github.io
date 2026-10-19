@@ -28,6 +28,12 @@ svg{width:100%;height:auto;display:block;touch-action:manipulation;user-select:n
 .pal{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--bd);padding:8px 12px;display:flex;gap:6px;overflow-x:auto;z-index:6}
 .pal button{flex:none;display:flex;align-items:center;gap:6px;border:2px solid var(--bd);background:#fff;border-radius:10px;padding:6px 10px;font:inherit;font-size:13px;cursor:pointer}
 .pal button.on{border-color:var(--tx)}
+.pal button.limpa{border-style:dashed;color:#8a2b2b}
+.pal button.limpa.on{background:#fde8e8;border-color:#d62828}
+#marq{position:absolute;border:2px dashed #d62828;background:#d6282822;pointer-events:none;display:none;z-index:4}
+.card.limpando svg{touch-action:none}
+.opLimpa{display:block;width:100%;text-align:left;border:1px solid var(--bd);background:#fff;border-radius:8px;padding:7px 10px;font:inherit;font-size:13px;cursor:pointer;margin-top:6px}
+.opLimpa b{color:#8a2b2b}
 .sw{width:16px;height:16px;border-radius:4px;border:1px solid #0003;display:inline-block}
 .bar{height:8px;background:#e7ebec;border-radius:5px;overflow:hidden;margin:3px 0 8px}
 .bar i{display:block;height:100%}
@@ -51,7 +57,7 @@ header a{color:#fff}
 <div id="gate"><div>🔒 Verificando acesso…</div></div>
 <header><h1><a href="../" title="Painel principal" style="display:inline-flex;vertical-align:middle;margin-right:8px"><img src="../assets/icon.png" alt="Diagnóstika" style="height:26px;width:26px;border-radius:7px;background:#fff;padding:2px"></a>Planta e Fachadas · Ed. Menotti del Picchia</h1>
 <p><a href="./">‹ Voltar ao app</a> · <a href="modelo3d.html">Modelo 3D</a> · <span id="sync">carregando…</span></p>
-<p>Nas fachadas, escolha a etapa embaixo e toque nos quadros (tocar de novo desmarca). Cada quadro tem 5 tiras, de baixo para cima: remoção, tratamento, fundo, revestimento e aprovação. A grade de pastilhas segue os quadrantes 1 a 9 do laudo.</p></header>
+<p>Nas fachadas, escolha a etapa embaixo e toque nos quadros (tocar de novo desmarca). Cada quadro tem 5 tiras, de baixo para cima: remoção, tratamento, fundo, revestimento e aprovação. A grade de pastilhas segue os quadrantes 1 a 9 do laudo. Para apagar várias de uma vez, use <b>Limpar</b> na barra de baixo.</p></header>
 <nav class="tabs" id="tabs"></nav>
 <main id="main"></main>
 <div class="pal" id="pal"></div>
@@ -253,25 +259,81 @@ function render(){
   }
   document.getElementById('pal').style.display='';
   const F=FACH.find(f=>f.id===aba);
-  M.innerHTML=`<div class="lay"><div class="card">${desenho(F)}</div>
+  M.innerHTML=`<div class="lay"><div class="card${pincel===0?' limpando':''}" style="position:relative" id="cardSvg">${desenho(F)}<div id="marq"></div></div>
   <div><div class="card"><h3>${F.n}</h3>${barras(F)}
   <div class="acoes"><label><input type="checkbox" ${verLaudo?'checked':''} onchange="verLaudo=this.checked;render()"> Patologias do laudo</label>
 </div>
   <div class="acoes"><label><input type="radio" name="modo" ${modo==='tiras'?'checked':''} onchange="modo='tiras';render()"> Cada etapa em uma tira</label><label><input type="radio" name="modo" ${modo==='atual'?'checked':''} onchange="modo='atual';render()"> Só a etapa alcançada sem pulos</label></div>
   ${cartaoQuadro(F)}
-  <p class="mut" style="margin-top:10px">Tiras de baixo para cima: remoção, tratamento, fundo, revestimento e aprovação. Cinza = etapa ainda não registrada; branco = não se aplica (sacada não tem remoção). Contorno vermelho = etapa pulada. Bolinha vermelha = quadrante com patologia no laudo. Faixas marcadas como Sacadas ficam fora da remoção (regularização sobre a pastilha + revestimento). Proporções tiradas dos desenhos do laudo; ainda não conferidas em campo.</p></div></div></div>`;
+  <p class="mut" style="margin-top:10px">Tiras de baixo para cima: remoção, tratamento, fundo, revestimento e aprovação. Cinza = etapa ainda não registrada; branco = não se aplica (sacada não tem remoção). Contorno vermelho = etapa pulada. Bolinha vermelha = quadrante com patologia no laudo. Faixas marcadas como Sacadas ficam fora da remoção (regularização sobre a pastilha + revestimento). Proporções tiradas dos desenhos do laudo; ainda não conferidas em campo.</p></div><div id="compartSlot"></div></div></div>`;
+  document.getElementById('compartSlot').appendChild(compartEl);
   document.getElementById('svg').addEventListener('click',ev=>{const k=ev.target.dataset&&ev.target.dataset.k; if(!k)return;
+    if(arrastou){arrastou=false; return;}
     selQ=F.id+':'+k; aviso='';
+    if(pincel===0&&!SO_LEITURA){limpaMsg=''; render(); return;}
     if(!SO_LEITURA){const c=celulas(F).out.find(x=>x.k===k);
       if(pincel<ini(c)) aviso='Sacada não tem remoção: comece pelo tratamento.';
       else{const s=st[F.id]=st[F.id]||{}; s[k]=s[k]||{m:0,por:{},leg:0,step:{}}; if(!etapaAlternar(PREF+F.id+':',k,s[k],pincel)) aviso=ETAPAS[pincel].n+' desmarcada.';}}
     render();});
-  document.getElementById('pal').innerHTML=ETAPAS.map((e,i)=>i===0?'':`<button class="${pincel===i?'on':''}" onclick="pincel=${i};render()"><span class="sw" style="background:${e.c}"></span>${e.n}</button>`).join('');
+  document.getElementById('pal').innerHTML=ETAPAS.map((e,i)=>i===0?'':`<button class="${pincel===i?'on':''}" onclick="trocaPincel(${i})"><span class="sw" style="background:${e.c}"></span>${e.n}</button>`).join('')+`<button class="limpa ${pincel===0?'on':''}" onclick="trocaPincel(0)" title="Apagar marcações em lote">🧹 Limpar</button>`;
+  if(pincel===0&&!SO_LEITURA) ligarArraste(F);
+}
+// ---------- limpar em lote (mesmas opções do modelo 3D) ----------
+let ultimoPincel=1, limpaMsg='', arrastou=false;
+const compartEl=document.createElement('div'); compartEl.className='card so-equipe'; compartEl.style.marginTop='12px';
+function trocaPincel(i){if(i===0&&pincel===0) i=ultimoPincel; if(i) ultimoPincel=i; pincel=i; limpaMsg=''; render();}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&pincel===0) trocaPincel(ultimoPincel);});
+const SAIR='<button class="opLimpa" onclick="trocaPincel(ultimoPincel)" style="margin-top:10px;background:#f3f3f1">↩ Sair do modo Limpar</button>';
+// lista = [{F,c}]; marcados = os que têm alguma etapa registrada
+const marcados=lista=>lista.filter(x=>est(x.F,x.c.k).m);
+const todasCel=()=>FACH.flatMap(F=>celulas(F).out.map(c=>({F,c})));
+// Desmarca todas as etapas pelo mesmo caminho do toque (etapaAlternar → obra_mapa, com histórico)
+function limparQuadros(lista,rotulo){
+  const alvo=marcados(lista); if(!alvo.length){alert('Nenhuma marcação em: '+rotulo+'.'); return;}
+  let et=0; alvo.forEach(x=>{for(let s=1;s<=5;s++) if(tem(est(x.F,x.c.k).m,s)) et++;});
+  if(!confirm(`Limpar ${rotulo}?\n\n${alvo.length} quadro${alvo.length>1?'s':''} com ${et} etapa${et>1?'s':''} registrada${et>1?'s':''} ${alvo.length>1?'voltam':'volta'} a "não iniciado".\nFica registrado no histórico quem limpou e quando.`)) return;
+  alvo.forEach(({F,c})=>{const s=st[F.id]=st[F.id]||{}; s[c.k]=s[c.k]||{m:0,por:{},leg:0,step:{}}; for(let e=1;e<=5;e++) if(tem(s[c.k].m,e)) etapaAlternar(PREF+F.id+':',c.k,s[c.k],e);});
+  mapaEnviar(); limpaMsg=`✓ ${rotulo}: ${alvo.length} quadro${alvo.length>1?'s':''} limpo${alvo.length>1?'s':''}. Toque em outro quadro ou arraste um retângulo.`; selQ=null; render();
+}
+// Cartão de alcance no modo Limpar (substitui o cartão do quadro)
+function cartaoLimpar(F){
+  let h='<div style="border-top:1px solid var(--bd);margin-top:10px;padding-top:8px"><h3 style="margin:0 0 4px">Limpar marcações</h3>';
+  if(limpaMsg) return h+`<div class="mut">${limpaMsg}</div>${SAIR}</div>`;
+  const k=selQ&&selQ.startsWith(F.id+':')?selQ.slice(F.id.length+1):null, c=k&&celulas(F).out.find(x=>x.k===k);
+  if(!c) return h+`<div class="mut">Toque num quadro para escolher o alcance (quadro, coluna, pavimento ou fachada) ou <b>arraste um retângulo</b> sobre a fachada. Nada é apagado sem confirmar. Para sair, toque de novo em Limpar (ou Esc).</div>${SAIR}</div>`;
+  const bi=c.k.split('-')[0], p=c.pav, desta=celulas(F).out.map(c=>({F,c})), todas=todasCel();
+  const ops=[
+   ['Só este quadro',`pavimento ${p}${c.q?', quadrante '+c.q:''} da ${F.n}`,[{F,c}]],
+   [`Pavimento ${p} da ${F.n}`,`pavimento ${p} da ${F.n}`,desta.filter(x=>x.c.pav===p)],
+   [`Pavimento ${p} inteiro (todas as fachadas)`,`pavimento ${p} inteiro`,todas.filter(x=>x.c.pav===p)],
+   [`Esta coluna inteira (${PAV} pavimentos)`,`coluna inteira da ${F.n}`,desta.filter(x=>x.c.k.split('-')[0]===bi)],
+   [`${F.n} inteira`,`${F.n} inteira`,desta]];
+  opsLimpar=ops;
+  return h+`<div class="mut">Quadro tocado: pavimento ${p}${c.q?', quadrante '+c.q:''}. Escolha o alcance:</div>`+
+   ops.map((o,i)=>{const n=marcados(o[2]).length; return `<button class="opLimpa" onclick="limparQuadros(opsLimpar[${i}][2],opsLimpar[${i}][1])" ${n?'':'disabled style="opacity:.5"'}>${o[0]} <b>· ${n} marcado${n!==1?'s':''}</b></button>`;}).join('')+SAIR+'</div>';
+}
+let opsLimpar=[];
+// Arraste de retângulo sobre o SVG: seleciona os quadros cujo centro cai dentro
+function ligarArraste(F){
+  const card=document.getElementById('cardSvg'), svg=document.getElementById('svg'), marq=document.getElementById('marq'); let arr=null;
+  const pos=e=>{const r=card.getBoundingClientRect(); return {x:e.clientX-r.left,y:e.clientY-r.top};};
+  card.addEventListener('pointerdown',e=>{arr=pos(e); try{card.setPointerCapture(e.pointerId)}catch(_){}});
+  card.addEventListener('pointermove',e=>{if(!arr) return; const q=pos(e);
+    Object.assign(marq.style,{display:'block',left:Math.min(arr.x,q.x)+'px',top:Math.min(arr.y,q.y)+'px',width:Math.abs(q.x-arr.x)+'px',height:Math.abs(q.y-arr.y)+'px'});});
+  card.addEventListener('pointerup',e=>{if(!arr) return; const q=pos(e), a=arr; arr=null; marq.style.display='none';
+    if(Math.hypot(q.x-a.x,q.y-a.y)<=6) return; // toque simples: tratado pelo click
+    arrastou=true; setTimeout(()=>arrastou=false,300);
+    const r=card.getBoundingClientRect(), M=svg.getScreenCTM(), x0=Math.min(a.x,q.x),x1=Math.max(a.x,q.x),y0=Math.min(a.y,q.y),y1=Math.max(a.y,q.y);
+    const sel=celulas(F).out.filter(c=>{const pt=new DOMPoint((c.x+c.w/2)*10,(c.y+c.h/2)*10).matrixTransform(M), sx=pt.x-r.left, sy=pt.y-r.top; return sx>=x0&&sx<=x1&&sy>=y0&&sy<=y1;}).map(c=>({F,c}));
+    if(!sel.length){limpaMsg='Nenhum quadro dentro do retângulo. Tente de novo.'; render(); return;}
+    limparQuadros(sel,`a área selecionada (${sel.length} quadro${sel.length>1?'s':''})`);});
+  ['pointercancel','pointerleave'].forEach(ev=>card.addEventListener(ev,()=>{if(arr){arr=null;marq.style.display='none';}}));
 }
 
 // Cartão do quadro tocado: as 5 etapas, com quem marcou e quando
 let aviso='';
 function cartaoQuadro(F){
+  if(pincel===0&&!SO_LEITURA) return cartaoLimpar(F);
   if(!selQ||!selQ.startsWith(F.id+':')) return `<p class="mut" style="margin-top:10px">Toque num quadro para ver as etapas registradas.</p>`;
   const k=selQ.slice(F.id.length+1), c=celulas(F).out.find(x=>x.k===k); if(!c) return '';
   const o=est(F,k), falta=faltando(o.m,ini(c));
@@ -292,7 +354,9 @@ async function recarregar(){
     render(); statusSync();
   }catch(e){document.getElementById('sync').textContent='⚠️ não consegui ler as marcações do servidor';}
 }
-mapaEntrar().then(ok=>{if(!ok) return; recarregar(); document.addEventListener('visibilitychange',()=>{if(!document.hidden) recarregar();});});
+mapaEntrar().then(ok=>{if(!ok) return; recarregar(); cardCompartilhar(compartEl);
+ if(SO_LEITURA) document.querySelector('header p:last-of-type').textContent='Nas fachadas, cada quadro tem 5 tiras, de baixo para cima: remoção, tratamento, fundo, revestimento e aprovação. A grade de pastilhas segue os quadrantes 1 a 9 do laudo. Visualização atualizada pela fiscalização da Diagnóstika Engenharia.';
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden) recarregar();});});
 </script>
 </body>
 </html>

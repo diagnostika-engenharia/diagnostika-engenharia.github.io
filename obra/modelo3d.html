@@ -77,7 +77,7 @@ header a{color:#fff}
    <h3 style="margin-top:12px">Mostrar</h3>
    <div class="acoes" style="margin-top:0"><label><input type="radio" name="modo" value="tiras" checked> Cada etapa em uma tira</label><label><input type="radio" name="modo" value="atual"> Só a etapa alcançada sem pulos</label></div>
   </div>
-  <div class="card" style="margin-top:12px" id="sel"><h3>Último toque</h3><div class="mut">Nenhum quadro tocado ainda.</div></div>
+  <div class="card" style="margin-top:12px" id="sel"><h3>Quadro selecionado</h3><div class="mut">Toque num quadro para ver as etapas registradas.</div></div>
   <div class="card" style="margin-top:12px"><h3>Base das áreas</h3><div id="baseSel"></div><p class="mut" id="baseTx" style="margin:0"></p></div>
   <div class="card so-equipe" style="margin-top:12px" id="compartilhar"></div>
  </div>
@@ -253,7 +253,7 @@ renderer.domElement.addEventListener('pointerup',e=>{
 });
 // Cartão do quadro: as 5 etapas, com quem marcou e quando
 function mostrarSel(c,on){const {k,f,p}=c.userData, o=est(k), falta=faltando(o.m);
-  document.getElementById('sel').innerHTML=`<h3>${SO_LEITURA?'Quadro selecionado':'Último toque'}</h3><div class="lin"><span>${FACHN[f.fc]}</span></div>
+  document.getElementById('sel').innerHTML=`<h3>Quadro selecionado</h3><div class="lin"><span>${FACHN[f.fc]}</span></div>
    <div class="lin" style="margin-bottom:6px"><span>Faixa ${f.id} de ${String(f.a).replace('.',',')} m², pavimento ${p}</span></div>
    ${ETAPAS.slice(1).map((e,i)=>{const s=i+1, r=o.por[s]; return `<div class="lin" style="padding:3px 0;border-top:1px solid #eee"><span><span class="sw" style="background:${tem(o.m,s)?e.c:'#e4e2dc'};vertical-align:-3px"></span> ${e.n}</span>
      <span class="mut">${tem(o.m,s)?'✓ '+escH(r?.user_nome||'')+' · '+fmtQuando(r?.updated_at):'não registrada'}</span></div>`;}).join('')}
@@ -283,7 +283,7 @@ let ultimoPincel=1;
 function trocaPincel(i){if(i===0&&pincel===0) i=ultimoPincel; if(i) ultimoPincel=i; pincel=i; marcaPal(); ctl.enabled=pincel!==0;
   if(pincel===0){document.getElementById('dica').innerHTML='<b>Modo Limpar.</b> Toque num quadro para escolher o alcance (quadro, faixa, pavimento ou fachada) ou <b>arraste um retângulo</b> sobre os quadros. Nada é apagado sem confirmar. Girar fica travado: use as vistas e ▲ ▼. Para sair, toque de novo em Limpar (ou Esc).';
     document.getElementById('sel').innerHTML='<h3>Limpar marcações</h3><div class="mut">Toque num quadro ou arraste um retângulo sobre a fachada.</div>'+SAIR;}
-  else{document.getElementById('dica').textContent=DICA_PADRAO; if(/Limpar marcações/.test(document.getElementById('sel').innerHTML)) document.getElementById('sel').innerHTML='<h3>Último toque</h3><div class="mut">Modo Limpar encerrado. Escolha a etapa e toque num quadro.</div>';}}
+  else{document.getElementById('dica').textContent=DICA_PADRAO; if(/Limpar marcações/.test(document.getElementById('sel').innerHTML)) document.getElementById('sel').innerHTML='<h3>Quadro selecionado</h3><div class="mut">Modo Limpar encerrado. Escolha a etapa e toque num quadro.</div>';}}
 const SAIR='<button onclick="trocaPincel(ultimoPincel)" style="margin-top:10px;background:#f3f3f1">↩ Sair do modo Limpar</button>';
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&pincel===0) trocaPincel(ultimoPincel);});
 document.querySelectorAll('#pal button').forEach(b=>b.onclick=()=>trocaPincel(+b.dataset.i)); marcaPal();

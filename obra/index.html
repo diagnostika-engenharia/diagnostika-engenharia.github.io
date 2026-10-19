@@ -199,7 +199,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261019-3';
+const APP_BUILD='20261019-4';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -724,7 +724,7 @@ async function rAndamento(){
     ${ncF[f]?`<p style="margin:8px 0 0"><span class="tag nc">${ncF[f]} NC aberta${ncF[f]>1?'s':''}</span></p>`:''}
     <div style="margin-top:8px">${SERVICOS.map(s=>{const p=pct(f,s),u=ult[f+'|'+s];return `<div style="padding:6px 0;border-bottom:1px solid var(--gray2)"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>${esc(s)}</span><b style="color:${p>=100?'var(--green)':p>0?'var(--amber)':'var(--gray4)'}">${p}%</b></div>${bar(p,5)}${u?`<small class="muted">atualizado em ${fmtBR(u.obra_visitas?.data)}</small>`:''}</div>`;}).join('')}</div></div>`;}).join('')}</div>
   <p class="muted" style="text-align:center">Considera a informação mais recente de cada serviço nas vistorias encerradas.</p>
-  <div style="display:flex;gap:8px;margin-bottom:10px"><a class="btn sec" style="flex:1;text-align:center;text-decoration:none" href="croqui.html">🗺️ Planta e fachadas</a><a class="btn sec" style="flex:1;text-align:center;text-decoration:none" href="modelo3d.html">🧊 Marcar no 3D</a></div>
+  <div style="display:flex;gap:8px;margin-bottom:10px"><a class="btn sec" style="flex:1;text-align:center;text-decoration:none" href="croqui.html">🗺️ Planta e fachadas</a><a class="btn sec" style="flex:1;text-align:center;text-decoration:none" href="modelo3d.html">🧊 Modelo 3D</a></div>
   <button class="btn sec" onclick="imprimirAndamento()">🖨️ Imprimir / salvar PDF do andamento</button>`;
 }
 function imprimirAndamento(){

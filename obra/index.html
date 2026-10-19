@@ -92,7 +92,7 @@ textarea.f{min-height:76px;resize:vertical}
 .reg:last-child{border-bottom:0}
 .reg .th{width:64px;height:64px;border-radius:8px;object-fit:cover;background:var(--gray);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px}
 .reg .bd{flex:1;min-width:0}
-.reg .bd.ed{cursor:pointer}.reg .bd.ed:active{opacity:.6}.reg .bd .edh{font-size:11px;color:var(--teal,#1a9c8f);margin-left:6px}
+.reg .bd.ed{cursor:pointer}.reg .bd.ed:active{opacity:.6}.edh,.reg .bd .edh{font-size:11px;color:var(--teal,#1a9c8f);margin-left:6px}
 .photos .ex{position:relative;display:inline-block}.photos .ex img.rm{opacity:.3;outline:2px solid var(--red)}.photos .ex small{position:absolute;left:0;right:0;bottom:0;background:#0008;color:#fff;font-size:10px;text-align:center;border-radius:0 0 8px 8px}
 .reg .bd b{font-size:14px;display:block}
 .reg .bd p{font-size:13px;color:var(--text2);margin-top:2px;white-space:pre-wrap}
@@ -202,7 +202,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261019-8';
+const APP_BUILD='20261019-9';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -670,7 +670,7 @@ async function rDetalhe(){
   const id=view.split(':')[1];const v=cacheVisitas.find(x=>x.id===id);
   if(!v){goBack();return;}
   setTitle(`Vistoria ${fmtBR(v.data)}`,v.engenheiro||'');
-  $('view').innerHTML=`<div class="card"><h3>Dados</h3><p style="font-size:14px;line-height:1.6">${v.hora_inicio?esc(v.hora_inicio.slice(0,5)):''}${v.hora_fim?' – '+esc(v.hora_fim.slice(0,5)):''} · ${esc(v.clima||'—')}${v.temperatura?' · '+esc(v.temperatura)+'°C':''}${v.paralisacao?' · <b style="color:var(--red)">obra paralisada</b>':''}<br>
+  $('view').innerHTML=`<div class="card" style="cursor:pointer" onclick="editarVisita('${esc(v.id)}')"><h3>Dados <span class="edh" style="font-weight:400;float:right">✎ toque para editar</span></h3><p style="font-size:14px;line-height:1.6">${v.hora_inicio?esc(v.hora_inicio.slice(0,5)):''}${v.hora_fim?' – '+esc(v.hora_fim.slice(0,5)):''} · ${esc(v.clima||'—')}${v.temperatura?' · '+esc(v.temperatura)+'°C':''}${v.paralisacao?' · <b style="color:var(--red)">obra paralisada</b>':''}<br>
     Efetivo: ${Object.entries(v.efetivo||{}).filter(([,n])=>+n>0).map(([f,n])=>`${n} ${esc(f)}`).join(', ')||'—'}${v.encarregado?' · enc. '+esc(v.encarregado):''}</p>${v.resumo?`<p style="font-size:14px;margin-top:8px;white-space:pre-wrap">${esc(v.resumo)}</p>`:''}</div>
     <div id="detRegs"><div class="empty">Carregando registros…</div></div>`;
   const {data}=await sb.from('obra_registros').select('*').eq('visita_id',id).order('created_at');

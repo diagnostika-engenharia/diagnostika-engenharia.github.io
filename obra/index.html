@@ -204,7 +204,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261019-13';
+const APP_BUILD='20261019-14';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -745,14 +745,14 @@ async function salvarRegistro(){
     if(!r.item&&!r.descricao&&!mantidas.length&&!r.blobs.length&&!r.audio&&!r.audio_path){toast('Adicione título, descrição ou foto');return;}
     const patch={tipo:r.tipo,fachada:r.fachada||null,pavimento:r.pavimento||null,item:r.item||null,status:r.tipo==='nc'?'nc':null,descricao:r.descricao||null,fotos:mantidas};
     Object.assign(loc,patch,{fotos:[...mantidas,...r.pendentes,...r.previews]});if(r.audio)loc.audio_path='local';
-    if(r.ckKey)visita.checklist[r.ckKey]={...(visita.checklist[r.ckKey]||{}),status:'nc',obs:r.descricao||r.item};
+    if(r.ckKey)visita.checklist[r.ckKey]={...(visita.checklist[r.ckKey]||{}),status:'nc',obs:r.descricao||''};
     saveVisita();
     await idb.add({kind:'registro_edit',id:r.edit,visita_id:visita.id,patch,blobs:r.blobs,audio:r.audio,ts:Date.now()});
     reg=null;$('modal').classList.remove('show');toast('Registro atualizado');atualizarSync();sincronizar();render();return;
   }
   if(!r.item&&!r.descricao&&!r.blobs.length&&!r.audio){toast('Adicione título, descrição ou foto');return;}
   const row={id:uuid(),visita_id:visita.id,obra_id:OBRA_ID,tipo:r.tipo,fachada:r.fachada||null,pavimento:r.pavimento||null,item:r.item||null,status:r.tipo==='nc'?'nc':null,descricao:r.descricao||null,fotos:[],user_id:user.id,created_at:new Date().toISOString()};
-  if(r.ckKey){visita.checklist[r.ckKey]={status:'nc',obs:r.descricao||r.item};}
+  if(r.ckKey){visita.checklist[r.ckKey]={status:'nc',obs:r.descricao||''};}
   visita.registros.push({...row,fotos:r.previews.slice(),audio_path:r.audio?'local':null});saveVisita();
   await idb.add({kind:'registro',row,blobs:r.blobs,audio:r.audio,ts:Date.now()});
   reg=null;$('modal').classList.remove('show');
@@ -783,7 +783,7 @@ async function rDetalhe(){
   let h='';
   if(sv.length){const byF={};sv.forEach(r=>{(byF[r.fachada]=byF[r.fachada]||[]).push(r);});
     h+=`<div class="card"><h3>Serviços por fachada</h3>${Object.entries(byF).map(([f,arr])=>`<b style="font-size:13px;display:block;margin:8px 0 4px">${esc(f)}</b>${arr.map(r=>`<div class="ck"><span class="lb">${esc(r.item)}</span><span class="tag ${r.status==='concluido'?'ok':'oc'}">${r.status==='concluido'?'concluído':'em andamento'} ${r.percentual??0}%</span></div>`).join('')}`).join('')}</div>`;}
-  if(ck.length) h+=`<div class="card"><h3>Checklist</h3>${ck.map(r=>`<div class="ck"><span class="lb">${esc(r.item)}${r.descricao?`<small>${esc(r.descricao)}</small>`:''}${r.transcricao&&r.transcricao!==r.descricao?`<small>🎙️ ${esc(r.transcricao)}</small>`:''}</span><span class="tag ${r.status==='nc'?'nc':r.status==='ok'?'ok':''}">${r.status==='na'?'N/A':r.status}</span></div>`).join('')}</div>`;
+  if(ck.length) h+=`<div class="card"><h3>Checklist</h3>${ck.map(r=>`<div class="ck"><span class="lb">${esc(r.item)}${r.descricao&&r.descricao!==r.item?`<small>${esc(r.descricao)}</small>`:''}${r.transcricao&&r.transcricao!==r.descricao?`<small>🎙️ ${esc(r.transcricao)}</small>`:''}</span><span class="tag ${r.status==='nc'?'nc':r.status==='ok'?'ok':''}">${r.status==='na'?'N/A':r.status}</span></div>`).join('')}</div>`;
   h+=`<div class="card"><h3>Registros (${outros.length})</h3>${outros.length?outros.map(r=>`<div>${regItem(r)}<div style="text-align:right;margin:-6px 0 6px"><button class="btn sm sec" style="color:var(--red);padding:4px 10px;font-size:12px" onclick="excluirRegistro('${r.id}')">🗑 excluir</button></div></div>`).join(''):'<div class="empty">Sem registros.</div>'}</div>
   <div class="card"><h3>Relatório</h3>
     <div class="row"><button class="btn" onclick="imprimirRelatorio('${esc(v.id)}')">🖨️ Imprimir / salvar PDF</button><button class="btn" onclick="compartilharRelatorio('${esc(v.id)}')">📤 Compartilhar PDF</button></div>
@@ -964,7 +964,7 @@ function relatorioCorpo(v,rs){
     <tr><th>Efetivo</th><td colspan="3">${ef.length?ef.map(([f,n])=>`${n} ${esc(plural(f,n))}`).join(', ')+` (total ${ef.reduce((a,[,n])=>a+(+n),0)})`:'não informado'}${v.encarregado?' · encarregado: '+esc(v.encarregado):''}</td></tr>${(v.presentes||[]).length?`<tr><th>Presentes</th><td colspan="3">${v.presentes.slice().sort((a,b)=>ordemFuncao(a.funcao)-ordemFuncao(b.funcao)).map(p=>`${esc(p.nome)} (${esc(p.funcao)})`).join(', ')}</td></tr>`:''}</table>`;
   if(sv.length){const byF={};sv.forEach(r=>{(byF[r.fachada]=byF[r.fachada]||[]).push(r);});
     h+=`<h2>Serviços por fachada</h2><table><tr><th>Fachada / local</th><th>Serviço</th><th>Situação</th><th style="width:12%">%</th></tr>${Object.entries(byF).map(([f,a])=>a.map((r,i)=>`<tr>${i?'':`<td rowspan="${a.length}">${esc(f)}</td>`}<td>${esc(r.item)}</td><td>${stTxt[r.status]||esc(r.status)}</td><td>${r.percentual??0}%</td></tr>`).join('')).join('')}</table>`;}
-  if(ck.length) h+=`<h2>Checklist</h2><table><tr><th>Item</th><th style="width:18%">Resultado</th></tr>${ck.map(r=>`<tr><td>${esc(r.item)}${r.descricao?`<br><span class="st-na">${esc(r.descricao)}</span>`:''}${r.transcricao&&r.transcricao!==r.descricao?`<br><span class="st-na"><i>Áudio: ${esc(r.transcricao)}</i></span>`:''}</td><td class="st-${r.status}">${stTxt[r.status]||esc(r.status)}</td></tr>`).join('')}</table>`;
+  if(ck.length) h+=`<h2>Checklist</h2><table><tr><th>Item</th><th style="width:18%">Resultado</th></tr>${ck.map(r=>`<tr><td>${esc(r.item)}${r.descricao&&r.descricao!==r.item?`<br><span class="st-na">${esc(r.descricao)}</span>`:''}${r.transcricao&&r.transcricao!==r.descricao?`<br><span class="st-na"><i>Áudio: ${esc(r.transcricao)}</i></span>`:''}</td><td class="st-${r.status}">${stTxt[r.status]||esc(r.status)}</td></tr>`).join('')}</table>`;
   h+=`<h2>Não conformidades (${ncs.length})</h2>${ncs.length?ncs.map(regH).join(''):'<p>Nenhuma não conformidade registrada nesta vistoria.</p>'}`;
   if(demais.length) h+=`<h2>Registros</h2>${demais.map(regH).join('')}`;
   if(v.resumo) h+=`<h2>Observações gerais</h2><div style="white-space:pre-wrap">${esc(v.resumo)}</div>`;

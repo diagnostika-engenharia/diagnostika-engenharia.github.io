@@ -202,7 +202,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261019-7';
+const APP_BUILD='20261019-8';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -312,7 +312,7 @@ async function sincronizarFila(){
           }
           let audio_path=null;
           if(op.audio){
-            audio_path=`${OBRA_ID}/${op.row.visita_id}/audio_${Date.now()}.webm`;
+            audio_path=`${OBRA_ID}/${op.row.visita_id}/audio_${Date.now()}.${audioExt(op.audio)}`;
             const {error}=await sb.storage.from(BUCKET).upload(audio_path,op.audio,{contentType:op.audio.type||'audio/webm'});
             if(error)throw error;
           }
@@ -330,14 +330,14 @@ async function sincronizarFila(){
           }
           const patch={...op.patch,fotos:[...(op.patch.fotos||[]),...paths]};
           if(op.audio){
-            patch.audio_path=`${OBRA_ID}/${op.visita_id}/audio_${Date.now()}.webm`;
+            patch.audio_path=`${OBRA_ID}/${op.visita_id}/audio_${Date.now()}.${audioExt(op.audio)}`;
             const {error}=await sb.storage.from(BUCKET).upload(patch.audio_path,op.audio,{contentType:op.audio.type||'audio/webm'});
             if(error)throw error;
           }
           const {error}=await sb.from('obra_registros').update(patch).eq('id',op.id);if(error)throw error;
           const loc=visita?.registros?.find(x=>x.id===op.id);
           if(loc){loc.fotos=patch.fotos;if(patch.audio_path)loc.audio_path=patch.audio_path;saveVisita();}
-          if(patch.audio_path&&typeof transcreverRegistro==='function')transcreverRegistro(op.id);
+          if(patch.audio_path&&typeof transcreverRegistro==='function')transcreverRegistro(op.id,true);
         }
         else if(op.kind==='registros_delete_tipos'){const {error}=await sb.from('obra_registros').delete().eq('visita_id',op.visita_id).in('tipo',op.tipos);if(error)throw error;}
         await idb.del(op.id);
@@ -367,7 +367,7 @@ async function transcreverRegistro(id,forcar){
     if(forcar)toast('Falha na transcrição: '+(e?.message||e));
   }finally{transcrevendo.delete(id);if(loc)delete loc._transcrevendo;rerender();}
 }
-function rerender(){try{if(view==='vistoria'||String(view).startsWith('detalhe:'))render();}catch{}}
+function rerender(){try{if(view==='visita'||String(view).startsWith('detalhe:'))render();}catch{}}
 function txHtml(r,cls){
   if(r.transcricao&&r.transcricao!==r.descricao)return `<p class="${cls||'tx'}">🎙️ ${esc(r.transcricao)}</p>`;
   if(r.transcricao)return '<small>🎙️ transcrito do áudio</small> ';
@@ -376,6 +376,7 @@ function txHtml(r,cls){
   if(r._transcrevendo||transcrevendo.has(r.id))return '<small>🎙️ transcrevendo…</small> ';
   return `<small>🎙️ áudio ${r.erro_transcricao?'· falha na transcrição':'sem transcrição'}</small> <button class="btn sm sec" style="padding:2px 8px;font-size:11px" onclick="event.stopPropagation();transcreverRegistro('${r.id}',true)">transcrever</button> `;
 }
+function audioExt(b){const mt=(b?.type||'').toLowerCase();return /wav/.test(mt)?'wav':/mp4|m4a|aac/.test(mt)?'m4a':/ogg|opus/.test(mt)?'ogg':/mpeg|mp3/.test(mt)?'mp3':'webm';}
 const ERROS_PERMANENTES=new Set(['23503','23514','23502','22P02','PGRST204']);
 let ultimoErroSync=null;
 function descreverOp(op){

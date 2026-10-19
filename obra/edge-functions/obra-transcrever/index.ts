@@ -25,7 +25,7 @@ const json = (b: unknown, status = 200) =>
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: CORS })
-  let admin: any = null, registro_id: string | null = null
+  let admin: any = null, asUser: any = null, registro_id: string | null = null
   try {
     const body = await req.json().catch(() => ({}))
     registro_id = body?.registro_id || null
@@ -36,7 +36,7 @@ serve(async (req) => {
 
     const url = Deno.env.get('SUPABASE_URL')!
     // Cliente como o usuário: garante que ele enxerga o registro (RLS)
-    const asUser = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } })
+    asUser = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } })
     const { data: reg, error: eSel } = await asUser.from('obra_registros')
       .select('id,audio_path,descricao,transcricao').eq('id', registro_id).maybeSingle()
     if (eSel) throw new Error('Consulta: ' + eSel.message)
@@ -70,13 +70,15 @@ serve(async (req) => {
     const patch: Record<string, unknown> = { transcricao: texto, transcrito_em: new Date().toISOString(), erro_transcricao: null }
     // Fixa no texto da vistoria: se o registro não tem descrição, a transcrição vira a descrição
     if (!(reg.descricao || '').trim()) patch.descricao = texto
-    const { error: eUpd } = await admin.from('obra_registros').update(patch).eq('id', registro_id)
+    // Grava como o usuário (RLS permite ao autor); service role é só para o storage
+    let { error: eUpd } = await asUser.from('obra_registros').update(patch).eq('id', registro_id)
+    if (eUpd) { console.warn('update como usuário falhou, tentando service role:', eUpd.message); ({ error: eUpd } = await admin.from('obra_registros').update(patch).eq('id', registro_id)) }
     if (eUpd) throw new Error('Gravar: ' + eUpd.message)
     return json({ transcricao: texto, descricao_preenchida: !!patch.descricao })
   } catch (e) {
     const msg = (e as Error).message || String(e)
     console.error('obra-transcrever:', msg)
-    try { if (admin && registro_id) await admin.from('obra_registros').update({ erro_transcricao: msg.slice(0, 300) }).eq('id', registro_id) } catch { /* ignora */ }
+    try { if (asUser && registro_id) { const { error } = await asUser.from('obra_registros').update({ erro_transcricao: msg.slice(0, 300) }).eq('id', registro_id); if (error) console.error('gravar erro_transcricao:', error.message) } } catch (e2) { console.error('gravar erro_transcricao:', String(e2)) }
     return json({ error: msg }, 400)
   }
 })

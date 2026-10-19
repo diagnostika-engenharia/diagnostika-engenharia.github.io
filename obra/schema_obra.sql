@@ -55,7 +55,9 @@ create table if not exists obra_registros (
   descricao     text,
   fotos         text[] not null default '{}',
   audio_path    text,
-  transcricao   text,
+  transcricao   text,          -- transcrição Whisper do áudio (Edge Function obra-transcrever)
+  transcrito_em timestamptz,
+  erro_transcricao text,
   nc_resolvida  boolean not null default false,
   nc_resolvida_em timestamptz,
   user_id       uuid,

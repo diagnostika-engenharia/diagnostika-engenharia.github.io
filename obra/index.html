@@ -94,6 +94,7 @@ textarea.f{min-height:76px;resize:vertical}
 .reg .bd{flex:1;min-width:0}
 .reg .bd b{font-size:14px;display:block}
 .reg .bd p{font-size:13px;color:var(--text2);margin-top:2px;white-space:pre-wrap}
+.reg .bd p.tx{color:var(--text);border-left:3px solid var(--teal,#1a9c8f);padding-left:6px;font-style:italic}
 .reg .bd small{font-size:11px;color:var(--gray4)}
 .tag{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:var(--gray);color:var(--text2);margin-right:4px;text-transform:uppercase}
 .tag.nc{background:var(--red-lt);color:var(--red)}
@@ -199,7 +200,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261019-4';
+const APP_BUILD='20261019-5';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -315,6 +316,7 @@ async function sincronizarFila(){
           }
           const row={...op.row,fotos:[...(op.row.fotos||[]),...paths],audio_path:audio_path||op.row.audio_path||null};
           const {error}=await sb.from('obra_registros').upsert(row,{onConflict:'id'});if(error)throw error;
+          if(audio_path){const loc=visita?.registros?.find(x=>x.id===row.id);if(loc){loc.audio_path=audio_path;saveVisita();}transcreverRegistro(row.id);}
         }
         else if(op.kind==='registro_update'){const {error}=await sb.from('obra_registros').update(op.patch).eq('id',op.id);if(error)throw error;}
         else if(op.kind==='registros_delete_tipos'){const {error}=await sb.from('obra_registros').delete().eq('visita_id',op.visita_id).in('tipo',op.tipos);if(error)throw error;}
@@ -326,6 +328,33 @@ async function sincronizarFila(){
       }
     }
   }catch(e){console.warn('sync:',e);}
+}
+const transcrevendo=new Set();
+async function transcreverRegistro(id,forcar){
+  if(transcrevendo.has(id))return;transcrevendo.add(id);
+  const loc=visita?.registros?.find(x=>x.id===id);if(loc){loc._transcrevendo=true;}
+  rerender();
+  try{
+    const {data,error}=await sb.functions.invoke('obra-transcrever',{body:{registro_id:id,forcar:!!forcar}});
+    const err=error?((await error.context?.json?.().catch(()=>null))?.error||error.message):data?.error;
+    if(err)throw new Error(err);
+    const tx=data?.transcricao||'';
+    if(loc){loc.transcricao=tx;loc.erro_transcricao=null;if(!(loc.descricao||'').trim())loc.descricao=tx;saveVisita();}
+    for(const k in cacheRegs){const r=(cacheRegs[k]||[]).find(x=>x.id===id);if(r){r.transcricao=tx;r.erro_transcricao=null;if(!(r.descricao||'').trim())r.descricao=tx;}}
+    toast('Áudio transcrito ✓');
+  }catch(e){
+    console.warn('transcrição:',e);if(loc){loc.erro_transcricao=e?.message||String(e);saveVisita();}
+    if(forcar)toast('Falha na transcrição: '+(e?.message||e));
+  }finally{transcrevendo.delete(id);if(loc)delete loc._transcrevendo;rerender();}
+}
+function rerender(){try{if(view==='vistoria'||String(view).startsWith('detalhe:'))render();}catch{}}
+function txHtml(r,cls){
+  if(r.transcricao&&r.transcricao!==r.descricao)return `<p class="${cls||'tx'}">🎙️ ${esc(r.transcricao)}</p>`;
+  if(r.transcricao)return '<small>🎙️ transcrito do áudio</small> ';
+  if(!r.audio_path)return '';
+  if(r.audio_path==='local')return '<small>🎙️ áudio aguardando envio</small> ';
+  if(r._transcrevendo||transcrevendo.has(r.id))return '<small>🎙️ transcrevendo…</small> ';
+  return `<small>🎙️ áudio ${r.erro_transcricao?'· falha na transcrição':'sem transcrição'}</small> <button class="btn sm sec" style="padding:2px 8px;font-size:11px" onclick="event.stopPropagation();transcreverRegistro('${r.id}',true)">transcrever</button> `;
 }
 const ERROS_PERMANENTES=new Set(['23503','23514','23502','22P02','PGRST204']);
 let ultimoErroSync=null;
@@ -482,7 +511,7 @@ function tRegistros(){
 function regItem(r){
   const th=r.fotos?.length?`<img class="th" src="${r.fotos[0].startsWith('blob:')?r.fotos[0]:fotoUrl(r.fotos[0])}" onclick="lbSet(${LB_SETS.push(r.fotos.map(p=>p.startsWith('blob:')?p:fotoUrl(p)))-1})">`:`<div class="th">${{nc:'⚠️',ocorrencia:'📌',material:'📦',observacao:'📝',foto:'📷',checklist:'☑️',servico:'🔧'}[r.tipo]||'📄'}</div>`;
   const tag=r.tipo==='nc'||r.status==='nc'?`<span class="tag nc">NC</span>${r.nc_resolvida?'<span class="tag res">resolvida</span>':''}`:`<span class="tag">${esc(TIPOS[r.tipo]||r.tipo)}</span>`;
-  return `<div class="reg">${th}<div class="bd">${tag}${r.fachada?`<span class="tag">${esc(r.fachada.split(' — ')[0])}</span>`:''}<b>${esc(r.item||'')}</b><p>${esc(r.descricao||'')}</p>${r.audio_path?'<small>🎙️ áudio anexado</small> ':''}${r.fotos?.length>1?`<small>+${r.fotos.length-1} foto(s)</small> `:''}<small>${fmtHora(r.created_at)}</small></div></div>`;
+  return `<div class="reg">${th}<div class="bd">${tag}${r.fachada?`<span class="tag">${esc(r.fachada.split(' — ')[0])}</span>`:''}<b>${esc(r.item||'')}</b><p>${esc(r.descricao||'')}</p>${txHtml(r)}${r.fotos?.length>1?`<small>+${r.fotos.length-1} foto(s)</small> `:''}<small>${fmtHora(r.created_at)}</small></div></div>`;
 }
 const LB_SETS=[];let _lb={list:[],i:0};
 function lb(src){lbShow([src],0);}
@@ -606,7 +635,7 @@ async function rDetalhe(){
   let h='';
   if(sv.length){const byF={};sv.forEach(r=>{(byF[r.fachada]=byF[r.fachada]||[]).push(r);});
     h+=`<div class="card"><h3>Serviços por fachada</h3>${Object.entries(byF).map(([f,arr])=>`<b style="font-size:13px;display:block;margin:8px 0 4px">${esc(f)}</b>${arr.map(r=>`<div class="ck"><span class="lb">${esc(r.item)}</span><span class="tag ${r.status==='concluido'?'ok':'oc'}">${r.status==='concluido'?'concluído':'em andamento'} ${r.percentual??0}%</span></div>`).join('')}`).join('')}</div>`;}
-  if(ck.length) h+=`<div class="card"><h3>Checklist</h3>${ck.map(r=>`<div class="ck"><span class="lb">${esc(r.item)}${r.descricao?`<small>${esc(r.descricao)}</small>`:''}</span><span class="tag ${r.status==='nc'?'nc':r.status==='ok'?'ok':''}">${r.status==='na'?'N/A':r.status}</span></div>`).join('')}</div>`;
+  if(ck.length) h+=`<div class="card"><h3>Checklist</h3>${ck.map(r=>`<div class="ck"><span class="lb">${esc(r.item)}${r.descricao?`<small>${esc(r.descricao)}</small>`:''}${r.transcricao&&r.transcricao!==r.descricao?`<small>🎙️ ${esc(r.transcricao)}</small>`:''}</span><span class="tag ${r.status==='nc'?'nc':r.status==='ok'?'ok':''}">${r.status==='na'?'N/A':r.status}</span></div>`).join('')}</div>`;
   h+=`<div class="card"><h3>Registros (${outros.length})</h3>${outros.length?outros.map(r=>`<div>${regItem(r)}<div style="text-align:right;margin:-6px 0 6px"><button class="btn sm sec" style="color:var(--red);padding:4px 10px;font-size:12px" onclick="excluirRegistro('${r.id}')">🗑 excluir</button></div></div>`).join(''):'<div class="empty">Sem registros.</div>'}</div>
   <div class="card"><h3>Relatório</h3>
     <div class="row"><button class="btn" onclick="imprimirRelatorio('${esc(v.id)}')">🖨️ Imprimir / salvar PDF</button><button class="btn" onclick="compartilharRelatorio('${esc(v.id)}')">📤 Compartilhar PDF</button></div>
@@ -764,7 +793,7 @@ function relatorioCorpo(v,rs){
   const ncs=outros.filter(r=>r.tipo==='nc'||r.status==='nc'),demais=outros.filter(r=>!(r.tipo==='nc'||r.status==='nc'));
   const stTxt={ok:'Conforme',nc:'Não conforme',na:'N/A',concluido:'Concluído',andamento:'Em andamento',nao_iniciado:'Não iniciado'};
   const regH=r=>`<div class="reg ${r.tipo==='nc'||r.status==='nc'?'nc':''}"><b>${esc(TIPOS[r.tipo]||r.tipo)}${r.item?' — '+esc(r.item):''}</b>${r.nc_resolvida?' <span class="st-ok">(resolvida)</span>':''}<br>
-    ${r.fachada||r.pavimento?`<span class="st-na">Local: ${esc([r.fachada,r.pavimento].filter(Boolean).join(' · '))}</span><br>`:''}${r.descricao?`<div style="white-space:pre-wrap;margin-top:3px">${esc(r.descricao)}</div>`:''}
+    ${r.fachada||r.pavimento?`<span class="st-na">Local: ${esc([r.fachada,r.pavimento].filter(Boolean).join(' · '))}</span><br>`:''}${r.descricao?`<div style="white-space:pre-wrap;margin-top:3px">${esc(r.descricao)}</div>`:''}${r.transcricao&&r.transcricao!==r.descricao?`<div style="white-space:pre-wrap;margin-top:3px;font-style:italic">Observação gravada em áudio: ${esc(r.transcricao)}</div>`:''}
     ${(r.fotos||[]).length?`<div class="fotos">${r.fotos.map(p=>`<img src="${src(p)}" crossorigin="anonymous">`).join('')}</div>`:''}</div>`;
   let h=relCabecalho('Relatório de Vistoria de Obra')+`<h2>Dados da vistoria</h2><table>
     <tr><th style="width:22%">Data</th><td>${fmtBR(v.data)}</td><th style="width:22%">Horário</th><td>${esc((v.hora_inicio||'').slice(0,5))}${v.hora_fim?' às '+esc(String(v.hora_fim).slice(0,5)):''}</td></tr>
@@ -772,7 +801,7 @@ function relatorioCorpo(v,rs){
     <tr><th>Efetivo</th><td colspan="3">${ef.length?ef.map(([f,n])=>`${n} ${esc(plural(f,n))}`).join(', ')+` (total ${ef.reduce((a,[,n])=>a+(+n),0)})`:'não informado'}${v.encarregado?' · encarregado: '+esc(v.encarregado):''}</td></tr></table>`;
   if(sv.length){const byF={};sv.forEach(r=>{(byF[r.fachada]=byF[r.fachada]||[]).push(r);});
     h+=`<h2>Serviços por fachada</h2><table><tr><th>Fachada / local</th><th>Serviço</th><th>Situação</th><th style="width:12%">%</th></tr>${Object.entries(byF).map(([f,a])=>a.map((r,i)=>`<tr>${i?'':`<td rowspan="${a.length}">${esc(f)}</td>`}<td>${esc(r.item)}</td><td>${stTxt[r.status]||esc(r.status)}</td><td>${r.percentual??0}%</td></tr>`).join('')).join('')}</table>`;}
-  if(ck.length) h+=`<h2>Checklist</h2><table><tr><th>Item</th><th style="width:18%">Resultado</th></tr>${ck.map(r=>`<tr><td>${esc(r.item)}${r.descricao?`<br><span class="st-na">${esc(r.descricao)}</span>`:''}</td><td class="st-${r.status}">${stTxt[r.status]||esc(r.status)}</td></tr>`).join('')}</table>`;
+  if(ck.length) h+=`<h2>Checklist</h2><table><tr><th>Item</th><th style="width:18%">Resultado</th></tr>${ck.map(r=>`<tr><td>${esc(r.item)}${r.descricao?`<br><span class="st-na">${esc(r.descricao)}</span>`:''}${r.transcricao&&r.transcricao!==r.descricao?`<br><span class="st-na"><i>Áudio: ${esc(r.transcricao)}</i></span>`:''}</td><td class="st-${r.status}">${stTxt[r.status]||esc(r.status)}</td></tr>`).join('')}</table>`;
   h+=`<h2>Não conformidades (${ncs.length})</h2>${ncs.length?ncs.map(regH).join(''):'<p>Nenhuma não conformidade registrada nesta vistoria.</p>'}`;
   if(demais.length) h+=`<h2>Registros</h2>${demais.map(regH).join('')}`;
   if(v.resumo) h+=`<h2>Observações gerais</h2><div style="white-space:pre-wrap">${esc(v.resumo)}</div>`;

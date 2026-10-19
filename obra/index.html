@@ -92,6 +92,8 @@ textarea.f{min-height:76px;resize:vertical}
 .reg:last-child{border-bottom:0}
 .reg .th{width:64px;height:64px;border-radius:8px;object-fit:cover;background:var(--gray);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px}
 .reg .bd{flex:1;min-width:0}
+.reg .bd.ed{cursor:pointer}.reg .bd.ed:active{opacity:.6}.reg .bd .edh{font-size:11px;color:var(--teal,#1a9c8f);margin-left:6px}
+.photos .ex{position:relative;display:inline-block}.photos .ex img.rm{opacity:.3;outline:2px solid var(--red)}.photos .ex small{position:absolute;left:0;right:0;bottom:0;background:#0008;color:#fff;font-size:10px;text-align:center;border-radius:0 0 8px 8px}
 .reg .bd b{font-size:14px;display:block}
 .reg .bd p{font-size:13px;color:var(--text2);margin-top:2px;white-space:pre-wrap}
 .reg .bd p.tx{color:var(--text);border-left:3px solid var(--teal,#1a9c8f);padding-left:6px;font-style:italic}
@@ -200,7 +202,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261019-5';
+const APP_BUILD='20261019-6';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -319,6 +321,24 @@ async function sincronizarFila(){
           if(audio_path){const loc=visita?.registros?.find(x=>x.id===row.id);if(loc){loc.audio_path=audio_path;saveVisita();}transcreverRegistro(row.id);}
         }
         else if(op.kind==='registro_update'){const {error}=await sb.from('obra_registros').update(op.patch).eq('id',op.id);if(error)throw error;}
+        else if(op.kind==='registro_edit'){
+          const paths=[];
+          for(const b of (op.blobs||[])){
+            const path=`${OBRA_ID}/${op.visita_id}/${Date.now()}_${Math.random().toString(36).slice(2,7)}.jpg`;
+            const {error}=await sb.storage.from(BUCKET).upload(path,b,{contentType:'image/jpeg',cacheControl:'31536000'});
+            if(error)throw error; paths.push(path);
+          }
+          const patch={...op.patch,fotos:[...(op.patch.fotos||[]),...paths]};
+          if(op.audio){
+            patch.audio_path=`${OBRA_ID}/${op.visita_id}/audio_${Date.now()}.webm`;
+            const {error}=await sb.storage.from(BUCKET).upload(patch.audio_path,op.audio,{contentType:op.audio.type||'audio/webm'});
+            if(error)throw error;
+          }
+          const {error}=await sb.from('obra_registros').update(patch).eq('id',op.id);if(error)throw error;
+          const loc=visita?.registros?.find(x=>x.id===op.id);
+          if(loc){loc.fotos=patch.fotos;if(patch.audio_path)loc.audio_path=patch.audio_path;saveVisita();}
+          if(patch.audio_path&&typeof transcreverRegistro==='function')transcreverRegistro(op.id);
+        }
         else if(op.kind==='registros_delete_tipos'){const {error}=await sb.from('obra_registros').delete().eq('visita_id',op.visita_id).in('tipo',op.tipos);if(error)throw error;}
         await idb.del(op.id);
       }catch(e){
@@ -362,6 +382,7 @@ function descreverOp(op){
   if(op.kind==='visita')return `Vistoria ${fmtBR(op.row?.data)} (${op.row?.status==='concluida'?'encerrar':'dados'})`;
   if(op.kind==='registro')return `${(op.row?.tipo||'registro').toUpperCase()} · ${op.row?.item||op.row?.descricao?.slice(0,40)||''}${op.blobs?.length?` · ${op.blobs.length} foto(s)`:''}`;
   if(op.kind==='registro_update')return 'Atualização de registro';
+  if(op.kind==='registro_edit')return `Edição · ${op.patch?.item||(op.patch?.descricao||'').slice(0,40)}${op.blobs?.length?` · ${op.blobs.length} foto(s)`:''}`;
   if(op.kind==='registros_delete_tipos')return 'Regravação de checklist/serviços';
   return op.kind;
 }
@@ -506,12 +527,12 @@ function sv(f,s,st){const k=f+'|'+s;const v=visita.servicos[k]||{};v.status=st;i
 function svp(f,s,p){const k=f+'|'+s;const v=visita.servicos[k]||{};v.pct=Math.max(0,Math.min(100,+p||0));if(!v.status)v.status=v.pct>=100?'concluido':v.pct>0?'andamento':'nao_iniciado';visita.servicos[k]=v;saveVisita();render();}
 function tRegistros(){
   const rs=visita.registros;
-  $('tabBody').innerHTML=`<div class="card"><h3>Registros desta vistoria</h3>${rs.length?rs.slice().reverse().map(regItem).join(''):'<div class="empty">Nenhum registro ainda.<br>Use o botão + para fotografar, apontar NC ou anotar.</div>'}</div>`;
+  $('tabBody').innerHTML=`<div class="card"><h3>Registros desta vistoria</h3>${rs.length?rs.slice().reverse().map(r=>regItem(r,true)).join(''):'<div class="empty">Nenhum registro ainda.<br>Use o botão + para fotografar, apontar NC ou anotar.</div>'}</div>`;
 }
-function regItem(r){
+function regItem(r,editavel){
   const th=r.fotos?.length?`<img class="th" src="${r.fotos[0].startsWith('blob:')?r.fotos[0]:fotoUrl(r.fotos[0])}" onclick="lbSet(${LB_SETS.push(r.fotos.map(p=>p.startsWith('blob:')?p:fotoUrl(p)))-1})">`:`<div class="th">${{nc:'⚠️',ocorrencia:'📌',material:'📦',observacao:'📝',foto:'📷',checklist:'☑️',servico:'🔧'}[r.tipo]||'📄'}</div>`;
   const tag=r.tipo==='nc'||r.status==='nc'?`<span class="tag nc">NC</span>${r.nc_resolvida?'<span class="tag res">resolvida</span>':''}`:`<span class="tag">${esc(TIPOS[r.tipo]||r.tipo)}</span>`;
-  return `<div class="reg">${th}<div class="bd">${tag}${r.fachada?`<span class="tag">${esc(r.fachada.split(' — ')[0])}</span>`:''}<b>${esc(r.item||'')}</b><p>${esc(r.descricao||'')}</p>${txHtml(r)}${r.fotos?.length>1?`<small>+${r.fotos.length-1} foto(s)</small> `:''}<small>${fmtHora(r.created_at)}</small></div></div>`;
+  return `<div class="reg">${th}<div class="bd${editavel?' ed':''}"${editavel?` onclick="editarRegistro('${r.id}')"`:''}>${tag}${r.fachada?`<span class="tag">${esc(r.fachada.split(' — ')[0])}</span>`:''}<b>${esc(r.item||'')}</b><p>${esc(r.descricao||'')}</p>${txHtml(r)}${r.fotos?.length>1?`<small>+${r.fotos.length-1} foto(s)</small> `:''}<small>${fmtHora(r.created_at)}</small></div></div>`;
 }
 const LB_SETS=[];let _lb={list:[],i:0};
 function lb(src){lbShow([src],0);}
@@ -568,18 +589,30 @@ function abrirRegistro(pre={}){
   renderModal();$('modal').classList.add('show');
 }
 function fecharModal(){pararGravacao(true);$('modal').classList.remove('show');reg=null;}
+// Edição de um registro já salvo (campos, fotos e áudio). Mescla com o servidor para não perder fotos anexadas por outro aparelho.
+async function editarRegistro(id){
+  const r=visita?.registros.find(x=>x.id===id);if(!r)return;
+  const byLabel=Object.fromEntries(CHECKLIST.flatMap(g=>g.itens).map(([k,l])=>[l,k]));
+  let fotos=(r.fotos||[]).slice(),audio_path=r.audio_path||null,descricao=r.descricao||'';
+  if(navigator.onLine!==false){try{const {data}=await sb.from('obra_registros').select('fotos,audio_path,descricao,item,fachada,pavimento').eq('id',id).maybeSingle();
+    if(data){const srv=data.fotos||[];fotos=[...srv,...fotos.filter(f=>!srv.includes(f))];if(data.audio_path)audio_path=data.audio_path;if(!descricao&&data.descricao)descricao=data.descricao;Object.assign(r,{fotos,audio_path,descricao,item:r.item||data.item,fachada:r.fachada||data.fachada,pavimento:r.pavimento||data.pavimento});saveVisita();}}catch(e){}}
+  reg={edit:id,tipo:r.tipo,fachada:r.fachada||'',pavimento:r.pavimento||'',item:r.item||'',descricao,blobs:[],previews:[],audio:null,audio_path,
+       ckKey:(r.tipo==='nc'&&byLabel[r.item])||null,fotosExist:fotos.filter(f=>!String(f).startsWith('blob:')),pendentes:fotos.filter(f=>String(f).startsWith('blob:')),removidas:[]};
+  renderModal();$('modal').classList.add('show');
+}
+function togRemover(f){if(!reg)return;const i=reg.removidas.indexOf(f);if(i>=0)reg.removidas.splice(i,1);else reg.removidas.push(f);renderModal();}
 function renderModal(){
   const r=reg;
-  $('sheet').innerHTML=`<h2>${r.ckKey?'Não conformidade no checklist':'Novo registro'}</h2>
+  $('sheet').innerHTML=`<h2>${r.edit?'Editar registro':r.ckKey?'Não conformidade no checklist':'Novo registro'}</h2>
   ${r.ckKey?`<p class="muted" style="margin-bottom:8px"><b>${esc(r.item)}</b></p>`:`<div class="chips">${Object.entries(TIPOS).map(([k,l])=>`<button class="${r.tipo===k?'on '+(k==='nc'?'nc':''):''}" onclick="reg.tipo='${k}';renderModal()">${l}</button>`).join('')}</div>`}
   <label class="f">Local</label><div class="chips">${obra.fachadas.map(f=>`<button class="${r.fachada===f?'on':''}" onclick="reg.fachada=reg.fachada==='${esc(f)}'?'':'${esc(f)}';renderModal()">${esc(f.split(' — ')[0])}</button>`).join('')}</div>
   <div class="row"><div><label class="f">Pavimento / trecho</label><input class="f" value="${esc(r.pavimento)}" placeholder="Ex.: 7º pav., prumada 3" onchange="reg.pavimento=this.value"></div></div>
   ${r.ckKey?'':`<label class="f">Título</label><input class="f" value="${esc(r.item)}" placeholder="${r.tipo==='nc'?'Ex.: Cordas sem proteção na quina':r.tipo==='material'?'Ex.: Argamassa ACIII, 40 sacos':'Ex.: Andamento 6º pavimento'}" onchange="reg.item=this.value">`}
   <label class="f">Descrição</label><textarea class="f" placeholder="Descreva o que foi observado…" onchange="reg.descricao=this.value">${esc(r.descricao)}</textarea>
-  <div class="rec"><button id="btnRec" class="${recorder?'on':''}" onclick="toggleGravacao()">${recorder?'⏹ Parar':'🎙️ Gravar observação'}</button><span class="muted" id="recInfo">${r.audio?'áudio gravado ✓':''}</span></div>
-  <label class="f">Fotos</label><div class="photos">${r.previews.map((p,i)=>`<img src="${p}" onclick="reg.blobs.splice(${i},1);reg.previews.splice(${i},1);renderModal()" title="toque para remover">`).join('')}<button class="add" onclick="$('fileCam').click()">📷</button><button class="add" onclick="$('fileGal').click()">🖼️</button></div>
-  <button class="btn ${r.tipo==='nc'?'red':''}" style="margin-top:16px" onclick="salvarRegistro()">Salvar registro</button>
-  <button class="btn sec" style="margin-top:8px" onclick="cancelarRegistro()">Cancelar</button>`;
+  <div class="rec"><button id="btnRec" class="${recorder?'on':''}" onclick="toggleGravacao()">${recorder?'⏹ Parar':'🎙️ Gravar observação'}</button><span class="muted" id="recInfo">${r.audio?'áudio gravado ✓'+(r.audio_path?' (substitui o anterior)':''):r.audio_path?'🎙️ áudio anexado':''}</span></div>
+  <label class="f">Fotos</label><div class="photos">${(r.fotosExist||[]).map(f=>`<span class="ex" onclick="togRemover('${f}')"><img src="${fotoUrl(f)}" class="${r.removidas.includes(f)?'rm':''}"><small>${r.removidas.includes(f)?'remover ✕':'salva'}</small></span>`).join('')}${(r.pendentes||[]).map(p=>`<span class="ex"><img src="${p}"><small>enviando…</small></span>`).join('')}${r.previews.map((p,i)=>`<img src="${p}" onclick="reg.blobs.splice(${i},1);reg.previews.splice(${i},1);renderModal()" title="toque para remover">`).join('')}<button class="add" onclick="$('fileCam').click()">📷</button><button class="add" onclick="$('fileGal').click()">🖼️</button></div>
+  <button class="btn ${r.tipo==='nc'?'red':''}" style="margin-top:16px" onclick="salvarRegistro()">${r.edit?'Salvar alterações':'Salvar registro'}</button>
+  <button class="btn sec" style="margin-top:8px" onclick="${r.edit?'fecharModal()':'cancelarRegistro()'}">Cancelar</button>`;
 }
 function cancelarRegistro(){if(reg?.ckKey){visita.checklist[reg.ckKey]={status:'nc'};saveVisita();}fecharModal();render();}
 async function addFotos(files){
@@ -602,6 +635,17 @@ async function toggleGravacao(){
 function pararGravacao(silent){if(recorder&&recorder.state!=='inactive'){if(silent)reg=null;recorder.stop();}}
 async function salvarRegistro(){
   const r=reg;if(!r)return;
+  if(r.edit){
+    const loc=visita.registros.find(x=>x.id===r.edit);if(!loc){fecharModal();return;}
+    const mantidas=r.fotosExist.filter(f=>!r.removidas.includes(f));
+    if(!r.item&&!r.descricao&&!mantidas.length&&!r.blobs.length&&!r.audio&&!r.audio_path){toast('Adicione título, descrição ou foto');return;}
+    const patch={tipo:r.tipo,fachada:r.fachada||null,pavimento:r.pavimento||null,item:r.item||null,status:r.tipo==='nc'?'nc':null,descricao:r.descricao||null,fotos:mantidas};
+    Object.assign(loc,patch,{fotos:[...mantidas,...r.pendentes,...r.previews]});if(r.audio)loc.audio_path='local';
+    if(r.ckKey)visita.checklist[r.ckKey]={...(visita.checklist[r.ckKey]||{}),status:'nc',obs:r.descricao||r.item};
+    saveVisita();
+    await idb.add({kind:'registro_edit',id:r.edit,visita_id:visita.id,patch,blobs:r.blobs,audio:r.audio,ts:Date.now()});
+    reg=null;$('modal').classList.remove('show');toast('Registro atualizado');atualizarSync();sincronizar();render();return;
+  }
   if(!r.item&&!r.descricao&&!r.blobs.length&&!r.audio){toast('Adicione título, descrição ou foto');return;}
   const row={id:uuid(),visita_id:visita.id,obra_id:OBRA_ID,tipo:r.tipo,fachada:r.fachada||null,pavimento:r.pavimento||null,item:r.item||null,status:r.tipo==='nc'?'nc':null,descricao:r.descricao||null,fotos:[],user_id:user.id,created_at:new Date().toISOString()};
   if(r.ckKey){visita.checklist[r.ckKey]={status:'nc',obs:r.descricao||r.item};}

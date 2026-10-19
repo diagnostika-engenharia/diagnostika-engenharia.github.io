@@ -97,3 +97,26 @@ drop policy if exists "obra-fotos update" on storage.objects;
 create policy "obra-fotos update" on storage.objects for update to authenticated using (bucket_id = 'obra-fotos');
 drop policy if exists "obra-fotos delete" on storage.objects;
 create policy "obra-fotos delete" on storage.objects for delete to authenticated using (bucket_id = 'obra-fotos');
+
+-- ── Equipe da obra (cadastro de funcionários da executora) · 19/10/2026 ──
+create table if not exists obra_funcionarios (
+  id          uuid primary key default gen_random_uuid(),
+  obra_id     text not null references obra_obras(id),
+  nome        text not null,
+  funcao      text not null,
+  empresa     text,
+  matricula   text,            -- nº da ficha de registro / matrícula
+  observacao  text,
+  ativo       boolean not null default true,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+create index if not exists obra_funcionarios_obra on obra_funcionarios(obra_id, ativo, funcao, nome);
+alter table obra_funcionarios enable row level security;
+drop policy if exists obra_funcionarios_auth on obra_funcionarios;
+create policy obra_funcionarios_auth on obra_funcionarios for all to authenticated using (true) with check (true);
+drop trigger if exists obra_funcionarios_touch on obra_funcionarios;
+create trigger obra_funcionarios_touch before update on obra_funcionarios
+  for each row execute function obra_touch_updated_at();
+-- presença nominal por vistoria: [{id,nome,funcao}] (snapshot, não quebra se o cadastro mudar)
+alter table obra_visitas add column if not exists presentes jsonb not null default '[]'::jsonb;

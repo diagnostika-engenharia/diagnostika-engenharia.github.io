@@ -71,12 +71,14 @@ header a{color:#fff}
  </div>
  <div>
   <div class="card"><div class="mut">Revestimento final concluído com todas as etapas anteriores registradas, ponderado pela área</div><div class="big" id="geral">0%</div>
-   <div id="porFach"></div><div id="pulos"></div></div>
+   <div class="mut" style="margin-top:6px">Por etapa (área com a etapa registrada, base da medição por etapa)</div><div id="porEtapa"></div>
+   <div class="mut" style="margin-top:10px">Por fachada (toque para abrir as etapas)</div><div id="porFach"></div><div id="pulos"></div></div>
   <div class="card" style="margin-top:12px"><h3>Ver até o pavimento</h3>
    <input type="range" id="corte" min="1" max="16" value="16"><div class="mut" id="corteTx">Todos os 16 pavimentos</div>
    <div class="acoes"><label><input type="checkbox" id="giro"> Girar sozinho</label></div>
    <h3 style="margin-top:12px">Mostrar</h3>
-   <div class="acoes" style="margin-top:0"><label><input type="radio" name="modo" value="tiras" checked> Cada etapa em uma tira</label><label><input type="radio" name="modo" value="atual"> Só a etapa alcançada sem pulos</label></div>
+   <div class="acoes" style="margin-top:0"><label><input type="radio" name="modo" value="tiras" checked> Cada etapa em uma tira</label><label><input type="radio" name="modo" value="atual"> Só a etapa alcançada sem pulos</label><label><input type="radio" name="modo" value="real"> Aparência real (pastilha / reboco / pintura)</label></div>
+   <div class="mut" id="legReal" style="display:none;font-size:11px"></div>
   </div>
   <div class="card" style="margin-top:12px" id="sel"><h3>Quadro selecionado</h3><div class="mut">Toque num quadro para ver as etapas registradas.</div></div>
   <div class="card" style="margin-top:12px"><h3>Base das áreas</h3><div id="baseSel"></div><p class="mut" id="baseTx" style="margin:0"></p></div>
@@ -121,6 +123,12 @@ const m=([x,z])=>[(x-CX)/ESC,(z-CZ)/ESC]; // mesma orientação do croqui (pisci
 let st={}; // st[faixa-pav]={m: etapas feitas (bit s = etapa s), por: quem marcou cada etapa e quando, leg}
 let pincel=1, corte=16, modo='tiras';
 const NADA={m:0,por:{},leg:0,step:{}}, est=k=>st[k]||NADA, CINZA=new THREE.Color('#e4e2dc');
+// Modo "real": cor do material que fica à vista em cada quadro. Nível 0 = pastilha original da faixa (mostarda ou verde-escuro,
+// conforme fotos de drone de 19/10 — distribuição por faixa A CONFIRMAR na documentação), 1 = reboco/emboço cinza após a remoção,
+// 2 = regularização (cimentício claro), 3 = fundo preparador (branco acinzentado), 4/5 = revestimento novo (cor final a confirmar com a AAM).
+const REAL={pastMost:'#b8963f',pastVerde:'#3f5a3c',reboco:'#8e8c86',trat:'#b5b2aa',fundo:'#dedbd3',novo:'#c9c4b6'};
+const PAST_VERDE=new Set(['b3','b9','r3','f3','t6']); // faixas largas com pastilha verde-escura (hipótese pelas fotos; ajustar)
+const corReal=(f,nv)=>new THREE.Color(nv>=4?REAL.novo:nv===3?REAL.fundo:nv===2?REAL.trat:nv===1?REAL.reboco:(PAST_VERDE.has(f.id)?REAL.pastVerde:REAL.pastMost));
 
 // ---------- cena ----------
 const box=document.getElementById('cena');
@@ -264,15 +272,19 @@ function mostrarSel(c,on){const {k,f,p}=c.userData, o=est(k), falta=faltando(o.m
 // ---------- percentuais ----------
 function resumo(){
   const tot={},ac={}; Object.keys(FACHN).forEach(k=>{tot[k]=0;ac[k]=0});
-  let pul=0; FAIXAS.forEach(f=>{for(let p=1;p<=PAV;p++){const a=f.a/PAV, m=est(`${f.id}-${p}`).m; tot[f.fc]+=a; if(nivelDe(m)>=4) ac[f.fc]+=a; if(faltando(m).length) pul++;}});
+  // acE[fc][s] = área com a etapa s registrada (cada etapa com o seu %, para a medição por etapa)
+  const acE={}; Object.keys(FACHN).forEach(k=>acE[k]=[0,0,0,0,0,0]); const acT=[0,0,0,0,0,0];
+  let pul=0; FAIXAS.forEach(f=>{for(let p=1;p<=PAV;p++){const a=f.a/PAV, m=est(`${f.id}-${p}`).m; tot[f.fc]+=a; for(let s=1;s<=5;s++) if(tem(m,s)){acE[f.fc][s]+=a; acT[s]+=a;} if(nivelDe(m)>=4) ac[f.fc]+=a; if(faltando(m).length) pul++;}});
   const T=Object.values(tot).reduce((a,b)=>a+b,0), A=Object.values(ac).reduce((a,b)=>a+b,0), pc=v=>v.toFixed(1).replace('.',',')+'%';
   document.getElementById('geral').textContent=pc(A/T*100);
-  document.getElementById('porFach').innerHTML=Object.keys(FACHN).map(k=>`<div class="lin"><span>${FACHN[k]}</span><b>${pc(ac[k]/tot[k]*100)}</b></div><div class="bar"><i style="width:${ac[k]/tot[k]*100}%"></i></div>`).join('');
+  const barrasEt=(ar,t)=>[1,2,3,4,5].map(s=>`<div class="lin" style="font-size:12px"><span><span class="sw" style="background:${ETAPAS[s].c};vertical-align:-2px"></span> ${ETAPAS[s].n}</span><b>${pc(ar[s]/t*100)}</b></div><div class="bar"><i style="width:${ar[s]/t*100}%;background:${ETAPAS[s].c}"></i></div>`).join('');
+  document.getElementById('porEtapa').innerHTML=barrasEt(acT,T);
+  document.getElementById('porFach').innerHTML=Object.keys(FACHN).map(k=>`<details style="margin-top:4px"><summary style="cursor:pointer;list-style:none"><div class="lin"><span>${FACHN[k]}</span><b>${pc(ac[k]/tot[k]*100)}</b></div><div class="bar"><i style="width:${ac[k]/tot[k]*100}%"></i></div><div class="mut" style="font-size:11px">${[1,2,3,4,5].map(s=>MED_ETAPAS_CURTO[s]+' '+pc(acE[k][s]/tot[k]*100)).join(' · ')}</div></summary><div style="padding:4px 0 2px 8px;border-left:2px solid #eee">${barrasEt(acE[k],tot[k])}</div></details>`).join('');
   document.getElementById('pulos').innerHTML=pul?`<p style="background:#fde8e8;border:1px solid #d62828;border-radius:8px;padding:8px;margin:6px 0 0">${pul} quadro${pul>1?'s':''} com etapa pulada (contorno vermelho). Não ${pul>1?'entram':'entra'} como concluído${pul>1?'s':''}.</p>`:'';
 }
 // Tiras: cada etapa na sua cor quando registrada, cinza quando não. Modo "atual": a célula toda na cor da etapa alcançada sem pulos.
 function pintar(c){const o=est(c.userData.k), col=c.geometry.attributes.color, nv=nivelDe(o.m);
-  for(let j=0;j<5;j++){const cor=modo==='atual'?(nv?CORES[nv]:CINZA):(tem(o.m,j+1)?CORES[j+1]:CINZA); for(let v=0;v<6;v++) col.setXYZ(j*6+v,cor.r,cor.g,cor.b);}
+  for(let j=0;j<5;j++){const cor=modo==='real'?corReal(c.userData.f,nv):modo==='atual'?(nv?CORES[nv]:CINZA):(tem(o.m,j+1)?CORES[j+1]:CINZA); for(let v=0;v<6;v++) col.setXYZ(j*6+v,cor.r,cor.g,cor.b);}
   col.needsUpdate=true; c.userData.ed.material.color.set(faltando(o.m).length?'#d62828':'#555');}
 function pintarTudo(){cels.forEach(pintar); resumo();}
 
@@ -330,7 +342,8 @@ renderer.domElement.addEventListener('pointerup',e=>{if(!arr) return; const r=re
   limparQuadros(sel,`a área selecionada (${sel.length} quadro${sel.length>1?'s':''})`);});
 ['pointercancel','pointerleave'].forEach(ev=>renderer.domElement.addEventListener(ev,()=>{if(arr){arr=null;marq.style.display='none';}}));
 document.getElementById('giro').onchange=e=>{ctl.autoRotate=e.target.checked};
-document.querySelectorAll('input[name=modo]').forEach(r=>r.onchange=()=>{modo=r.value; pintarTudo();});
+document.querySelectorAll('input[name=modo]').forEach(r=>r.onchange=()=>{modo=r.value; document.getElementById('legReal').style.display=modo==='real'?'block':'none'; pintarTudo();});
+document.getElementById('legReal').innerHTML=[['pastMost','Pastilha mostarda (original)'],['pastVerde','Pastilha verde-escura (original)'],['reboco','Reboco à vista (após remoção)'],['trat','Regularização'],['fundo','Fundo preparador'],['novo','Revestimento novo (cor final a confirmar)']].map(([k,n])=>`<span class="sw" style="background:${REAL[k]};vertical-align:-2px"></span> ${n}`).join(' &nbsp; ')+'<br>Cores aproximadas pelas fotos de drone de 19/10; a distribuição mostarda/verde por faixa precisa ser confirmada na documentação.';
 document.getElementById('corte').oninput=e=>{corte=+e.target.value;
   cels.forEach(c=>c.visible=c.userData.p<=corte); linhas.forEach(l=>l.visible=l.userData.p<=corte);
   const h=(corte+1)*HP; predio.scale.y=h/ALT; predioEdges.scale.y=h/ALT;

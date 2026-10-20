@@ -8,6 +8,11 @@
 //   Fachada 4 — Lateral Direita  = fc 'piscina'
 const MED_FACH={rua:'Fachada 1 — Frontal',oposta:'Fachada 2 — Lateral Esquerda',churrasqueira:'Fachada 3 — Posterior',piscina:'Fachada 4 — Lateral Direita'};
 const MED_PAV=16;
+// Etapas do quadro (mesma ordem das tiras do 3D e da Planta). Cada etapa tem o seu % de área, para a medição por etapa
+// (ex.: 30% das pastilhas removidas → libera 30% da etapa de remoção no cronograma físico-financeiro).
+const MED_ETAPAS=['','Remoção de pastilhas','Tratamento / regularização','Fundo preparador','Revestimento final','Aprovado (fiscalização)'];
+const MED_ETAPAS_CURTO=['','Remoção','Tratamento','Fundo','Revestimento','Aprovado'];
+const MED_CORES=['','#e8a33d','#d8c24a','#8ec1e0','#2e7fb0','#2f9e5b'];
 // Faixas de pastilha (id, área do croqui em m², fachada do cronograma AAM). Geometria de desenho fica em cada página.
 const MED_FAIXAS=[
  {id:'b1',a:96,fc:'oposta'},{id:'b2',a:112,fc:'oposta'},{id:'b3',a:147.2,fc:'oposta'},{id:'b4',a:32,fc:'oposta'},{id:'b5',a:96,fc:'oposta'},{id:'b6',a:216,fc:'oposta'},
@@ -63,11 +68,17 @@ function medirAvanco(rows){
   const d={}; let atualizado=null;
   (rows||[]).forEach(r=>{if(!r||!String(r.chave).startsWith('3d:'))return; d[r.chave]=r; if(r.updated_at&&(!atualizado||r.updated_at>atualizado)) atualizado=r.updated_at;});
   const st=etapasMontar(d,'3d:');
-  const fach={}; Object.entries(MED_FACH).forEach(([fc,n])=>fach[n]={fc,pct:0,area:0,feita:0,quadros:0,feitos:0});
+  const fach={}; Object.entries(MED_FACH).forEach(([fc,n])=>fach[n]={fc,pct:0,area:0,feita:0,quadros:0,feitos:0,et:[0,0,0,0,0,0],etArea:[0,0,0,0,0,0]});
   let pul=0;
   MED_FAIXAS.forEach(f=>{const a=medArea(f.id)/MED_PAV, o=fach[MED_FACH[f.fc]];
-    for(let p=1;p<=MED_PAV;p++){const m=(st[`${f.id}-${p}`]||{m:0}).m; o.area+=a; o.quadros++; if(nivelDe(m)>=4){o.feita+=a;o.feitos++;} if(faltando(m).length) pul++;}});
-  let A=0,T=0,Q=0; Object.values(fach).forEach(o=>{o.pct=o.area?o.feita/o.area*100:0; A+=o.feita; T+=o.area; Q+=o.quadros;});
-  return {geral:T?A/T*100:0,area:T,feita:A,fach,pulados:pul,quadros:Q,atualizado,marcado:Object.keys(d).length>0};
+    for(let p=1;p<=MED_PAV;p++){const m=(st[`${f.id}-${p}`]||{m:0}).m; o.area+=a; o.quadros++; for(let s=1;s<=5;s++) if(tem(m,s)) o.etArea[s]+=a; if(nivelDe(m)>=4){o.feita+=a;o.feitos++;} if(faltando(m).length) pul++;}});
+  let A=0,T=0,Q=0; const etArea=[0,0,0,0,0,0];
+  // et[s] = área com a etapa s registrada ÷ área total (independe das outras etapas): é o % que vale para a medição daquela etapa.
+  Object.values(fach).forEach(o=>{o.pct=o.area?o.feita/o.area*100:0; for(let s=1;s<=5;s++){o.et[s]=o.area?o.etArea[s]/o.area*100:0; etArea[s]+=o.etArea[s];} A+=o.feita; T+=o.area; Q+=o.quadros;});
+  const et=etArea.map(v=>T?v/T*100:0);
+  return {geral:T?A/T*100:0,area:T,feita:A,et,etArea,fach,pulados:pul,quadros:Q,atualizado,marcado:Object.keys(d).length>0};
 }
 const medPct=v=>(Math.round(v*10)/10).toFixed(1).replace('.',',')+'%';
+
+// Texto curto do avanço por etapa de um objeto com et[] (geral ou fachada): "Remoção 12,5% · Tratamento 0,0% · …"
+const medEtapasTxt=o=>o&&o.et?[1,2,3,4,5].map(s=>MED_ETAPAS_CURTO[s]+' '+medPct(o.et[s])).join(' · '):'';

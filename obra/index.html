@@ -206,7 +206,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261020-05';
+const APP_BUILD='20261020-06';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -527,7 +527,7 @@ function visItem(v){
 
 // ═══════════════ VISITA ATIVA ═══════════════
 function novaVisita(){
-  visita={id:uuid(),obra_id:OBRA_ID,data:hoje(),hora_inicio:agora(),hora_fim:null,engenheiro:nomeUser(),user_id:user.id,clima:'',temperatura:'',paralisacao:false,efetivo:{},encarregado:'',lider:'',resumo:'',presentes:[],status:'em_andamento',device_id:deviceId,
+  ultServ=null;visita={id:uuid(),obra_id:OBRA_ID,data:hoje(),hora_inicio:agora(),hora_fim:null,engenheiro:nomeUser(),user_id:user.id,clima:'',temperatura:'',paralisacao:false,efetivo:{},encarregado:'',lider:'',resumo:'',presentes:[],status:'em_andamento',device_id:deviceId,
     checklist:{},servicos:{},registros:[]};
   saveVisita();
   enfileirar({kind:'visita',row:rowVisita()});
@@ -630,13 +630,24 @@ function ck(k,st){
   visita.checklist[k]={...(visita.checklist[k]||{}),status:st};saveVisita();
   if(st==='nc') abrirRegistro({tipo:'nc',item:label,ckKey:k}); else render();
 }
+// Último status de cada serviço nas vistorias anteriores (referência cinza ao lançar o novo)
+let ultServ=null,ultServCarregando=false;
+async function carregarUltServ(){
+  if(ultServCarregando||navigator.onLine===false)return;ultServCarregando=true;
+  try{const {data}=await sb.from('obra_registros').select('fachada,item,status,percentual,created_at,visita_id,obra_visitas(data)').eq('obra_id',OBRA_ID).eq('tipo','servico').limit(5000);
+    const u={};(data||[]).forEach(r=>{if(visita&&r.visita_id===visita.id)return;const k=r.fachada+'|'+r.item;const d=(r.obra_visitas?.data||'')+r.created_at;if(!u[k]||d>u[k].d)u[k]={status:r.status,pct:r.percentual??(r.status==='concluido'?100:0),data:r.obra_visitas?.data,d};});
+    ultServ=u;if(view==='visita'&&tab==='servicos')render();
+  }catch(e){}finally{ultServCarregando=false;}
+}
+const ST_LABEL={nao_iniciado:'não iniciado',andamento:'em andamento',concluido:'concluído'};
 function tServicos(){
+  if(!ultServ)carregarUltServ();
   $('tabBody').innerHTML=obra.fachadas.map((f,fi)=>{
     const pcts=SERVICOS.map(s=>visita.servicos[f+'|'+s]?.pct??0);const media=Math.round(pcts.reduce((a,b)=>a+b,0)/SERVICOS.length);
     return `<details class="fach" ${fachAbertas.has(fi)?'open':''} ontoggle="this.open?fachAbertas.add(${fi}):fachAbertas.delete(${fi})"><summary><span>${esc(f)}${(()=>{const ns=SERVICOS.filter(s=>visita.servicos[f+'|'+s]?.status).length;const nr=visita.registros.filter(r=>r.fachada===f).length;return ns||nr?`<span class="fbadge">${[ns?ns+' serv.':'',nr?nr+' reg.':''].filter(Boolean).join(' · ')}</span>`:'';})()}</span><span class="bar"><i style="width:${media}%"></i></span></summary><div class="body">
-    ${SERVICOS.map(s=>{const v=visita.servicos[f+'|'+s]||{};const st=v.status||'';return `<div class="ck"><span class="lb">${s}</span>
+    ${SERVICOS.map(s=>{const v=visita.servicos[f+'|'+s]||{};const st=v.status||'';const u=ultServ&&ultServ[f+'|'+s];return `<div class="ck"><span class="lb">${s}${u?`<small style="color:var(--gray4,#94a3b8)">anterior: ${ST_LABEL[u.status]||u.status} ${u.pct}%${u.data?' · '+fmtBR(u.data):''}</small>`:''}</span>
       <div class="seg"><button class="${st==='nao_iniciado'?'s0':''}" onclick="sv('${esc(f)}','${s}','nao_iniciado')">–</button><button class="${st==='andamento'?'s1':''}" onclick="sv('${esc(f)}','${s}','andamento')">▶</button><button class="${st==='concluido'?'s2':''}" onclick="sv('${esc(f)}','${s}','concluido')">✓</button></div>
-      <input class="pct" inputmode="numeric" placeholder="%" value="${v.pct??''}" onchange="svp('${esc(f)}','${s}',this.value)"></div>`;}).join('')}
+      <input class="pct" inputmode="numeric" placeholder="${u?u.pct+'%':'%'}" value="${v.pct??''}" onchange="svp('${esc(f)}','${s}',this.value)"></div>`;}).join('')}
     <button class="btn sec sm" style="margin:8px 0 4px" onclick="abrirRegistro({tipo:'foto',fachada:'${esc(f)}'})">📷 Foto desta fachada</button></div></details>`;}).join('');
 }
 const fachAbertas=new Set();

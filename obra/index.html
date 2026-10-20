@@ -206,7 +206,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261020-04';
+const APP_BUILD='20261020-05';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -965,7 +965,7 @@ h2{font-size:12px;color:#155B67;text-transform:uppercase;letter-spacing:.4px;bor
 table{width:100%;border-collapse:collapse}td,th{border:1px solid #E0EAEC;padding:4px 6px;text-align:left;vertical-align:top}th{background:#F0F4F5;font-weight:600}tr{break-inside:avoid}
 .st-ok{color:#1B8A4A;font-weight:700}.st-nc{color:#C00000;font-weight:700}.st-na{color:#5A7A7E}
 .reg{border:1px solid #E0EAEC;border-radius:6px;padding:8px;margin-bottom:8px;break-inside:avoid}.reg.nc{border-left:4px solid #C00000}.reg b{font-size:12px}
-.fotos{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}.fotos img{width:100%;height:150px;object-fit:cover;border-radius:4px}
+.fotos{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:6px;margin-top:6px}.fotos img{width:100%;height:auto;max-height:420px;object-fit:contain;background:#f1f5f9;border-radius:4px;page-break-inside:avoid}
 .rel-ft{margin-top:18px;border-top:1px solid #E0EAEC;padding-top:6px;font-size:9px;color:#5A7A7E;text-align:center}`;
 function relCabecalho(t){return `<div class="rel-hd"><img src="${new URL('../assets/logo-dark.png',location.href).href}" alt="Diagnóstika"><div><b>${esc(t)}</b>${esc(obra.nome)}<br>${esc(obra.executora||'')}</div></div>`;}
 function relRodape(){return `<div class="rel-ft">Diagnóstika Engenharia · gerado em ${new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})}</div>`;}

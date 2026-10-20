@@ -204,7 +204,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261019-16';
+const APP_BUILD='20261020-01';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -634,8 +634,9 @@ function tServicos(){
     <button class="btn sec sm" style="margin:8px 0 4px" onclick="abrirRegistro({tipo:'foto',fachada:'${esc(f)}'})">📷 Foto desta fachada</button></div></details>`;}).join('');
 }
 const fachAbertas=new Set();
-function sv(f,s,st){const k=f+'|'+s;const v=visita.servicos[k]||{};v.status=st;if(st==='concluido')v.pct=100;if(st==='nao_iniciado')v.pct=0;visita.servicos[k]=v;saveVisita();render();}
-function svp(f,s,p){const k=f+'|'+s;const v=visita.servicos[k]||{};v.pct=Math.max(0,Math.min(100,+p||0));if(!v.status)v.status=v.pct>=100?'concluido':v.pct>0?'andamento':'nao_iniciado';visita.servicos[k]=v;saveVisita();render();}
+// tocar de novo no status já marcado desmarca o serviço (sai do relatório do dia)
+function sv(f,s,st){const k=f+'|'+s;const v=visita.servicos[k]||{};if(v.status===st){delete visita.servicos[k];saveVisita();render();toast('Serviço desmarcado');return;}v.status=st;if(st==='concluido')v.pct=100;if(st==='nao_iniciado')v.pct=0;visita.servicos[k]=v;saveVisita();render();}
+function svp(f,s,p){const k=f+'|'+s;if(String(p).trim()===''){delete visita.servicos[k];saveVisita();render();return;}const v=visita.servicos[k]||{};v.pct=Math.max(0,Math.min(100,+p||0));if(!v.status)v.status=v.pct>=100?'concluido':v.pct>0?'andamento':'nao_iniciado';visita.servicos[k]=v;saveVisita();render();}
 function tRegistros(){
   const rs=visita.registros;
   $('tabBody').innerHTML=`<div class="card"><h3>Registros desta vistoria</h3>${rs.length?rs.slice().reverse().map(r=>regItem(r,true)).join(''):'<div class="empty">Nenhum registro ainda.<br>Use o botão + para fotografar, apontar NC ou anotar.</div>'}</div>`;

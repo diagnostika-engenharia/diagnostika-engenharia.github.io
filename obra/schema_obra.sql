@@ -126,3 +126,66 @@ alter table obra_visitas add column if not exists presentes jsonb not null defau
 -- 20/10/2026: colunas adicionadas depois da criação
 alter table obra_funcionarios add column if not exists telefone text;
 alter table obra_visitas add column if not exists lider text;
+
+-- ============================================================================
+-- 20-10-2026 — RLS por equipe (item 3 da CHECAGEM_GERAL_20-10-2026, §3)
+-- Antes: toda policy obra_* era "authenticated using(true)", ou seja, um síndico
+-- logado no Portal (user_condos.role='sindico') também podia ler/escrever as
+-- vistorias. Agora só a equipe Diagnóstika (usuário autenticado SEM linha de
+-- síndico em user_condos) acessa obra_*; o service_role (n8n/robôs) ganha GRANT.
+-- A RPC pública obra_mapa_publico (security definer) continua servindo o link
+-- do mapa a quem não faz login — não mexer nela.
+-- Rodar inteiro no SQL Editor do Supabase (projeto fimmjgdwhifsrrbreche).
+-- NÃO FOI EXECUTADO NO BANCO AINDA (pendente de o Rogério rodar).
+-- ============================================================================
+
+create or replace function public.is_equipe_dk()
+returns boolean
+language plpgsql stable security definer
+set search_path = public, pg_catalog
+set row_security = off
+as $$
+begin
+  if auth.uid() is null then return false; end if;
+  return not exists (
+    select 1 from public.user_condos uc
+    where uc.user_id = auth.uid() and uc.role = 'sindico'
+  );
+end $$;
+revoke all on function public.is_equipe_dk() from public;
+grant execute on function public.is_equipe_dk() to authenticated, service_role;
+
+-- tabelas do app (RLS já ligado em todas)
+drop policy if exists obra_obras_auth        on obra_obras;
+drop policy if exists obra_visitas_auth      on obra_visitas;
+drop policy if exists obra_registros_auth    on obra_registros;
+drop policy if exists obra_funcionarios_auth on obra_funcionarios;
+drop policy if exists obra_mapa_auth         on obra_mapa;
+drop policy if exists obra_mapa_hist_ler     on obra_mapa_hist;
+drop policy if exists obra_mapa_links_auth   on obra_mapa_links;
+
+create policy obra_obras_equipe        on obra_obras        for all to authenticated using (public.is_equipe_dk()) with check (public.is_equipe_dk());
+create policy obra_visitas_equipe      on obra_visitas      for all to authenticated using (public.is_equipe_dk()) with check (public.is_equipe_dk());
+create policy obra_registros_equipe    on obra_registros    for all to authenticated using (public.is_equipe_dk()) with check (public.is_equipe_dk());
+create policy obra_funcionarios_equipe on obra_funcionarios for all to authenticated using (public.is_equipe_dk()) with check (public.is_equipe_dk());
+create policy obra_mapa_equipe         on obra_mapa         for all to authenticated using (public.is_equipe_dk()) with check (public.is_equipe_dk());
+create policy obra_mapa_hist_equipe    on obra_mapa_hist    for select to authenticated using (public.is_equipe_dk());
+create policy obra_mapa_links_equipe   on obra_mapa_links   for all to authenticated using (public.is_equipe_dk()) with check (public.is_equipe_dk());
+
+-- storage: leitura pública do bucket fica como está (fotos nos relatórios/links);
+-- escrita só pela equipe
+drop policy if exists "obra-fotos escrita" on storage.objects;
+drop policy if exists "obra-fotos update"  on storage.objects;
+drop policy if exists "obra-fotos delete"  on storage.objects;
+create policy "obra-fotos escrita" on storage.objects for insert to authenticated with check (bucket_id = 'obra-fotos' and public.is_equipe_dk());
+create policy "obra-fotos update"  on storage.objects for update to authenticated using (bucket_id = 'obra-fotos' and public.is_equipe_dk());
+create policy "obra-fotos delete"  on storage.objects for delete to authenticated using (bucket_id = 'obra-fotos' and public.is_equipe_dk());
+
+-- backend (n8n / robôs com service_role): hoje dá 42501 "permission denied for table obra_visitas"
+grant usage on schema public to service_role;
+grant all on table obra_obras, obra_visitas, obra_registros, obra_funcionarios, obra_mapa, obra_mapa_hist, obra_mapa_links to service_role;
+grant usage, select on all sequences in schema public to service_role;
+
+-- conferência rápida depois de rodar (logado como equipe deve dar true; como síndico, false):
+-- select public.is_equipe_dk();
+-- select policyname, tablename from pg_policies where tablename like 'obra_%' order by 2,1;

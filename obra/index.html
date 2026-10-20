@@ -83,6 +83,8 @@ textarea.f{min-height:76px;resize:vertical}
 .seg button.s2{background:var(--green);color:#fff}
 .pct{width:64px;padding:8px 6px;border:1.5px solid var(--gray2);border-radius:8px;font-size:14px;text-align:center}
 .fach{margin-bottom:10px}
+.fach .fbadge{background:var(--red,#b91c1c);color:#fff;font-size:11px;font-weight:700;border-radius:999px;padding:2px 8px;margin-left:8px;white-space:nowrap}
+.fach summary>span:first-child{display:flex;align-items:center;flex:1;min-width:0}
 .fach summary{list-style:none;display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--turq-lt);border-radius:var(--r-sm);font-weight:700;color:var(--teal-dk);cursor:pointer}
 .fach summary::-webkit-details-marker{display:none}
 .fach summary .bar{height:6px;background:#fff;border-radius:3px;width:80px;overflow:hidden}
@@ -204,7 +206,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261020-01';
+const APP_BUILD='20261020-02';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -627,7 +629,7 @@ function ck(k,st){
 function tServicos(){
   $('tabBody').innerHTML=obra.fachadas.map((f,fi)=>{
     const pcts=SERVICOS.map(s=>visita.servicos[f+'|'+s]?.pct??0);const media=Math.round(pcts.reduce((a,b)=>a+b,0)/SERVICOS.length);
-    return `<details class="fach" ${fachAbertas.has(fi)?'open':''} ontoggle="this.open?fachAbertas.add(${fi}):fachAbertas.delete(${fi})"><summary><span>${esc(f)}</span><span class="bar"><i style="width:${media}%"></i></span></summary><div class="body">
+    return `<details class="fach" ${fachAbertas.has(fi)?'open':''} ontoggle="this.open?fachAbertas.add(${fi}):fachAbertas.delete(${fi})"><summary><span>${esc(f)}${(()=>{const ns=SERVICOS.filter(s=>visita.servicos[f+'|'+s]?.status).length;const nr=visita.registros.filter(r=>r.fachada===f).length;return ns||nr?`<span class="fbadge">${[ns?ns+' serv.':'',nr?nr+' reg.':''].filter(Boolean).join(' · ')}</span>`:'';})()}</span><span class="bar"><i style="width:${media}%"></i></span></summary><div class="body">
     ${SERVICOS.map(s=>{const v=visita.servicos[f+'|'+s]||{};const st=v.status||'';return `<div class="ck"><span class="lb">${s}</span>
       <div class="seg"><button class="${st==='nao_iniciado'?'s0':''}" onclick="sv('${esc(f)}','${s}','nao_iniciado')">–</button><button class="${st==='andamento'?'s1':''}" onclick="sv('${esc(f)}','${s}','andamento')">▶</button><button class="${st==='concluido'?'s2':''}" onclick="sv('${esc(f)}','${s}','concluido')">✓</button></div>
       <input class="pct" inputmode="numeric" placeholder="%" value="${v.pct??''}" onchange="svp('${esc(f)}','${s}',this.value)"></div>`;}).join('')}

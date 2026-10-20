@@ -207,7 +207,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261020-10';
+const APP_BUILD='20261020-11';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -391,7 +391,7 @@ async function sincronizarFila(){
         if(op.kind==='visita'){const {data,error}=await sb.from('obra_visitas').upsert(op.row,{onConflict:'id'}).select('updated_at');if(error)throw error;if(data?.[0])registrarUpd(op.row.id,data[0].updated_at,op.row);}
         else if(op.kind==='visita_patch'){
           const tentar=async e=>{let q=sb.from('obra_visitas').update(op.patch).eq('id',op.vid);q=e?q.eq('updated_at',e):q.eq('status','em_andamento');const {data,error}=await q.select('id,updated_at');if(error)throw error;return data?.[0]||null;};
-          let r=await tentar(srvUpd[op.vid]||op.expect||null);
+          let r=await tentar([op.expect,srvUpd[op.vid]].filter(Boolean).sort().pop()||null); // o mais recente dos dois
           if(!r){
             const {data:atual,error}=await sb.from('obra_visitas').select('id,data,status,engenheiro,device_id,updated_at').eq('id',op.vid).maybeSingle();if(error)throw error;
             if(!atual)throw new Error('vistoria ainda não existe no servidor');

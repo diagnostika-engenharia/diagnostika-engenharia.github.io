@@ -122,6 +122,7 @@ const ESC=60, CX=1008, CZ=775, PAV=16, HP=3, PREF='3d:';
 const m=([x,z])=>[(x-CX)/ESC,(z-CZ)/ESC]; // mesma orientação do croqui (piscina à direita de quem está na rua)
 let st={}; // st[faixa-pav]={m: etapas feitas (bit s = etapa s), por: quem marcou cada etapa e quando, leg}
 let pincel=1, corte=16, modo='tiras';
+const ET_CURTO=['','Remoção','Tratamento','Fundo','Revestimento','Aprovado'];
 const NADA={m:0,por:{},leg:0,step:{}}, est=k=>st[k]||NADA, CINZA=new THREE.Color('#e4e2dc');
 // Modo "real": cor do material que fica à vista em cada quadro. Nível 0 = pastilha original da faixa (mostarda ou verde-escuro,
 // conforme fotos de drone de 19/10 — distribuição por faixa A CONFIRMAR na documentação), 1 = reboco/emboço cinza após a remoção,
@@ -279,7 +280,7 @@ function resumo(){
   document.getElementById('geral').textContent=pc(A/T*100);
   const barrasEt=(ar,t)=>[1,2,3,4,5].map(s=>`<div class="lin" style="font-size:12px"><span><span class="sw" style="background:${ETAPAS[s].c};vertical-align:-2px"></span> ${ETAPAS[s].n}</span><b>${pc(ar[s]/t*100)}</b></div><div class="bar"><i style="width:${ar[s]/t*100}%;background:${ETAPAS[s].c}"></i></div>`).join('');
   document.getElementById('porEtapa').innerHTML=barrasEt(acT,T);
-  document.getElementById('porFach').innerHTML=Object.keys(FACHN).map(k=>`<details style="margin-top:4px"><summary style="cursor:pointer;list-style:none"><div class="lin"><span>${FACHN[k]}</span><b>${pc(ac[k]/tot[k]*100)}</b></div><div class="bar"><i style="width:${ac[k]/tot[k]*100}%"></i></div><div class="mut" style="font-size:11px">${[1,2,3,4,5].map(s=>MED_ETAPAS_CURTO[s]+' '+pc(acE[k][s]/tot[k]*100)).join(' · ')}</div></summary><div style="padding:4px 0 2px 8px;border-left:2px solid #eee">${barrasEt(acE[k],tot[k])}</div></details>`).join('');
+  document.getElementById('porFach').innerHTML=Object.keys(FACHN).map(k=>`<details style="margin-top:4px"><summary style="cursor:pointer;list-style:none"><div class="lin"><span>${FACHN[k]}</span><b>${pc(ac[k]/tot[k]*100)}</b></div><div class="bar"><i style="width:${ac[k]/tot[k]*100}%"></i></div><div class="mut" style="font-size:11px">${[1,2,3,4,5].map(s=>ET_CURTO[s]+' '+pc(acE[k][s]/tot[k]*100)).join(' · ')}</div></summary><div style="padding:4px 0 2px 8px;border-left:2px solid #eee">${barrasEt(acE[k],tot[k])}</div></details>`).join('');
   document.getElementById('pulos').innerHTML=pul?`<p style="background:#fde8e8;border:1px solid #d62828;border-radius:8px;padding:8px;margin:6px 0 0">${pul} quadro${pul>1?'s':''} com etapa pulada (contorno vermelho). Não ${pul>1?'entram':'entra'} como concluído${pul>1?'s':''}.</p>`:'';
 }
 // Tiras: cada etapa na sua cor quando registrada, cinza quando não. Modo "atual": a célula toda na cor da etapa alcançada sem pulos.

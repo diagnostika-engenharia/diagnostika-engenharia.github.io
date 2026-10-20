@@ -136,7 +136,7 @@ alter table obra_visitas add column if not exists lider text;
 -- A RPC pública obra_mapa_publico (security definer) continua servindo o link
 -- do mapa a quem não faz login — não mexer nela.
 -- Rodar inteiro no SQL Editor do Supabase (projeto fimmjgdwhifsrrbreche).
--- NÃO FOI EXECUTADO NO BANCO AINDA (pendente de o Rogério rodar).
+-- EXECUTADO no banco em 20/10/2026 ~17:05 BRT (SQL Editor, sessão do Rogério); conferido: 7 policies *_equipe + storage, app OK.
 -- ============================================================================
 
 create or replace function public.is_equipe_dk()

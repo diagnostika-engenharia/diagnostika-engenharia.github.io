@@ -206,7 +206,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261020-03';
+const APP_BUILD='20261020-04';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -730,7 +730,23 @@ function renderModal(){
   <div class="rec"><button id="btnRec" class="${recorder?'on':''}" onclick="toggleGravacao()">${recorder?'⏹ Parar':'🎙️ Gravar observação'}</button><span class="muted" id="recInfo">${r.audio?'áudio gravado ✓'+(r.audio_path?' (substitui o anterior)':''):r.audio_path?'🎙️ áudio anexado':''}</span></div>
   <label class="f">Fotos</label><div class="photos">${(r.fotosExist||[]).map(f=>`<span class="ex" onclick="togRemover('${f}')"><img src="${fotoUrl(f)}" class="${r.removidas.includes(f)?'rm':''}"><small>${r.removidas.includes(f)?'remover ✕':'salva'}</small></span>`).join('')}${(r.pendentes||[]).map(p=>`<span class="ex"><img src="${p}"><small>enviando…</small></span>`).join('')}${r.previews.map((p,i)=>`<img src="${p}" onclick="reg.blobs.splice(${i},1);reg.previews.splice(${i},1);renderModal()" title="toque para remover">`).join('')}<button class="add" onclick="$('fileCam').click()">📷</button><button class="add" onclick="$('fileGal').click()">🖼️</button></div>
   <button class="btn ${r.tipo==='nc'?'red':''}" style="margin-top:16px" onclick="salvarRegistro()">${r.edit?'Salvar alterações':'Salvar registro'}</button>
-  <button class="btn sec" style="margin-top:8px" onclick="${r.edit?'fecharModal()':'cancelarRegistro()'}">Cancelar</button>`;
+  <button class="btn sec" style="margin-top:8px" onclick="${r.edit?'fecharModal()':'cancelarRegistro()'}">Cancelar</button>
+  ${r.edit?`<button class="btn sec" style="margin-top:14px;color:var(--red);border-color:var(--red)" onclick="excluirRegistroAtivo('${r.edit}')">🗑 Excluir registro</button>`:''}`;
+}
+// Exclui registro da vistoria em andamento: some da lista local, do banco e do storage (fotos/áudio)
+async function excluirRegistroAtivo(id){
+  const r=visita?.registros.find(x=>x.id===id);if(!r)return;
+  if(!confirm('Excluir este registro'+((r.fotos||[]).length?' e suas fotos':'')+'? Não dá para desfazer.'))return;
+  if(navigator.onLine!==false){try{
+    const {data:d}=await sb.from('obra_registros').select('fotos,audio_path').eq('id',id).maybeSingle();
+    const paths=[...(d?.fotos||[]),...(d?.audio_path?[d.audio_path]:[])].filter(f=>!String(f).startsWith('blob:'));
+    if(paths.length)await sb.storage.from(BUCKET).remove(paths);
+    const {error}=await sb.from('obra_registros').delete().eq('id',id);if(error)throw error;
+  }catch(e){toast('Erro ao excluir no servidor: '+(e.message||e));return;}}
+  else{toast('Excluir exige conexão');return;}
+  visita.registros=visita.registros.filter(x=>x.id!==id);
+  if(r.tipo==='nc'&&r.item){const k=CHECKLIST.flatMap(g=>g.itens).find(([,l])=>l===r.item)?.[0];if(k&&visita.checklist[k]?.status==='nc'&&!visita.registros.some(x=>x.tipo==='nc'&&x.item===r.item))delete visita.checklist[k];}
+  reg=null;saveVisita();fecharModal();toast('Registro excluído');render();
 }
 function cancelarRegistro(){if(reg?.ckKey){visita.checklist[reg.ckKey]={status:'nc'};saveVisita();}fecharModal();render();}
 async function addFotos(files){

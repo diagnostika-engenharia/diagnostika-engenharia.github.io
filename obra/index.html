@@ -206,7 +206,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261020-07';
+const APP_BUILD='20261020-08';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -965,10 +965,10 @@ async function rAndamento(){
   const pct=(f,s)=>ult[f+'|'+s]?.percentual??(ult[f+'|'+s]?.status==='concluido'?100:0);
   const mediaF=f=>Math.round(SERVICOS.reduce((a,s)=>a+pct(f,s),0)/SERVICOS.length);
   const geral=Math.round(obra.fachadas.reduce((a,f)=>a+mediaF(f),0)/obra.fachadas.length);
-  const ncF={};dedupNc(ncs).forEach(r=>{const k=r.fachada||'Sem local';ncF[k]=(ncF[k]||0)+1;});
+  const ncF={},ncsD=dedupNc(ncs);ncsD.forEach(r=>{const k=r.fachada||'Sem local';ncF[k]=(ncF[k]||0)+1;});
   const datas=Object.values(ult).map(r=>r.obra_visitas?.data).filter(Boolean).sort();
   const bar=(p,h=8)=>`<span style="display:block;height:${h}px;background:var(--gray2);border-radius:${h/2}px;overflow:hidden"><i style="display:block;height:100%;width:${p}%;background:${p>=100?'var(--green)':'var(--lime)'}"></i></span>`;
-  $('view').innerHTML=`<div class="obra-hd"><b>Andamento geral: ${geral}%</b>${bar(geral,10)}<small style="display:block;margin-top:6px">${datas.length?'Última atualização na vistoria de '+fmtBR(datas[datas.length-1]):'Nenhum serviço registrado ainda'} · ${(ncs||[]).length} NC(s) aberta(s)</small></div>
+  $('view').innerHTML=`<div class="obra-hd"><b>Andamento geral: ${geral}%</b>${bar(geral,10)}<small style="display:block;margin-top:6px">${datas.length?'Última atualização na vistoria de '+fmtBR(datas[datas.length-1]):'Nenhum serviço registrado ainda'} · ${ncsD.length} NC(s) aberta(s)</small></div>
   <div class="and-grid">${obra.fachadas.map(f=>{const m=mediaF(f);return `<div class="card"><h3 style="display:flex;justify-content:space-between"><span>${esc(f)}</span><span>${m}%</span></h3>${bar(m)}
     ${ncF[f]?`<p style="margin:8px 0 0"><span class="tag nc">${ncF[f]} NC aberta${ncF[f]>1?'s':''}</span></p>`:''}
     <div style="margin-top:8px">${SERVICOS.map(s=>{const p=pct(f,s),u=ult[f+'|'+s];return `<div style="padding:6px 0;border-bottom:1px solid var(--gray2)"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>${esc(s)}</span><b style="color:${p>=100?'var(--green)':p>0?'var(--amber)':'var(--gray4)'}">${p}%</b></div>${bar(p,5)}${u?`<small class="muted">atualizado em ${fmtBR(u.obra_visitas?.data)}</small>`:''}</div>`;}).join('')}</div></div>`;}).join('')}</div>

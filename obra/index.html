@@ -206,7 +206,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261020-06';
+const APP_BUILD='20261020-07';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -384,11 +384,12 @@ async function sincronizarFila(){
           if(loc){loc.fotos=patch.fotos;if(patch.audio_path)loc.audio_path=patch.audio_path;saveVisita();}
           if(patch.audio_path&&typeof transcreverRegistro==='function')transcreverRegistro(op.id,true);
         }
+        else if(op.kind==='visita_delete'){const {error}=await sb.from('obra_visitas').delete().eq('id',op.visita_id).eq('status','em_andamento');if(error)throw error;}
         else if(op.kind==='registros_delete_tipos'){const {error}=await sb.from('obra_registros').delete().eq('visita_id',op.visita_id).in('tipo',op.tipos);if(error)throw error;}
         await idb.del(op.id);
       }catch(e){
         // Erros permanentes (ex.: vistoria já excluída → violação de FK) nunca vão passar: descarta o item
-        if(ERROS_PERMANENTES.has(String(e?.code||''))){console.warn('sync: item descartado (erro permanente):',e,op);await idb.del(op.id);ultimoErroSync=null;continue;}
+        if(op.kind!=='visita'&&ERROS_PERMANENTES.has(String(e?.code||''))){console.warn('sync: item descartado (erro permanente):',e,op);await idb.del(op.id);ultimoErroSync=null;continue;}
         ultimoErroSync=e?.message||String(e);console.warn('sync falhou, mantém na fila:',e);break;
       }
     }
@@ -422,12 +423,13 @@ function txHtml(r,cls){
   return `<small>🎙️ áudio ${r.erro_transcricao?'· falha na transcrição':'sem transcrição'}</small> <button class="btn sm sec" style="padding:2px 8px;font-size:11px" onclick="event.stopPropagation();transcreverRegistro('${r.id}',true)">transcrever</button> `;
 }
 function audioExt(b){const mt=(b?.type||'').toLowerCase();return /wav/.test(mt)?'wav':/mp4|m4a|aac/.test(mt)?'m4a':/ogg|opus/.test(mt)?'ogg':/mpeg|mp3/.test(mt)?'mp3':'webm';}
-const ERROS_PERMANENTES=new Set(['23503','23514','23502','22P02','PGRST204']);
+const ERROS_PERMANENTES=new Set(['23503','23514','23502','22P02']);
 let ultimoErroSync=null;
 function descreverOp(op){
   if(op.kind==='visita')return `Vistoria ${fmtBR(op.row?.data)} (${op.row?.status==='concluida'?'encerrar':'dados'})`;
   if(op.kind==='registro')return `${(op.row?.tipo||'registro').toUpperCase()} · ${op.row?.item||op.row?.descricao?.slice(0,40)||''}${op.blobs?.length?` · ${op.blobs.length} foto(s)`:''}`;
   if(op.kind==='registro_update')return 'Atualização de registro';
+  if(op.kind==='visita_delete')return 'Descarte de vistoria';
   if(op.kind==='registro_edit')return `Edição · ${op.patch?.item||(op.patch?.descricao||'').slice(0,40)}${op.blobs?.length?` · ${op.blobs.length} foto(s)`:''}`;
   if(op.kind==='registros_delete_tipos')return 'Regravação de checklist/serviços';
   return op.kind;
@@ -440,7 +442,7 @@ async function abrirFila(){
     ${ops.map(o=>`<div class="ck"><div class="lb">${esc(descreverOp(o))}<small style="color:var(--gray4)">${new Date(o.ts).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})}</small></div><button class="btn sm sec" onclick="descartarOp(${o.id})">🗑</button></div>`).join('')}
     <div class="row" style="margin-top:14px">
       <button class="btn sec" onclick="fecharModal()">Fechar</button>
-      ${ops.length?`<button class="btn" onclick="fecharModal();sincronizar().then(()=>toast('Sincronização tentada'))">🔄 Tentar agora</button>`:''}
+      ${ops.length?`<button class="btn" onclick="fecharModal();sincronizar().then(async()=>{const n=await idb.count().catch(()=>0);toast(n?n+' item(ns) ainda pendente(s)'+(ultimoErroSync?': '+ultimoErroSync:''):'Tudo sincronizado')})">🔄 Tentar agora</button>`:''}
     </div>
     ${ops.length?`<button class="btn red" style="margin-top:8px" onclick="descartarFila()">Descartar tudo (${ops.length})</button>`:''}`;
   $('modal').classList.add('show');
@@ -509,7 +511,7 @@ async function rHome(){
   await carregarVisitas();
   const [{count:nReg},{count:nNc}]=await Promise.all([
     sb.from('obra_registros').select('id',{count:'exact',head:true}).eq('obra_id',OBRA_ID),
-    sb.from('obra_registros').select('id',{count:'exact',head:true}).eq('obra_id',OBRA_ID).eq('nc_resolvida',false).or('tipo.eq.nc,status.eq.nc')
+    sb.from('obra_registros').select('id,tipo,item,visita_id').eq('obra_id',OBRA_ID).eq('nc_resolvida',false).or('tipo.eq.nc,status.eq.nc').limit(2000).then(r=>({count:dedupNc(r.data).length}))
   ]);
   if(view!=='home')return;
   $('stats').innerHTML=`<div class="stat"><b>${cacheVisitas.length}</b><small>visitas</small></div><div class="stat"><b>${nReg??0}</b><small>registros</small></div><div class="stat nc"><b>${nNc??0}</b><small>NCs abertas</small></div>`;
@@ -533,7 +535,7 @@ function novaVisita(){
   enfileirar({kind:'visita',row:rowVisita()});
   tab='inicio';go('visita');
 }
-function rowVisita(){const {checklist,servicos,registros,reaberta,...row}=visita;return row;}
+function rowVisita(){const {checklist,servicos,registros,reaberta,_orig,...row}=visita;['hora_inicio','hora_fim','temperatura'].forEach(c=>{if(row[c]==='')row[c]=null;});return row;}
 function rVisita(){
   if(!visita){setTitle('Vistoria','nenhuma em andamento');$('view').innerHTML=`<div class="empty">Nenhuma vistoria em andamento.<br><br><button class="btn" onclick="novaVisita()">＋ Iniciar nova vistoria</button></div>`;return;}
   setTitle(`Vistoria ${fmtBR(visita.data)}`,`${visita.engenheiro} · desde ${visita.hora_inicio}`);
@@ -635,7 +637,7 @@ let ultServ=null,ultServCarregando=false;
 async function carregarUltServ(){
   if(ultServCarregando||navigator.onLine===false)return;ultServCarregando=true;
   try{const {data}=await sb.from('obra_registros').select('fachada,item,status,percentual,created_at,visita_id,obra_visitas(data)').eq('obra_id',OBRA_ID).eq('tipo','servico').limit(5000);
-    const u={};(data||[]).forEach(r=>{if(visita&&r.visita_id===visita.id)return;const k=r.fachada+'|'+r.item;const d=(r.obra_visitas?.data||'')+r.created_at;if(!u[k]||d>u[k].d)u[k]={status:r.status,pct:r.percentual??(r.status==='concluido'?100:0),data:r.obra_visitas?.data,d};});
+    const u={};(data||[]).forEach(r=>{if(visita&&r.visita_id===visita.id)return;if(visita?.data&&r.obra_visitas?.data&&r.obra_visitas.data>visita.data)return;const k=r.fachada+'|'+r.item;const d=(r.obra_visitas?.data||'')+r.created_at;if(!u[k]||d>u[k].d)u[k]={status:r.status,pct:r.percentual??(r.status==='concluido'?100:0),data:r.obra_visitas?.data,d};});
     ultServ=u;if(view==='visita'&&tab==='servicos')render();
   }catch(e){}finally{ultServCarregando=false;}
 }
@@ -652,7 +654,7 @@ function tServicos(){
 }
 const fachAbertas=new Set();
 // tocar de novo no status já marcado desmarca o serviço (sai do relatório do dia)
-function sv(f,s,st){const k=f+'|'+s;const v=visita.servicos[k]||{};if(v.status===st){delete visita.servicos[k];saveVisita();render();toast('Serviço desmarcado');return;}v.status=st;if(st==='concluido')v.pct=100;if(st==='nao_iniciado')v.pct=0;visita.servicos[k]=v;saveVisita();render();}
+function sv(f,s,st){const k=f+'|'+s;const v=visita.servicos[k]||{};if(v.status===st){delete visita.servicos[k];saveVisita();render();toast('Serviço desmarcado');return;}v.status=st;if(st==='concluido')v.pct=100;if(st==='nao_iniciado')v.pct=0;if(st==='andamento'&&(v.pct==null||v.pct==='')&&ultServ&&ultServ[k])v.pct=ultServ[k].pct;visita.servicos[k]=v;saveVisita();render();}
 function svp(f,s,p){const k=f+'|'+s;if(String(p).trim()===''){delete visita.servicos[k];saveVisita();render();return;}const v=visita.servicos[k]||{};v.pct=Math.max(0,Math.min(100,+p||0));if(!v.status)v.status=v.pct>=100?'concluido':v.pct>0?'andamento':'nao_iniciado';visita.servicos[k]=v;saveVisita();render();}
 function tRegistros(){
   const rs=visita.registros;
@@ -708,7 +710,12 @@ async function encerrarVisita(){
   visita=null;saveVisita();
   toast('Vistoria encerrada');atualizarSync();await sincronizar();go('home');
 }
-function descartarVisita(){if(!confirm('Descartar esta vistoria? Registros já sincronizados permanecem no histórico.'))return;visita=null;saveVisita();go('home');}
+async function descartarVisita(){
+  if(visita.reaberta){if(!confirm('Cancelar a reabertura? A vistoria volta ao estado em que estava antes de ser reaberta.'))return;
+    if(visita._orig)await enfileirar({kind:'visita',row:visita._orig});}
+  else{if(!confirm('Descartar esta vistoria? Ela é removida do histórico; fotos e registros já enviados dela também são apagados.'))return;
+    await enfileirar({kind:'visita_delete',visita_id:visita.id});}
+  visita=null;saveVisita();go('home');sincronizar();}
 
 // ═══════════════ REGISTRO (modal) ═══════════════
 let reg=null, recorder=null, recChunks=[];
@@ -885,14 +892,14 @@ async function reabrirVisita(id){
   const v=cacheVisitas.find(x=>x.id===id);if(!v)return;
   if(!confirm(`Reabrir a vistoria de ${fmtBR(v.data)}? Ela volta para edição; ao encerrar de novo, o checklist e os serviços são regravados.`))return;
   let rs=cacheRegs[id];
-  if(!rs){const {data}=await sb.from('obra_registros').select('*').eq('visita_id',id).order('created_at');rs=data||[];}
+  if(!rs){const {data,error}=await sb.from('obra_registros').select('*').eq('visita_id',id).order('created_at');if(error||!data){toast('Não consegui ler os registros desta vistoria ('+(error?.message||'sem resposta')+'). Tente de novo com internet.');return;}rs=data;}
   const checklist={},servicos={};
   const byLabel=Object.fromEntries(CHECKLIST.flatMap(g=>g.itens).map(([k,l])=>[l,k]));
   rs.filter(r=>r.tipo==='checklist').forEach(r=>{const k=byLabel[r.item];if(k)checklist[k]={status:r.status,obs:r.descricao||undefined};});
   rs.filter(r=>r.tipo==='servico').forEach(r=>{servicos[r.fachada+'|'+r.item]={status:r.status,pct:r.percentual??undefined};});
   const registros=rs.filter(r=>!['checklist','servico'].includes(r.tipo));
   const {obra_visitas,...row}=v;
-  visita={...row,hora_inicio:(row.hora_inicio||'').slice(0,5),hora_fim:null,status:'em_andamento',efetivo:row.efetivo||{},temperatura:row.temperatura||'',clima:row.clima||'',encarregado:row.encarregado||'',lider:row.lider||'',resumo:row.resumo||'',presentes:row.presentes||[],checklist,servicos,registros,reaberta:true};
+  visita={_orig:row,...row,hora_inicio:(row.hora_inicio||'').slice(0,5),hora_fim:null,status:'em_andamento',efetivo:row.efetivo||{},temperatura:row.temperatura||'',clima:row.clima||'',encarregado:row.encarregado||'',lider:row.lider||'',resumo:row.resumo||'',presentes:row.presentes||[],checklist,servicos,registros,reaberta:true};
   saveVisita();
   await enfileirar({kind:'visita',row:rowVisita()});
   tab='inicio';go('visita');toast('Vistoria reaberta');
@@ -926,14 +933,20 @@ async function rNcs(){
   $('view').innerHTML=`<div class="card"><h3>NCs abertas</h3><div id="ncl"><div class="empty">Carregando…</div></div></div><div class="card"><h3>Resolvidas recentemente</h3><div id="ncr"></div></div>`;
   const {data}=await sb.from('obra_registros').select('*,obra_visitas(data)').eq('obra_id',OBRA_ID).or('tipo.eq.nc,status.eq.nc').order('created_at',{ascending:false}).limit(200);
   if(view!=='ncs')return;
-  const rs=data||[];const ab=rs.filter(r=>!r.nc_resolvida),re=rs.filter(r=>r.nc_resolvida).slice(0,10);
+  const rs=dedupNc(data);const ab=rs.filter(r=>!r.nc_resolvida),re=rs.filter(r=>r.nc_resolvida).slice(0,10);
   const item=r=>`<div>${regItem({...r,created_at:r.created_at})}<div style="display:flex;gap:8px;justify-content:flex-end;margin:-4px 0 8px"><small class="muted" style="flex:1;align-self:center">vistoria ${fmtBR(r.obra_visitas?.data)}</small>${r.nc_resolvida?'':`<button class="btn sm lime" onclick="resolverNc('${r.id}')">✓ Resolvida</button>`}</div></div>`;
   $('ncl').innerHTML=ab.length?ab.map(item).join(''):'<div class="empty">Nenhuma pendência aberta. 👍</div>';
   $('ncr').innerHTML=re.length?re.map(item).join(''):'<div class="empty">—</div>';
 }
+// Um item do checklist marcado NC gera 2 linhas (registro 'nc' + 'checklist' status nc). Para contar/listar, fica uma por vistoria+item (preferindo o registro com fotos).
+function dedupNc(rows){const m={};(rows||[]).forEach(r=>{const k=(r.visita_id||'')+'|'+(r.item||r.id);if(!m[k]||(r.tipo==='nc'&&m[k].tipo!=='nc'))m[k]=r;});return Object.values(m);}
 async function resolverNc(id){
   if(!confirm('Marcar esta não conformidade como resolvida?'))return;
-  await enfileirar({kind:'registro_update',id,patch:{nc_resolvida:true,nc_resolvida_em:new Date().toISOString()}});
+  const patch={nc_resolvida:true,nc_resolvida_em:new Date().toISOString()};
+  await enfileirar({kind:'registro_update',id,patch});
+  try{const {data:r}=await sb.from('obra_registros').select('visita_id,item').eq('id',id).maybeSingle();
+    if(r?.item){const {data:irm}=await sb.from('obra_registros').select('id').eq('visita_id',r.visita_id).eq('item',r.item).eq('nc_resolvida',false).or('tipo.eq.nc,status.eq.nc').neq('id',id);
+      for(const x of (irm||[]))await enfileirar({kind:'registro_update',id:x.id,patch});}}catch(e){}
   toast('NC marcada como resolvida');setTimeout(render,600);
 }
 
@@ -944,15 +957,15 @@ async function rAndamento(){
   $('view').innerHTML=`<div class="empty">Carregando…</div>`;
   const [{data:sv},{data:ncs}]=await Promise.all([
     sb.from('obra_registros').select('fachada,item,status,percentual,created_at,obra_visitas(data)').eq('obra_id',OBRA_ID).eq('tipo','servico').limit(5000),
-    sb.from('obra_registros').select('fachada').eq('obra_id',OBRA_ID).eq('nc_resolvida',false).or('tipo.eq.nc,status.eq.nc').limit(1000)
+    sb.from('obra_registros').select('fachada,tipo,item,visita_id').eq('obra_id',OBRA_ID).eq('nc_resolvida',false).or('tipo.eq.nc,status.eq.nc').limit(2000)
   ]);
   if(view!=='andamento')return;
   const ult={};
-  (sv||[]).forEach(r=>{const k=r.fachada+'|'+r.item;const d=(r.obra_visitas?.data||'')+r.created_at;if(!ult[k]||d>ult[k].d)ult[k]={...r,d};});
+  (sv||[]).forEach(r=>{const k=r.fachada+'|'+r.item;const d=(r.obra_visitas?.data||'')+r.created_at;if(r.percentual==null&&r.status==='andamento'&&ult[k]&&ult[k].percentual!=null)return;if(!ult[k]||d>ult[k].d)ult[k]={...r,d};});
   const pct=(f,s)=>ult[f+'|'+s]?.percentual??(ult[f+'|'+s]?.status==='concluido'?100:0);
   const mediaF=f=>Math.round(SERVICOS.reduce((a,s)=>a+pct(f,s),0)/SERVICOS.length);
   const geral=Math.round(obra.fachadas.reduce((a,f)=>a+mediaF(f),0)/obra.fachadas.length);
-  const ncF={};(ncs||[]).forEach(r=>{const k=r.fachada||'Sem local';ncF[k]=(ncF[k]||0)+1;});
+  const ncF={};dedupNc(ncs).forEach(r=>{const k=r.fachada||'Sem local';ncF[k]=(ncF[k]||0)+1;});
   const datas=Object.values(ult).map(r=>r.obra_visitas?.data).filter(Boolean).sort();
   const bar=(p,h=8)=>`<span style="display:block;height:${h}px;background:var(--gray2);border-radius:${h/2}px;overflow:hidden"><i style="display:block;height:100%;width:${p}%;background:${p>=100?'var(--green)':'var(--lime)'}"></i></span>`;
   $('view').innerHTML=`<div class="obra-hd"><b>Andamento geral: ${geral}%</b>${bar(geral,10)}<small style="display:block;margin-top:6px">${datas.length?'Última atualização na vistoria de '+fmtBR(datas[datas.length-1]):'Nenhum serviço registrado ainda'} · ${(ncs||[]).length} NC(s) aberta(s)</small></div>
@@ -999,11 +1012,11 @@ function relatorioCorpo(v,rs){
   const ck=rs.filter(r=>r.tipo==='checklist'),sv=rs.filter(r=>r.tipo==='servico'),outros=rs.filter(r=>!['checklist','servico'].includes(r.tipo));
   const ncs=outros.filter(r=>r.tipo==='nc'||r.status==='nc'),demais=outros.filter(r=>!(r.tipo==='nc'||r.status==='nc'));
   const stTxt={ok:'Conforme',nc:'Não conforme',na:'N/A',concluido:'Concluído',andamento:'Em andamento',nao_iniciado:'Não iniciado'};
-  const regH=r=>`<div class="reg ${r.tipo==='nc'||r.status==='nc'?'nc':''}"><b>${esc(TIPOS[r.tipo]||r.tipo)}${r.item?' — '+esc(r.item):''}</b>${r.nc_resolvida?' <span class="st-ok">(resolvida)</span>':''}<br>
+  const regH=r=>`<div class="reg ${r.tipo==='nc'||r.status==='nc'?'nc':''}"><b>${esc(TIPOS[r.tipo]||r.tipo)}${r.item?' — '+esc(r.item):''}</b>${r.nc_resolvida?' <span class="st-ok">(resolvida'+(r.nc_resolvida_em?' em '+fmtBR(String(r.nc_resolvida_em).slice(0,10)):'')+')</span>':''}${r.created_at?' <small style="color:#64748b">'+fmtBR(String(r.created_at).slice(0,10))+' '+fmtHora(r.created_at)+'</small>':''}<br>
     ${r.fachada||r.pavimento?`<span class="st-na">Local: ${esc([r.fachada,r.pavimento].filter(Boolean).join(' · '))}</span><br>`:''}${r.descricao?`<div style="white-space:pre-wrap;margin-top:3px">${esc(r.descricao)}</div>`:''}${r.transcricao&&r.transcricao!==r.descricao?`<div style="white-space:pre-wrap;margin-top:3px;font-style:italic">Observação gravada em áudio: ${esc(r.transcricao)}</div>`:''}
     ${(r.fotos||[]).length?`<div class="fotos">${r.fotos.map(p=>`<img src="${src(p)}" crossorigin="anonymous">`).join('')}</div>`:''}</div>`;
   let h=relCabecalho('Relatório de Vistoria de Obra')+`<h2>Dados da vistoria</h2><table>
-    <tr><th style="width:22%">Data</th><td>${fmtBR(v.data)}</td><th style="width:22%">Horário</th><td>${esc((v.hora_inicio||'').slice(0,5))}${v.hora_fim?' às '+esc(String(v.hora_fim).slice(0,5)):''}</td></tr>
+    <tr><th style="width:22%">Data</th><td>${fmtBR(v.data)} <small style="color:#64748b">· vistoria ${esc(String(v.id||'').slice(0,8))}${v.updated_at?' · gravada em '+fmtBR(String(v.updated_at).slice(0,10))+' '+fmtHora(v.updated_at):''}</small></td><th style="width:22%">Horário</th><td>${esc((v.hora_inicio||'').slice(0,5))}${v.hora_fim?' às '+esc(String(v.hora_fim).slice(0,5)):''}</td></tr>
     <tr><th>Responsável pela vistoria</th><td>${esc(nomeCompleto(v.engenheiro)||'—')}</td><th>Clima</th><td>${esc(v.clima||'—')}${v.temperatura?' · '+esc(v.temperatura)+' °C':''}${v.paralisacao?' · <span class="st-nc">obra paralisada</span>':''}</td></tr>
     <tr><th>Efetivo</th><td colspan="3">${ef.length?ef.map(([f,n])=>`${n} ${esc(plural(f,n))}`).join(', ')+` (total ${ef.reduce((a,[,n])=>a+(+n),0)})`:'não informado'}${v.encarregado?' · encarregado: '+esc(v.encarregado):''}${v.lider?' · líder: '+esc(v.lider):''}</td></tr>${(v.presentes||[]).length?`<tr><th>Presentes</th><td colspan="3">${v.presentes.slice().sort((a,b)=>ordemFuncao(a.funcao)-ordemFuncao(b.funcao)).map(p=>`${esc(p.nome)} (${esc(p.funcao)})`).join(', ')}</td></tr>`:''}</table>`;
   if(sv.length){const byF={};sv.forEach(r=>{(byF[r.fachada]=byF[r.fachada]||[]).push(r);});

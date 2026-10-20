@@ -34,25 +34,27 @@ async function mapaCarregar(pref){
   const out={}; let de=0;
   if(SO_LEITURA){const {data,error}=await sb.rpc('obra_mapa_publico',{p_token:VER}); if(error) throw error;
     (data||[]).forEach(r=>{if(r.chave.startsWith(pref)) out[r.chave]=r;}); verQuando=new Date(); return out;}
-  for(;;){const {data,error}=await sb.from('obra_mapa').select('chave,etapa,user_nome,updated_at').eq('obra_id',OBRA_ID).like('chave',pref+'%').range(de,de+999);
+  for(;;){const {data,error}=await sb.from('obra_mapa').select('chave,etapa,user_nome,updated_at').eq('obra_id',OBRA_ID).like('chave',pref+'%').order('chave').range(de,de+999);
     if(error) throw error; data.forEach(r=>out[r.chave]=r); if(data.length<1000) break; de+=1000;}
   Object.entries(pend).forEach(([k,e])=>{if(k.startsWith(pref)) out[k]={chave:k,etapa:e,user_nome:nomeUser(),updated_at:null,pend:1};});
   return out;
 }
 function mapaGravar(chave,etapa){if(SO_LEITURA) return; pend[chave]=etapa; salvaPend(); statusSync(); mapaEnviar();}
+let erroEnvio=null,tentativas=0;
 async function mapaEnviar(){
   if(enviando||!sb||!user) return; const ks=Object.keys(pend); if(!ks.length){statusSync();return;}
   enviando=true;
   try{const rows=ks.map(k=>({obra_id:OBRA_ID,chave:k,etapa:pend[k],user_id:user.id,user_nome:nomeUser()}));
     const {error}=await sb.from('obra_mapa').upsert(rows,{onConflict:'obra_id,chave'});
-    if(!error){rows.forEach(r=>{if(pend[r.chave]===r.etapa) delete pend[r.chave];}); salvaPend();}
-  }catch(e){}
+    if(!error){rows.forEach(r=>{if(pend[r.chave]===r.etapa) delete pend[r.chave];}); salvaPend(); erroEnvio=null; tentativas=0;}
+    else {erroEnvio=error.message||String(error); tentativas++; console.warn('obra_mapa:',error);}
+  }catch(e){erroEnvio=e?.message||String(e); tentativas++;}
   enviando=false; statusSync();
-  if(Object.keys(pend).length&&navigator.onLine!==false) setTimeout(mapaEnviar,300);
+  if(Object.keys(pend).length&&navigator.onLine!==false) setTimeout(mapaEnviar,Math.min(300*2**tentativas,30000));
 }
 function statusSync(){const el=document.getElementById('sync'); if(!el) return; const n=Object.keys(pend).length;
   if(SO_LEITURA){el.textContent=`👁 somente visualização · atualizado às ${(verQuando||new Date()).toLocaleTimeString('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit'})}`;return;}
-  el.textContent=n?`⏳ ${n} ${n>1?'marcações aguardando':'marcação aguardando'} internet`:'✓ salvo para a equipe';}
+  el.textContent=n?(erroEnvio&&navigator.onLine!==false?`⚠️ ${n} marcação(ões) não gravada(s): ${erroEnvio}`:`⏳ ${n} ${n>1?'marcações aguardando':'marcação aguardando'} internet`):'✓ salvo para a equipe';}
 const fmtQuando=iso=>{if(!iso) return 'agora (aguardando envio)'; const d=new Date(iso); return d.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});};
 
 // ---------- etapas registradas uma a uma ----------

@@ -12,6 +12,7 @@
 <link rel="apple-touch-icon" href="../assets/icon.png">
 <link rel="icon" href="../assets/icon.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="medicao.js"></script>
 <style>
 :root{
   --teal:#155B67;--teal-dk:#0D3C44;--teal-md:#1E7A8A;
@@ -206,7 +207,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261020-08';
+const APP_BUILD='20261020-09';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -232,7 +233,7 @@ const CHECKLIST=[
 ];
 const SERVICOS=['Remoção de pastilhas','Tratamento do substrato / fissuras','Regularização (chapisco / reboco)','Fundo / primer','Revestimento / pintura','Selantes de juntas','Limpeza final'];
 const FUNCOES=['Encarregado','Pedreiro','Servente','Alpinista','Pintor','Ajudante'];
-const TIPOS={nc:'Não conformidade',ocorrencia:'Ocorrência',foto:'Registro fotográfico',material:'Material recebido',observacao:'Observação'};
+const TIPOS={mapa:'Avanço medido (mapa 3D)',nc:'Não conformidade',ocorrencia:'Ocorrência',foto:'Registro fotográfico',material:'Material recebido',observacao:'Observação'};
 const CLIMAS=['Sol','Nublado','Chuva','Chuva forte','Vento forte'];
 // Clima acumulativo: texto "Sol, Vento forte" (mesma coluna text de antes)
 const climaLista=v=>(v||'').split(',').map(x=>x.trim()).filter(Boolean);
@@ -498,9 +499,26 @@ let ultimaTela='';
 function equipeResumo(){const at=equipeAtiva();if(!at.length)return 'Ninguém cadastrado. Toque para cadastrar os funcionários pela ficha de registro.';
   const por={};at.forEach(f=>{por[f.funcao]=(por[f.funcao]||0)+1;});
   return `${at.length} ativo${at.length>1?'s':''}: `+Object.entries(por).sort((a,b)=>ordemFuncao(a[0])-ordemFuncao(b[0])).map(([f,n])=>`${n} ${esc(plural(f,n))}`).join(', ');}
+// ═══════════════ AVANÇO MEDIDO (mapa 3D = fonte da verdade) ═══════════════
+let medicao=null,medicaoTs=0;
+async function carregarMedicao(force){
+  if(!force&&medicao&&Date.now()-medicaoTs<60000)return medicao;
+  if(navigator.onLine===false)return medicao;
+  try{const rows=[];let de=0;
+    for(;;){const {data,error}=await sb.from('obra_mapa').select('chave,etapa,updated_at').eq('obra_id',OBRA_ID).like('chave','3d:%').order('chave').range(de,de+999);
+      if(error)throw error;rows.push(...data);if(data.length<1000)break;de+=1000;}
+    medicao=medirAvanco(rows);medicaoTs=Date.now();}
+  catch(e){console.warn('medição:',e);}
+  return medicao;
+}
+const medFach=f=>medicao&&medicao.fach[f];
+// Linha "medido no mapa" para uma fachada do app (só as 4 fachadas que existem no 3D)
+function medidoTxt(f){const o=medFach(f);return o?`medido no mapa: <b>${medPct(o.pct)}</b> <small>(${o.feitos}/${o.quadros} quadros)</small>`:'';}
+function medBar(p,h=8){return `<span style="display:block;height:${h}px;background:rgba(255,255,255,.25);border-radius:${h/2}px;overflow:hidden"><i style="display:block;height:100%;width:${Math.min(100,p)}%;background:#fff"></i></span>`;}
 async function rHome(){
   setTitle('Vistoria de Obra',obra.executora||'');
   $('view').innerHTML=`<div class="obra-hd"><b>${esc(obra.nome)}</b><small>${esc(obra.cliente||'')}${obra.contrato?' · '+esc(obra.contrato):''}</small></div>
+  <div class="obra-hd" id="medHome" style="padding:12px 16px"><b style="font-size:14px">Avanço medido (mapa 3D): …</b><small>carregando medição…</small></div>
   <div class="stats" id="stats"><div class="stat"><b>…</b><small>visitas</small></div><div class="stat"><b>…</b><small>registros</small></div><div class="stat nc"><b>…</b><small>NCs abertas</small></div></div>
   ${visita?`<button class="btn lime" onclick="go('visita')">▶ Continuar vistoria de ${fmtBR(visita.data)}</button>`:`<button class="btn" onclick="novaVisita()">＋ Iniciar nova vistoria</button>`}
   <div style="display:flex;gap:8px;margin-top:10px"><a class="btn sec" style="flex:1;text-align:center;text-decoration:none" href="croqui.html">🗺️ Planta e fachadas</a><a class="btn sec" style="flex:1;text-align:center;text-decoration:none" href="modelo3d.html">🧊 Modelo 3D</a></div>
@@ -508,6 +526,9 @@ async function rHome(){
   <div class="card" style="margin-top:14px"><h3>Últimas vistorias</h3><div id="ultimas"><div class="empty">Carregando…</div></div></div>
   <p class="muted" style="text-align:center">${esc(nomeUser())} · build ${APP_BUILD}</p>`;
   carregarEquipe().then(()=>{const el=$('eqResumo');if(el)el.innerHTML=equipeResumo();});
+  carregarMedicao().then(m=>{const el=$('medHome');if(!el||view!=='home')return;
+    if(!m){el.innerHTML='<b style="font-size:14px">Avanço medido (mapa 3D)</b><small>sem conexão com o mapa</small>';return;}
+    el.innerHTML=`<b style="font-size:14px">Avanço medido (mapa 3D): ${medPct(m.geral)}</b>${medBar(m.geral,8)}<small style="display:block;margin-top:6px">${Object.entries(m.fach).map(([f,o])=>f.replace(/^Fachada \d+ — /,'')+' '+medPct(o.pct)).join(' · ')}${m.atualizado?' · atualizado '+fmtBR(String(m.atualizado).slice(0,10)):''}${m.pulados?' · ⚠️ '+m.pulados+' quadro(s) com etapa pulada':''}</small><small style="display:block;opacity:.8">Medição por quadro (m²) no Modelo 3D. O % dos serviços nas vistorias é a estimativa do fiscal.</small>`;});
   await carregarVisitas();
   const [{count:nReg},{count:nNc}]=await Promise.all([
     sb.from('obra_registros').select('id',{count:'exact',head:true}).eq('obra_id',OBRA_ID),
@@ -644,9 +665,11 @@ async function carregarUltServ(){
 const ST_LABEL={nao_iniciado:'não iniciado',andamento:'em andamento',concluido:'concluído'};
 function tServicos(){
   if(!ultServ)carregarUltServ();
+  if(!medicao)carregarMedicao().then(()=>{if(view==='visita'&&tab==='servicos')render();});
   $('tabBody').innerHTML=obra.fachadas.map((f,fi)=>{
     const pcts=SERVICOS.map(s=>visita.servicos[f+'|'+s]?.pct??0);const media=Math.round(pcts.reduce((a,b)=>a+b,0)/SERVICOS.length);
     return `<details class="fach" ${fachAbertas.has(fi)?'open':''} ontoggle="this.open?fachAbertas.add(${fi}):fachAbertas.delete(${fi})"><summary><span>${esc(f)}${(()=>{const ns=SERVICOS.filter(s=>visita.servicos[f+'|'+s]?.status).length;const nr=visita.registros.filter(r=>r.fachada===f).length;return ns||nr?`<span class="fbadge">${[ns?ns+' serv.':'',nr?nr+' reg.':''].filter(Boolean).join(' · ')}</span>`:'';})()}</span><span class="bar"><i style="width:${media}%"></i></span></summary><div class="body">
+    ${medFach(f)?`<p class="muted" style="margin:0 0 6px">${medidoTxt(f)} · estimativa do fiscal: ${media}%</p>`:''}
     ${SERVICOS.map(s=>{const v=visita.servicos[f+'|'+s]||{};const st=v.status||'';const u=ultServ&&ultServ[f+'|'+s];return `<div class="ck"><span class="lb">${s}${u?`<small style="color:var(--gray4,#94a3b8)">anterior: ${ST_LABEL[u.status]||u.status} ${u.pct}%${u.data?' · '+fmtBR(u.data):''}</small>`:''}</span>
       <div class="seg"><button class="${st==='nao_iniciado'?'s0':''}" onclick="sv('${esc(f)}','${s}','nao_iniciado')">–</button><button class="${st==='andamento'?'s1':''}" onclick="sv('${esc(f)}','${s}','andamento')">▶</button><button class="${st==='concluido'?'s2':''}" onclick="sv('${esc(f)}','${s}','concluido')">✓</button></div>
       <input class="pct" inputmode="numeric" placeholder="${u?u.pct+'%':'%'}" value="${v.pct??''}" onchange="svp('${esc(f)}','${s}',this.value)"></div>`;}).join('')}
@@ -706,6 +729,9 @@ async function encerrarVisita(){
     if(!v.status) continue;const [f,s]=k.split('|');
     await idb.add({kind:'registro',row:{id:uuid(),visita_id:visita.id,obra_id:OBRA_ID,tipo:'servico',fachada:f,item:s,status:v.status,percentual:v.pct??null,user_id:user.id,created_at:new Date().toISOString()},ts:Date.now()});
   }
+  // snapshot do avanço medido no mapa 3D nesta data (histórico por vistoria)
+  try{const m=await carregarMedicao(true);if(m&&m.marcado){const porF={};Object.entries(m.fach).forEach(([f,o])=>porF[f]={pct:Math.round(o.pct*10)/10,feitos:o.feitos,quadros:o.quadros,area:Math.round(o.area),feita:Math.round(o.feita)});
+    await idb.add({kind:'registro',row:{id:uuid(),visita_id:visita.id,obra_id:OBRA_ID,tipo:'mapa',item:'Avanço medido (mapa 3D)',percentual:Math.round(m.geral),descricao:JSON.stringify({geral:Math.round(m.geral*10)/10,fach:porF,pulados:m.pulados,atualizado:m.atualizado}),user_id:user.id,created_at:new Date().toISOString()},ts:Date.now()});}}catch(e){}
   await idb.add({kind:'visita',row:rowVisita(),ts:Date.now()});
   visita=null;saveVisita();
   toast('Vistoria encerrada');atualizarSync();await sincronizar();go('home');
@@ -827,8 +853,10 @@ async function rDetalhe(){
   const {data}=await sb.from('obra_registros').select('*').eq('visita_id',id).order('created_at');
   if(view!=='detalhe:'+id)return;
   const rs=data||[];
-  const ck=rs.filter(r=>r.tipo==='checklist'),sv=rs.filter(r=>r.tipo==='servico'),outros=rs.filter(r=>!['checklist','servico'].includes(r.tipo));
+  const ck=rs.filter(r=>r.tipo==='checklist'),sv=rs.filter(r=>r.tipo==='servico'),outros=rs.filter(r=>!['checklist','servico','mapa'].includes(r.tipo));
   let h='';
+  {const snap=rs.find(r=>r.tipo==='mapa');if(snap){let m=null;try{m=JSON.parse(snap.descricao||'{}');}catch(e){}
+    if(m)h+=`<div class="card"><h3>Avanço medido (mapa 3D): ${medPct(m.geral||0)}</h3>${Object.entries(m.fach||{}).map(([f,o])=>`<div class="ck"><span class="lb">${esc(f)}</span><span class="tag">${medPct(o.pct)} · ${o.feitos}/${o.quadros}</span></div>`).join('')}<small class="muted">Snapshot gravado ao encerrar a vistoria.</small></div>`;}}
   if(sv.length){const byF={};sv.forEach(r=>{(byF[r.fachada]=byF[r.fachada]||[]).push(r);});
     h+=`<div class="card"><h3>Serviços por fachada</h3>${Object.entries(byF).map(([f,arr])=>`<b style="font-size:13px;display:block;margin:8px 0 4px">${esc(f)}</b>${arr.map(r=>`<div class="ck"><span class="lb">${esc(r.item)}</span><span class="tag ${r.status==='concluido'?'ok':'oc'}">${r.status==='concluido'?'concluído':'em andamento'} ${r.percentual??0}%</span></div>`).join('')}`).join('')}</div>`;}
   if(ck.length) h+=`<div class="card"><h3>Checklist</h3>${ck.map(r=>`<div class="ck"><span class="lb">${esc(r.item)}${r.descricao&&r.descricao!==r.item?`<small>${esc(r.descricao)}</small>`:''}${r.transcricao&&r.transcricao!==r.descricao?`<small>🎙️ ${esc(r.transcricao)}</small>`:''}</span><span class="tag ${r.status==='nc'?'nc':r.status==='ok'?'ok':''}">${r.status==='na'?'N/A':r.status}</span></div>`).join('')}</div>`;
@@ -955,9 +983,10 @@ async function resolverNc(id){
 async function rAndamento(){
   setTitle('Andamento da obra',obra.nome);
   $('view').innerHTML=`<div class="empty">Carregando…</div>`;
-  const [{data:sv},{data:ncs}]=await Promise.all([
+  const [{data:sv},{data:ncs},med]=await Promise.all([
     sb.from('obra_registros').select('fachada,item,status,percentual,created_at,obra_visitas(data)').eq('obra_id',OBRA_ID).eq('tipo','servico').limit(5000),
-    sb.from('obra_registros').select('fachada,tipo,item,visita_id').eq('obra_id',OBRA_ID).eq('nc_resolvida',false).or('tipo.eq.nc,status.eq.nc').limit(2000)
+    sb.from('obra_registros').select('fachada,tipo,item,visita_id').eq('obra_id',OBRA_ID).eq('nc_resolvida',false).or('tipo.eq.nc,status.eq.nc').limit(2000),
+    carregarMedicao()
   ]);
   if(view!=='andamento')return;
   const ult={};
@@ -968,11 +997,13 @@ async function rAndamento(){
   const ncF={},ncsD=dedupNc(ncs);ncsD.forEach(r=>{const k=r.fachada||'Sem local';ncF[k]=(ncF[k]||0)+1;});
   const datas=Object.values(ult).map(r=>r.obra_visitas?.data).filter(Boolean).sort();
   const bar=(p,h=8)=>`<span style="display:block;height:${h}px;background:var(--gray2);border-radius:${h/2}px;overflow:hidden"><i style="display:block;height:100%;width:${p}%;background:${p>=100?'var(--green)':'var(--lime)'}"></i></span>`;
-  $('view').innerHTML=`<div class="obra-hd"><b>Andamento geral: ${geral}%</b>${bar(geral,10)}<small style="display:block;margin-top:6px">${datas.length?'Última atualização na vistoria de '+fmtBR(datas[datas.length-1]):'Nenhum serviço registrado ainda'} · ${ncsD.length} NC(s) aberta(s)</small></div>
-  <div class="and-grid">${obra.fachadas.map(f=>{const m=mediaF(f);return `<div class="card"><h3 style="display:flex;justify-content:space-between"><span>${esc(f)}</span><span>${m}%</span></h3>${bar(m)}
+  $('view').innerHTML=`<div class="obra-hd">${med?`<b>Avanço medido (mapa 3D): ${medPct(med.geral)}</b>${medBar(med.geral,10)}<small style="display:block;margin:6px 0 8px">${Math.round(med.feita)} de ${Math.round(med.area)} m² com revestimento concluído sem etapa pulada${med.atualizado?' · atualizado '+fmtBR(String(med.atualizado).slice(0,10)):''}${med.pulados?' · ⚠️ '+med.pulados+' quadro(s) com etapa pulada':''}</small>`:`<b>Avanço medido (mapa 3D): sem conexão</b>`}
+    <b style="font-size:14px;opacity:.9">Estimativa do fiscal (serviços declarados): ${geral}%</b>${bar(geral,6)}<small style="display:block;margin-top:6px">${datas.length?'Última atualização na vistoria de '+fmtBR(datas[datas.length-1]):'Nenhum serviço registrado ainda'} · ${ncsD.length} NC(s) aberta(s)</small></div>
+  <div class="and-grid">${obra.fachadas.map(f=>{const m=mediaF(f);const mo=med&&med.fach[f];return `<div class="card"><h3 style="display:flex;justify-content:space-between"><span>${esc(f)}</span><span>${mo?medPct(mo.pct):m+'%'}</span></h3>${bar(mo?mo.pct:m)}
+    ${mo?`<small class="muted" style="display:block;margin-top:4px">medido no mapa (${mo.feitos}/${mo.quadros} quadros) · estimativa do fiscal: ${m}%</small>`:''}
     ${ncF[f]?`<p style="margin:8px 0 0"><span class="tag nc">${ncF[f]} NC aberta${ncF[f]>1?'s':''}</span></p>`:''}
     <div style="margin-top:8px">${SERVICOS.map(s=>{const p=pct(f,s),u=ult[f+'|'+s];return `<div style="padding:6px 0;border-bottom:1px solid var(--gray2)"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>${esc(s)}</span><b style="color:${p>=100?'var(--green)':p>0?'var(--amber)':'var(--gray4)'}">${p}%</b></div>${bar(p,5)}${u?`<small class="muted">atualizado em ${fmtBR(u.obra_visitas?.data)}</small>`:''}</div>`;}).join('')}</div></div>`;}).join('')}</div>
-  <p class="muted" style="text-align:center">Considera a informação mais recente de cada serviço nas vistorias encerradas.</p>
+  <p class="muted" style="text-align:center">Avanço medido: quadros do Modelo 3D com revestimento concluído sem etapa pulada, em m² de projeto (Frontal = rua; Lateral Esquerda = oposta à piscina; Lateral Direita = piscina). Serviços: informação mais recente declarada nas vistorias encerradas.</p>
   <div style="display:flex;gap:8px;margin-bottom:10px"><a class="btn sec" style="flex:1;text-align:center;text-decoration:none" href="croqui.html">🗺️ Planta e fachadas</a><a class="btn sec" style="flex:1;text-align:center;text-decoration:none" href="modelo3d.html">🧊 Modelo 3D</a></div>
   <button class="btn sec" onclick="imprimirAndamento()">🖨️ Imprimir / salvar PDF do andamento</button>`;
 }
@@ -994,6 +1025,7 @@ table{width:100%;border-collapse:collapse}td,th{border:1px solid #E0EAEC;padding
 function relCabecalho(t){return `<div class="rel-hd"><img src="${new URL('../assets/logo-dark.png',location.href).href}" alt="Diagnóstika"><div><b>${esc(t)}</b>${esc(obra.nome)}<br>${esc(obra.executora||'')}</div></div>`;}
 function relRodape(){return `<div class="rel-ft">Diagnóstika Engenharia · gerado em ${new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})}</div>`;}
 async function dadosRelatorio(id){
+  if(!medicao)await carregarMedicao();
   if(visita&&visita.id===id){
     const lab=Object.fromEntries(CHECKLIST.flatMap(g=>g.itens));
     const rs=[...Object.entries(visita.checklist).map(([k,c])=>({tipo:'checklist',item:lab[k]||k,status:c.status,descricao:c.obs||null})),
@@ -1009,7 +1041,10 @@ async function dadosRelatorio(id){
 function relatorioCorpo(v,rs){
   const src=p=>p.startsWith('blob:')?p:fotoUrl(p);
   const ef=Object.entries(v.efetivo||{}).filter(([,n])=>+n>0);
-  const ck=rs.filter(r=>r.tipo==='checklist'),sv=rs.filter(r=>r.tipo==='servico'),outros=rs.filter(r=>!['checklist','servico'].includes(r.tipo));
+  const ck=rs.filter(r=>r.tipo==='checklist'),sv=rs.filter(r=>r.tipo==='servico'),outros=rs.filter(r=>!['checklist','servico','mapa'].includes(r.tipo));
+  const snap=rs.find(r=>r.tipo==='mapa');let medRel=null,medOrigem='';
+  if(snap){try{medRel=JSON.parse(snap.descricao||'{}');medOrigem='medição registrada ao encerrar a vistoria';}catch(e){}}
+  if(!medRel&&medicao&&medicao.marcado){medRel={geral:medicao.geral,fach:medicao.fach,pulados:medicao.pulados,atualizado:medicao.atualizado};medOrigem='medição atual do mapa (a vistoria não gravou snapshot)';}
   const ncs=outros.filter(r=>r.tipo==='nc'||r.status==='nc'),demais=outros.filter(r=>!(r.tipo==='nc'||r.status==='nc'));
   const stTxt={ok:'Conforme',nc:'Não conforme',na:'N/A',concluido:'Concluído',andamento:'Em andamento',nao_iniciado:'Não iniciado'};
   const regH=r=>`<div class="reg ${r.tipo==='nc'||r.status==='nc'?'nc':''}"><b>${esc(TIPOS[r.tipo]||r.tipo)}${r.item?' — '+esc(r.item):''}</b>${r.nc_resolvida?' <span class="st-ok">(resolvida'+(r.nc_resolvida_em?' em '+fmtBR(String(r.nc_resolvida_em).slice(0,10)):'')+')</span>':''}${r.created_at?' <small style="color:#64748b">'+fmtBR(String(r.created_at).slice(0,10))+' '+fmtHora(r.created_at)+'</small>':''}<br>
@@ -1021,6 +1056,9 @@ function relatorioCorpo(v,rs){
     <tr><th>Efetivo</th><td colspan="3">${ef.length?ef.map(([f,n])=>`${n} ${esc(plural(f,n))}`).join(', ')+` (total ${ef.reduce((a,[,n])=>a+(+n),0)})`:'não informado'}${v.encarregado?' · encarregado: '+esc(v.encarregado):''}${v.lider?' · líder: '+esc(v.lider):''}</td></tr>${(v.presentes||[]).length?`<tr><th>Presentes</th><td colspan="3">${v.presentes.slice().sort((a,b)=>ordemFuncao(a.funcao)-ordemFuncao(b.funcao)).map(p=>`${esc(p.nome)} (${esc(p.funcao)})`).join(', ')}</td></tr>`:''}</table>`;
   if(sv.length){const byF={};sv.forEach(r=>{(byF[r.fachada]=byF[r.fachada]||[]).push(r);});
     h+=`<h2>Serviços por fachada</h2><table><tr><th>Fachada / local</th><th>Serviço</th><th>Situação</th><th style="width:12%">%</th></tr>${Object.entries(byF).map(([f,a])=>a.map((r,i)=>`<tr>${i?'':`<td rowspan="${a.length}">${esc(f)}</td>`}<td>${esc(r.item)}</td><td>${stTxt[r.status]||esc(r.status)}</td><td>${r.percentual??0}%</td></tr>`).join('')).join('')}</table>`;}
+  if(medRel){const decl=f=>{const a=sv.filter(r=>r.fachada===f);if(!a.length)return '—';return Math.round(SERVICOS.reduce((t,s)=>t+(a.find(r=>r.item===s)?.percentual??0),0)/SERVICOS.length)+'%';};
+    h+=`<h2>Avanço medido (mapa 3D)</h2><table><tr><th>Fachada</th><th style="width:18%">Medido</th><th style="width:16%">Quadros</th><th style="width:22%">Estimativa do fiscal</th></tr>${Object.entries(medRel.fach||{}).map(([f,o])=>`<tr><td>${esc(f)}</td><td><b>${medPct(o.pct)}</b></td><td>${o.feitos??'—'}/${o.quadros??'—'}</td><td>${decl(f)}</td></tr>`).join('')}<tr><th>Geral</th><td><b>${medPct(medRel.geral||0)}</b></td><td></td><td></td></tr></table>
+    <p class="st-na">Quadros com revestimento concluído sem etapa pulada, em m² de projeto. ${esc(medOrigem)}${medRel.atualizado?' · última marcação '+fmtBR(String(medRel.atualizado).slice(0,10)):''}${medRel.pulados?' · '+medRel.pulados+' quadro(s) com etapa pulada':''}.</p>`;}
   if(ck.length) h+=`<h2>Checklist</h2><table><tr><th>Item</th><th style="width:18%">Resultado</th></tr>${ck.map(r=>`<tr><td>${esc(r.item)}${r.descricao&&r.descricao!==r.item?`<br><span class="st-na">${esc(r.descricao)}</span>`:''}${r.transcricao&&r.transcricao!==r.descricao?`<br><span class="st-na"><i>Áudio: ${esc(r.transcricao)}</i></span>`:''}</td><td class="st-${r.status}">${stTxt[r.status]||esc(r.status)}</td></tr>`).join('')}</table>`;
   h+=`<h2>Não conformidades (${ncs.length})</h2>${ncs.length?ncs.map(regH).join(''):'<p>Nenhuma não conformidade registrada nesta vistoria.</p>'}`;
   if(demais.length) h+=`<h2>Registros</h2>${demais.map(regH).join('')}`;

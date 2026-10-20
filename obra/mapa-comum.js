@@ -61,18 +61,7 @@ const fmtQuando=iso=>{if(!iso) return 'agora (aguardando envio)'; const d=new Da
 // Cada etapa de um quadro é uma linha própria: chave '<quadro>#<etapa>', com etapa = número (feita) ou 0 (desfeita).
 // Assim uma etapa nova não apaga a anterior e dá para ver se alguma foi pulada. Linha antiga sem '#'
 // (quando a cor da etapa substituía a anterior) conta só a etapa que ela registrou.
-const tem=(m,s)=>(m>>s)&1;
-function etapasMontar(d,pref){
-  const out={}, vazio=k=>out[k]=out[k]||{m:0,por:{},leg:0,step:{}};
-  const linhas=Object.values(d).map(r=>{const c=r.chave.slice(pref.length), i=c.lastIndexOf('#'); return {r,k:i<0?c:c.slice(0,i),s:i<0?0:+c.slice(i+1)};});
-  linhas.filter(x=>x.s).forEach(({r,k,s})=>{const o=vazio(k); o.step[s]=1; if(r.etapa){o.m|=1<<s; o.por[s]=r;}});
-  linhas.filter(x=>!x.s).forEach(({r,k})=>{const o=vazio(k); o.leg=r.etapa; if(r.etapa&&!o.step[r.etapa]){o.m|=1<<r.etapa; o.por[r.etapa]=r;}});
-  return out;
-}
-// Última etapa cumprida sem pulos (ini=2 nas sacadas, que não têm remoção)
-function nivelDe(m,ini=1){let n=ini-1; while(n<5&&tem(m,n+1)) n++; return n<ini?0:n;}
-// Etapas que faltam antes da mais avançada registrada
-function faltando(m,ini=1){let top=0; for(let s=1;s<=5;s++) if(tem(m,s)) top=s; const f=[]; for(let s=ini;s<top;s++) if(!tem(m,s)) f.push(s); return f;}
+// tem/etapasMontar/nivelDe/faltando e PROJ_ORIG ficam em medicao.js (fonte única, usada também pelo app de vistoria)
 // Marca ou desmarca a etapa s do quadro k; devolve true se ficou marcada
 function etapaAlternar(pref,k,o,s){
   const on=!tem(o.m,s);
@@ -86,26 +75,6 @@ function etapaAlternar(pref,k,o,s){
 // Medido nas elevações 1 a 4 do projeto Badaró (Folhas 08 a 11, esc. 1:50) em 04/10/2026.
 // Pastilha A (escura) do piso ao teto, cerca de 52 m; pastilha B (clara) só abaixo da janela, 16 andares:
 // oposta 1,85 m/andar (29,6 m), piscina 1,26 (20,2), rua 1,71 (27,4), churrasqueira 1,73 (27,7).
-const PROJ_ORIG={
- b1:{c:2.93,a:152.4,esc:1,n:'Pastilha A de 2,93 m × 52 m.'},
- b2:{c:3.06,a:90.6,n:'Pastilha B de 3,06 m, só abaixo da janela (1,85 m × 16 andares).'},
- b3:{c:3.64,a:107.7,n:'Pastilha B de 3,64 m, só abaixo da janela (1,85 m × 16 andares).'},
- b4:{c:.67,a:19.8,n:'Pastilha B (clara, não escura) de 0,67 m × 29,6 m.'},
- b5:{c:1.87,a:97.2,esc:1,n:'Diagonal de 1,87 m × 52 m.'},
- b6:{c:4.8,a:238,esc:1,n:'4,28 m de pastilha A × 52 m mais 0,52 m de pastilha B no núcleo.'},
- b7:{c:1.87,a:97.2,esc:1,n:'Diagonal de 1,87 m × 52 m.'},
- b8:{c:.67,a:19.8,n:'Pastilha B (clara, não escura) de 0,67 m × 29,6 m.'},
- b9:{c:3.64,a:107.7,n:'Pastilha B de 3,64 m, só abaixo da janela (1,85 m × 16 andares).'},
- b10:{c:3.06,a:90.6,n:'Pastilha B de 3,06 m, só abaixo da janela (1,85 m × 16 andares).'},
- b11:{c:2.93,a:152.4,esc:1,n:'Pastilha A de 2,93 m × 52 m.'},
- r3:{c:5.11,a:140,n:'Vão de 5,11 m, pastilha B abaixo da janela (1,71 m × 16 andares).'},
- f3:{c:5.18,a:143.5,n:'Vão de 5,18 m, pastilha B abaixo da janela (1,73 m × 16 andares).'},
- t1:{c:4.54,a:91.7,n:'Pastilha B de 4,54 m (1,45 + 3,09), abaixo da janela (1,26 m × 16 andares).'},
- t3:{c:3.14,a:163.3,esc:1,n:'Pastilha A de 3,14 m × 52 m.'},
- t4:{c:2.58,a:52.1,n:'Pastilha B de 2,58 m, abaixo da janela (1,26 m × 16 andares).'},
- t5:{c:3.39,a:68.5,n:'Pastilha B de 3,39 m, abaixo da janela (1,26 m × 16 andares).'},
- t6:{c:3.17,a:164.8,esc:1,n:'Pastilha A de 3,17 m × 52 m.'},
- t7:{c:4.61,a:93.1,n:'Pastilha B de 4,61 m (3,11 + 1,50), abaixo da janela (1,26 m × 16 andares).'}};
 const BASE_KEY='obra-base-areas';
 let BASE='projeto'; try{if(!SO_LEITURA) BASE=localStorage.getItem(BASE_KEY)||'projeto'}catch(e){}
 // Guarda os valores do croqui em f.croqui e aplica a base escolhida. Faixa sem medida no projeto fica com a área do croqui.

@@ -206,7 +206,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261020-02';
+const APP_BUILD='20261020-03';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -256,7 +256,7 @@ function efetivoDosPresentes(pres,efAtual,enc){
   ['Encarregado',...equipe.map(f=>f.funcao)].forEach(f=>ef[f]=0);
   let encContado=false;
   pres.forEach(p=>{const f=(enc&&p.nome===enc)?(encContado=true,'Encarregado'):p.funcao;ef[f]=(ef[f]||0)+1;});
-  if(enc&&!encContado)ef['Encarregado']=1; // encarregado digitado (sem cadastro) conta como presente
+  if(enc&&!encContado&&!equipe.some(f=>f.nome===enc))ef['Encarregado']=1; // só o encarregado digitado (sem cadastro) conta automaticamente; cadastrado precisa estar marcado presente
   return ef;
 }
 let efExpand=false;
@@ -527,7 +527,7 @@ function visItem(v){
 
 // ═══════════════ VISITA ATIVA ═══════════════
 function novaVisita(){
-  visita={id:uuid(),obra_id:OBRA_ID,data:hoje(),hora_inicio:agora(),hora_fim:null,engenheiro:nomeUser(),user_id:user.id,clima:'',temperatura:'',paralisacao:false,efetivo:{},encarregado:'',resumo:'',presentes:[],status:'em_andamento',device_id:deviceId,
+  visita={id:uuid(),obra_id:OBRA_ID,data:hoje(),hora_inicio:agora(),hora_fim:null,engenheiro:nomeUser(),user_id:user.id,clima:'',temperatura:'',paralisacao:false,efetivo:{},encarregado:'',lider:'',resumo:'',presentes:[],status:'em_andamento',device_id:deviceId,
     checklist:{},servicos:{},registros:[]};
   saveVisita();
   enfileirar({kind:'visita',row:rowVisita()});
@@ -551,6 +551,7 @@ function tInicio(){
   </div>
   ${equipeAtiva().length?(visita.efetivo=efetivoDosPresentes(visita.presentes,visita.efetivo,visita.encarregado),''):''}<div class="card"><h3>Efetivo presente (AAM)</h3>
     <label class="f">Encarregado</label>${selectEncarregado(visita.encarregado,"setEncarregado(this.value)")}
+    <label class="f">Líder</label>${selectEncarregado(visita.lider||'',"visita.lider=this.value;saveVisita();render()",'',"Nome do líder")}
     <label class="f">Presentes hoje <span class="muted" style="font-weight:400">(toque no nome)</span></label>${chipsPresentes(visita.presentes||[],'togPresente')}
     <label class="f" style="margin-top:12px">Efetivo por função${equipeAtiva().length?' <span class="muted" style="font-weight:400">(calculado pelos presentes marcados e pelo encarregado)</span>':''}</label>
     ${linhasEfetivo(visita.efetivo,f=>`onchange="visita.efetivo['${esc(f)}']=+this.value||0;saveVisita();render()"`,'render()')}
@@ -559,14 +560,14 @@ function tInicio(){
   </div>`;
 }
 // Encarregado: lista da equipe (função Encarregado primeiro) + "outro" digitado
-function selectEncarregado(val,onchange,id=''){
+function selectEncarregado(val,onchange,id='',ph='Nome do encarregado'){
   const at=equipeAtiva().slice().sort((a,b)=>ordemFuncao(a.funcao)-ordemFuncao(b.funcao)||a.nome.localeCompare(b.nome));
   const nomes=at.map(f=>f.nome);const outro=val&&!nomes.includes(val);
   const idAttr=id?` id="${id}"`:'';
   if(!at.length)return `<input class="f"${idAttr} value="${esc(val||'')}" placeholder="Nome" onchange="${onchange}">`;
   return `<select class="f"${id?` id="${id}_sel"`:''} onchange="const o=this.nextElementSibling;if(this.value==='__outro'){o.style.display='';o.focus();}else{o.style.display='none';${onchange.replace(/this\.value/g,'this.value')}}">
     <option value="">— selecione —</option>${at.map(f=>`<option ${val===f.nome?'selected':''} value="${esc(f.nome)}">${esc(f.nome)} · ${esc(f.funcao)}</option>`).join('')}<option value="__outro" ${outro?'selected':''}>Outro (digitar)</option></select>
-    <input class="f"${idAttr} style="${outro?'':'display:none'};margin-top:6px" value="${esc(outro?val:'')}" placeholder="Nome do encarregado" onchange="${onchange}">`;
+    <input class="f"${idAttr} style="${outro?'':'display:none'};margin-top:6px" value="${esc(outro?val:'')}" placeholder="${ph}" onchange="${onchange}">`;
 }
 function togPresente(id){
   const f=equipe.find(x=>x.id===id);if(!f||!visita)return;
@@ -584,11 +585,13 @@ async function abrirEquipe(){
   const lista=equipe.slice().sort((a,b)=>(a.ativo===false)-(b.ativo===false)||ordemFuncao(a.funcao)-ordemFuncao(b.funcao)||a.nome.localeCompare(b.nome));
   $('sheet').innerHTML=`<h2>Equipe da obra (${esc(obra.executora||'executora')})</h2>
     <p class="muted">Cadastre conforme a ficha de registro de cada funcionário. Inativos saem da lista de presença, mas ficam no histórico.</p>
-    ${lista.length?lista.map(f=>`<div class="eqrow ${f.ativo===false?'off':''}"><div class="nm"><b>${esc(f.nome)}</b><small>${esc(f.funcao)}${f.empresa?' · '+esc(f.empresa):''}${f.matricula?' · mat. '+esc(f.matricula):''}</small></div><button class="btn sm sec" style="padding:6px 10px;font-size:12px" onclick="formFuncionario('${f.id}')">✏️</button></div>`).join(''):'<div class="empty">Ninguém cadastrado ainda.</div>'}
+    ${lista.length?lista.map(f=>`<div class="eqrow ${f.ativo===false?'off':''}"><div class="nm"><b>${esc(f.nome)}</b><small>${esc(f.funcao)}${f.empresa?' · '+esc(f.empresa):''}${f.matricula?' · mat. '+esc(f.matricula):''}${f.telefone?' · <a href="https://wa.me/55'+f.telefone.replace(/\D/g,'')+'" target="_blank" rel="noopener" style="color:var(--teal,#0f766e)">📱 '+esc(f.telefone)+'</a>':''}</small></div><button class="btn sm sec" style="padding:6px 10px;font-size:12px" onclick="formFuncionario('${f.id}')">✏️</button></div>`).join(''):'<div class="empty">Ninguém cadastrado ainda.</div>'}
     <button class="btn" style="margin-top:14px" onclick="formFuncionario()">＋ Cadastrar funcionário</button>
     <button class="btn sec" style="margin-top:8px" onclick="fecharModal();render()">Fechar</button>`;
   $('modal').classList.add('show');
 }
+// Normaliza telefone BR para "(DD) 9XXXX-XXXX"; aceita com/sem +55
+function fmtTel(t){const d=(t||'').replace(/\D/g,'').replace(/^55(?=\d{10,11}$)/,'');if(d.length===11)return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;if(d.length===10)return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;return (t||'').trim();}
 function formFuncionario(id){
   const f=id?equipe.find(x=>x.id===id):null;
   const funcs=[...new Set([...FUNCOES,...equipe.map(x=>x.funcao)])];
@@ -597,6 +600,7 @@ function formFuncionario(id){
     <label class="f">Função</label><select class="f" id="fq_func" onchange="$('fq_func_outra').style.display=this.value==='__outra'?'':'none'">${funcs.map(x=>`<option ${f?.funcao===x?'selected':''}>${esc(x)}</option>`).join('')}<option value="__outra">Outra…</option></select>
     <input class="f" id="fq_func_outra" style="display:none;margin-top:6px" placeholder="Qual função?">
     <div class="row"><div><label class="f">Empresa</label><input class="f" id="fq_emp" value="${esc(f?.empresa??(obra.executora||''))}"></div><div><label class="f">Matrícula / nº ficha</label><input class="f" id="fq_mat" value="${esc(f?.matricula||'')}"></div></div>
+    <label class="f">Contato (WhatsApp)</label><input class="f" id="fq_tel" type="tel" inputmode="tel" value="${esc(f?.telefone||'')}" placeholder="(19) 9XXXX-XXXX">
     <label class="f">Observação</label><input class="f" id="fq_obs" value="${esc(f?.observacao||'')}" placeholder="ex.: NR-35 válida até…">
     ${f?`<label class="f" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="fq_ativo" ${f.ativo!==false?'checked':''} style="width:20px;height:20px"> Ativo na obra</label>`:''}
     <button class="btn" style="margin-top:16px" onclick="salvarFuncionario('${f?.id||''}')">Salvar</button>
@@ -609,7 +613,7 @@ async function salvarFuncionario(id){
   if(nome.split(' ').length<2){toast('Informe nome e sobrenome');return;}
   if(!funcao){toast('Informe a função');return;}
   if(navigator.onLine===false){toast('Cadastro da equipe precisa de internet');return;}
-  const row={obra_id:OBRA_ID,nome,funcao,empresa:$('fq_emp').value.trim()||null,matricula:$('fq_mat').value.trim()||null,observacao:$('fq_obs').value.trim()||null,ativo:id?$('fq_ativo').checked:true};
+  const row={obra_id:OBRA_ID,nome,funcao,empresa:$('fq_emp').value.trim()||null,matricula:$('fq_mat').value.trim()||null,telefone:fmtTel($('fq_tel').value)||null,observacao:$('fq_obs').value.trim()||null,ativo:id?$('fq_ativo').checked:true};
   if(id)row.id=id;
   const {error}=await sb.from('obra_funcionarios').upsert(row,{onConflict:'id'});
   if(error){toast('Erro ao salvar: '+error.message);return;}
@@ -672,7 +676,7 @@ function textoResumo(){
   const ef=Object.entries(visita.efetivo).filter(([,n])=>+n>0).map(([f,n])=>`${n} ${plural(f,n)}`).join(', ');
   const ncs=visita.registros.filter(r=>r.tipo==='nc').map(r=>`- ${r.item||''}${r.fachada?' ('+r.fachada.split(' — ')[0]+')':''}: ${r.descricao||''}`);
   const serv=Object.entries(visita.servicos).filter(([,v])=>v.status&&v.status!=='nao_iniciado').map(([k,v])=>{const [f,s]=k.split('|');return `- ${f.split(' — ')[0]}: ${s} — ${v.status==='concluido'?'concluído':'em andamento'} (${v.pct??0}%)`;});
-  return `Vistoria de obra — ${obra.nome}\nData: ${fmtBR(visita.data)} ${visita.hora_inicio}${visita.hora_fim?' às '+visita.hora_fim:''}\nResponsável pela vistoria: ${nomeCompleto(visita.engenheiro)}\nClima: ${visita.clima||'—'}${visita.temperatura?' · '+visita.temperatura+'°C':''}${visita.paralisacao?' · OBRA PARALISADA':''}\nEfetivo: ${ef||'não informado'}${visita.encarregado?' (enc. '+visita.encarregado+')':''}\n\nServiços:\n${serv.join('\n')||'- sem alteração registrada'}\n\nNão conformidades:\n${ncs.join('\n')||'- nenhuma'}\n\n${visita.resumo||''}`.trim();
+  return `Vistoria de obra — ${obra.nome}\nData: ${fmtBR(visita.data)} ${visita.hora_inicio}${visita.hora_fim?' às '+visita.hora_fim:''}\nResponsável pela vistoria: ${nomeCompleto(visita.engenheiro)}\nClima: ${visita.clima||'—'}${visita.temperatura?' · '+visita.temperatura+'°C':''}${visita.paralisacao?' · OBRA PARALISADA':''}\nEfetivo: ${ef||'não informado'}${visita.encarregado?' · enc. '+visita.encarregado:''}${visita.lider?' · líder '+visita.lider:''}\n\nServiços:\n${serv.join('\n')||'- sem alteração registrada'}\n\nNão conformidades:\n${ncs.join('\n')||'- nenhuma'}\n\n${visita.resumo||''}`.trim();
 }
 async function copiarResumo(){try{await navigator.clipboard.writeText(textoResumo());toast('Resumo copiado');}catch(e){prompt('Copie o texto:',textoResumo());}}
 async function encerrarVisita(){
@@ -817,6 +821,7 @@ function editarVisita(id){
     <div class="row"><div><label class="f">Temp. (°C)</label><input class="f" id="ev_temp" inputmode="numeric" value="${esc(v.temperatura||'')}"></div></div>
     <label class="f" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="ev_par" ${v.paralisacao?'checked':''} style="width:20px;height:20px"> Obra paralisada</label>
     <label class="f">Encarregado</label>${selectEncarregado(v.encarregado||'',"document.getElementById('ev_enc').value=this.value;togPresenteEdicao()",'ev_enc')}
+    <label class="f">Líder</label>${selectEncarregado(v.lider||'',"document.getElementById('ev_lid').value=this.value",'ev_lid',"Nome do líder")}
     <label class="f">Presentes</label>${chipsPresentes(v.presentes||[],'togPresenteEdicao')}
     <label class="f">Efetivo por função</label>${linhasEfetivo(ef,f=>`data-ef="${esc(f)}"`,`togPresenteEdicao()`)}
     <label class="f">Resumo</label><textarea class="f" id="ev_res">${esc(v.resumo||'')}</textarea>
@@ -833,6 +838,7 @@ function togPresenteEdicao(fid){
   Object.assign(v,{data:g('ev_data')||v.data,engenheiro:g('ev_eng')??v.engenheiro,hora_inicio:g('ev_hi')||null,hora_fim:g('ev_hf')||null,clima:g('ev_clima')??v.clima,temperatura:g('ev_temp')??v.temperatura,paralisacao:$('ev_par')?$('ev_par').checked:v.paralisacao,resumo:g('ev_res')??v.resumo});
   const efMan={...(v.efetivo||{})};document.querySelectorAll('#sheet [data-ef]').forEach(x=>{efMan[x.dataset.ef]=+x.value||0;});
   const selv=$('ev_enc_sel')&&$('ev_enc_sel').value;const enc=(selv&&selv!=='__outro'?selv:g('ev_enc'))||'';v.encarregado=enc;
+  const sell=$('ev_lid_sel')&&$('ev_lid_sel').value;v.lider=(sell&&sell!=='__outro'?sell:g('ev_lid'))||v.lider||'';
   if(!enc&&f&&ehEncarregado(f.funcao)&&i<0)v.encarregado=f.nome;
   v.efetivo=efetivoDosPresentes(v.presentes,efMan,v.encarregado);
   editarVisita(id);
@@ -841,7 +847,7 @@ let edicaoVisitaId=null;
 async function salvarEdicaoVisita(id){
   const v=cacheVisitas.find(x=>x.id===id);if(!v)return;
   const efetivo={};document.querySelectorAll('#sheet [data-ef]').forEach(i=>{if(+i.value>0)efetivo[i.dataset.ef]=+i.value;});
-  Object.assign(v,{data:$('ev_data').value||v.data,engenheiro:$('ev_eng').value,hora_inicio:$('ev_hi').value||null,hora_fim:$('ev_hf').value||null,clima:$('ev_clima').value,temperatura:$('ev_temp').value,paralisacao:$('ev_par').checked,encarregado:($('ev_enc_sel')&&$('ev_enc_sel').value!=='__outro'&&$('ev_enc_sel').value)||$('ev_enc').value,efetivo,resumo:$('ev_res').value});
+  Object.assign(v,{data:$('ev_data').value||v.data,engenheiro:$('ev_eng').value,hora_inicio:$('ev_hi').value||null,hora_fim:$('ev_hf').value||null,clima:$('ev_clima').value,temperatura:$('ev_temp').value,paralisacao:$('ev_par').checked,encarregado:($('ev_enc_sel')&&$('ev_enc_sel').value!=='__outro'&&$('ev_enc_sel').value)||$('ev_enc').value,lider:($('ev_lid_sel')&&$('ev_lid_sel').value!=='__outro'&&$('ev_lid_sel').value)||$('ev_lid').value,efetivo,resumo:$('ev_res').value});
   const {obra_visitas,...row}=v;
   $('modal').classList.remove('show');
   await enfileirar({kind:'visita',row});
@@ -859,7 +865,7 @@ async function reabrirVisita(id){
   rs.filter(r=>r.tipo==='servico').forEach(r=>{servicos[r.fachada+'|'+r.item]={status:r.status,pct:r.percentual??undefined};});
   const registros=rs.filter(r=>!['checklist','servico'].includes(r.tipo));
   const {obra_visitas,...row}=v;
-  visita={...row,hora_inicio:(row.hora_inicio||'').slice(0,5),hora_fim:null,status:'em_andamento',efetivo:row.efetivo||{},temperatura:row.temperatura||'',clima:row.clima||'',encarregado:row.encarregado||'',resumo:row.resumo||'',presentes:row.presentes||[],checklist,servicos,registros,reaberta:true};
+  visita={...row,hora_inicio:(row.hora_inicio||'').slice(0,5),hora_fim:null,status:'em_andamento',efetivo:row.efetivo||{},temperatura:row.temperatura||'',clima:row.clima||'',encarregado:row.encarregado||'',lider:row.lider||'',resumo:row.resumo||'',presentes:row.presentes||[],checklist,servicos,registros,reaberta:true};
   saveVisita();
   await enfileirar({kind:'visita',row:rowVisita()});
   tab='inicio';go('visita');toast('Vistoria reaberta');
@@ -972,7 +978,7 @@ function relatorioCorpo(v,rs){
   let h=relCabecalho('Relatório de Vistoria de Obra')+`<h2>Dados da vistoria</h2><table>
     <tr><th style="width:22%">Data</th><td>${fmtBR(v.data)}</td><th style="width:22%">Horário</th><td>${esc((v.hora_inicio||'').slice(0,5))}${v.hora_fim?' às '+esc(String(v.hora_fim).slice(0,5)):''}</td></tr>
     <tr><th>Responsável pela vistoria</th><td>${esc(nomeCompleto(v.engenheiro)||'—')}</td><th>Clima</th><td>${esc(v.clima||'—')}${v.temperatura?' · '+esc(v.temperatura)+' °C':''}${v.paralisacao?' · <span class="st-nc">obra paralisada</span>':''}</td></tr>
-    <tr><th>Efetivo</th><td colspan="3">${ef.length?ef.map(([f,n])=>`${n} ${esc(plural(f,n))}`).join(', ')+` (total ${ef.reduce((a,[,n])=>a+(+n),0)})`:'não informado'}${v.encarregado?' · encarregado: '+esc(v.encarregado):''}</td></tr>${(v.presentes||[]).length?`<tr><th>Presentes</th><td colspan="3">${v.presentes.slice().sort((a,b)=>ordemFuncao(a.funcao)-ordemFuncao(b.funcao)).map(p=>`${esc(p.nome)} (${esc(p.funcao)})`).join(', ')}</td></tr>`:''}</table>`;
+    <tr><th>Efetivo</th><td colspan="3">${ef.length?ef.map(([f,n])=>`${n} ${esc(plural(f,n))}`).join(', ')+` (total ${ef.reduce((a,[,n])=>a+(+n),0)})`:'não informado'}${v.encarregado?' · encarregado: '+esc(v.encarregado):''}${v.lider?' · líder: '+esc(v.lider):''}</td></tr>${(v.presentes||[]).length?`<tr><th>Presentes</th><td colspan="3">${v.presentes.slice().sort((a,b)=>ordemFuncao(a.funcao)-ordemFuncao(b.funcao)).map(p=>`${esc(p.nome)} (${esc(p.funcao)})`).join(', ')}</td></tr>`:''}</table>`;
   if(sv.length){const byF={};sv.forEach(r=>{(byF[r.fachada]=byF[r.fachada]||[]).push(r);});
     h+=`<h2>Serviços por fachada</h2><table><tr><th>Fachada / local</th><th>Serviço</th><th>Situação</th><th style="width:12%">%</th></tr>${Object.entries(byF).map(([f,a])=>a.map((r,i)=>`<tr>${i?'':`<td rowspan="${a.length}">${esc(f)}</td>`}<td>${esc(r.item)}</td><td>${stTxt[r.status]||esc(r.status)}</td><td>${r.percentual??0}%</td></tr>`).join('')).join('')}</table>`;}
   if(ck.length) h+=`<h2>Checklist</h2><table><tr><th>Item</th><th style="width:18%">Resultado</th></tr>${ck.map(r=>`<tr><td>${esc(r.item)}${r.descricao&&r.descricao!==r.item?`<br><span class="st-na">${esc(r.descricao)}</span>`:''}${r.transcricao&&r.transcricao!==r.descricao?`<br><span class="st-na"><i>Áudio: ${esc(r.transcricao)}</i></span>`:''}</td><td class="st-${r.status}">${stTxt[r.status]||esc(r.status)}</td></tr>`).join('')}</table>`;

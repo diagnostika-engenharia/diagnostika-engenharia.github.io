@@ -34,6 +34,7 @@ create table if not exists obra_visitas (
   paralisacao   boolean not null default false,
   efetivo       jsonb not null default '{}'::jsonb,
   encarregado   text,
+  lider         text,
   resumo        text,
   status        text not null default 'em_andamento' check (status in ('em_andamento','concluida')),
   device_id     text,
@@ -106,6 +107,7 @@ create table if not exists obra_funcionarios (
   funcao      text not null,
   empresa     text,
   matricula   text,            -- nº da ficha de registro / matrícula
+  telefone    text,            -- contato (WhatsApp)
   observacao  text,
   ativo       boolean not null default true,
   created_at  timestamptz not null default now(),
@@ -120,3 +122,7 @@ create trigger obra_funcionarios_touch before update on obra_funcionarios
   for each row execute function obra_touch_updated_at();
 -- presença nominal por vistoria: [{id,nome,funcao}] (snapshot, não quebra se o cadastro mudar)
 alter table obra_visitas add column if not exists presentes jsonb not null default '[]'::jsonb;
+
+-- 20/10/2026: colunas adicionadas depois da criação
+alter table obra_funcionarios add column if not exists telefone text;
+alter table obra_visitas add column if not exists lider text;

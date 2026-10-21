@@ -207,7 +207,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261020-13';
+const APP_BUILD='20261021-01';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -1153,6 +1153,7 @@ function relatorioCorpo(v,rs){
   const src=p=>p.startsWith('blob:')?p:fotoUrl(p);
   const ef=Object.entries(v.efetivo||{}).filter(([,n])=>+n>0);
   const ck=rs.filter(r=>r.tipo==='checklist'),sv=rs.filter(r=>r.tipo==='servico'),outros=rs.filter(r=>!['checklist','servico','mapa'].includes(r.tipo));
+  const REL_MOSTRAR_MEDICAO=false; // medição fora do relatório até calibrar (21-10-2026)
   const snap=rs.find(r=>r.tipo==='mapa');let medRel=null,medOrigem='';
   if(snap){try{medRel=JSON.parse(snap.descricao||'{}');medOrigem='medição registrada ao encerrar a vistoria';}catch(e){}}
   if(!medRel&&medicao&&medicao.marcado){medRel={geral:medicao.geral,fach:medicao.fach,pulados:medicao.pulados,atualizado:medicao.atualizado};medOrigem='medição atual do mapa (a vistoria não gravou snapshot)';}
@@ -1167,7 +1168,7 @@ function relatorioCorpo(v,rs){
     <tr><th>Efetivo</th><td colspan="3">${ef.length?ef.map(([f,n])=>`${n} ${esc(plural(f,n))}`).join(', ')+` (total ${ef.reduce((a,[,n])=>a+(+n),0)})`:'não informado'}${v.encarregado?' · encarregado: '+esc(v.encarregado):''}${v.lider?' · líder: '+esc(v.lider):''}</td></tr>${(v.presentes||[]).length?`<tr><th>Presentes</th><td colspan="3">${v.presentes.slice().sort((a,b)=>ordemFuncao(a.funcao)-ordemFuncao(b.funcao)).map(p=>`${esc(p.nome)} (${esc(p.funcao)})`).join(', ')}</td></tr>`:''}</table>`;
   if(sv.length){const byF={};sv.forEach(r=>{(byF[r.fachada]=byF[r.fachada]||[]).push(r);});
     h+=`<h2>Serviços por fachada</h2><table><tr><th>Fachada / local</th><th>Serviço</th><th>Situação</th><th style="width:12%">%</th></tr>${Object.entries(byF).map(([f,a])=>a.map((r,i)=>`<tr>${i?'':`<td rowspan="${a.length}">${esc(f)}</td>`}<td>${esc(r.item)}</td><td>${stTxt[r.status]||esc(r.status)}</td><td>${r.percentual??0}%</td></tr>`).join('')).join('')}</table>`;}
-  if(medRel){const decl=f=>{const a=sv.filter(r=>r.fachada===f);if(!a.length)return '—';return Math.round(SERVICOS.reduce((t,s)=>t+(a.find(r=>r.item===s)?.percentual??0),0)/SERVICOS.length)+'%';};
+  if(medRel&&REL_MOSTRAR_MEDICAO){const decl=f=>{const a=sv.filter(r=>r.fachada===f);if(!a.length)return '—';return Math.round(SERVICOS.reduce((t,s)=>t+(a.find(r=>r.item===s)?.percentual??0),0)/SERVICOS.length)+'%';};
     h+=`<h2>Avanço medido (mapa 3D)</h2><table><tr><th>Fachada</th><th style="width:18%">Medido</th><th style="width:16%">Quadros</th><th style="width:22%">Estimativa do fiscal</th></tr>${Object.entries(medRel.fach||{}).map(([f,o])=>`<tr><td>${esc(f)}</td><td><b>${medPct(o.pct)}</b></td><td>${o.feitos??'—'}/${o.quadros??'—'}</td><td>${decl(f)}</td></tr>`).join('')}<tr><th>Geral</th><td><b>${medPct(medRel.geral||0)}</b></td><td></td><td></td></tr></table>
     ${medRel.et?`<h3>Por etapa (área com a etapa registrada — base da medição por etapa)</h3><table><tr><th>Fachada</th>${[1,2,3,4,5].map(s=>`<th>${MED_ETAPAS_CURTO[s]}</th>`).join('')}</tr>${Object.entries(medRel.fach||{}).map(([f,o])=>`<tr><td>${esc(f)}</td>${[1,2,3,4,5].map(s=>`<td>${o.et?medPct(o.et[s]):'—'}</td>`).join('')}</tr>`).join('')}<tr><th>Geral</th>${[1,2,3,4,5].map(s=>`<td><b>${medPct(medRel.et[s])}</b></td>`).join('')}</tr></table>`:''}
     <p class="st-na">Quadros com revestimento concluído sem etapa pulada, em m² de projeto. ${esc(medOrigem)}${medRel.atualizado?' · última marcação '+fmtBR(String(medRel.atualizado).slice(0,10)):''}${medRel.pulados?' · '+medRel.pulados+' quadro(s) com etapa pulada':''}.</p>`;}

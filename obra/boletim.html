@@ -91,7 +91,31 @@ function desenhar(){
   <div class="card"><h3>Fachada por etapa (área com a etapa registrada ÷ área da fachada)</h3><table><thead><tr><th>Fachada</th><th class="n">Área</th><th class="n">Remoção</th><th class="n">Tratamento</th><th class="n">Fundo</th><th class="n">Textura</th></tr></thead><tbody>${fach}
    <tr class="g"><td>Total</td><td class="n">${Math.round(MED.area)} m²</td>${[1,2,3,4].map(s=>`<td class="n">${P(MED.et[s])}</td>`).join('')}</tr></tbody></table>
    <p class="mut">Sacadas e requadros não entram na remoção (aditivo, cl. 1ª). ${MED.pulados?'⚠️ '+MED.pulados+' quadro(s) com etapa pulada no mapa: conferir antes de medir.':''}</p></div>
-  <div class="card acoes"><button onclick="exportar()">⬇️ Exportar CSV para a planilha</button><button onclick="recarregar()">🔄 Ler o mapa de novo</button></div>`;
+  <div class="card acoes"><button onclick="exportar()">⬇️ Exportar CSV para a planilha</button><button onclick="recarregar()">🔄 Ler o mapa de novo</button></div>
+  <div class="card"><h3>Simulador de boletins (teste; nada é gravado)</h3>
+   <p class="mut">Digite o % acumulado de cada etapa em cada boletim. "Demais" = % acumulado dos itens do fiscal (contrato + mobilização/desmobilização do aditivo). A linha BM 1 começa com o mapa de hoje. Os valores dos outros boletins são só exemplos.</p>
+   <table id="sim"></table><div class="acoes" style="margin-top:8px"><button onclick="simLinha()">➕ Boletim</button><button onclick="simExemplo()">↺ Exemplo</button></div></div>`;
+  simExemplo();
+}
+// Simulador: mesma regra da aba Financeiro da planilha (abate o já pago, teto R$ 100 mil com excedente migrando, retenção 5%).
+const SIM_IT=[['2.1',1],['2.2',2],['2.3',3],['2.4',4]], DEMAIS=TOTAL-105390-744000;
+let SIM=[];
+function simExemplo(){
+  const m=MED?MED.et:[0,0,0,0,0];
+  SIM=[[m[1],m[2],m[3],m[4],0],[40,15,0,0,10],[60,35,10,5,20],[80,55,30,20,30],[100,80,60,45,45],[100,100,85,75,65]].map(r=>r.map(v=>Math.round(v*10)/10));
+  simDesenhar();
+}
+function simLinha(){SIM.push([...SIM[SIM.length-1]]); simDesenhar();}
+function simDesenhar(){
+  let dirAnt=0, exc=0;
+  const cab=`<thead><tr><th>BM</th>${SIM_IT.map(i=>`<th class="n">${i[0]} %</th>`).join('')}<th class="n">Demais %</th><th class="n">Acumulado medido</th><th class="n">Abate (já pago)</th><th class="n">Faturado</th><th class="n">Retenção 5%</th><th class="n">Líquido</th><th class="n">Excedente p/ próximo</th></tr></thead>`;
+  const corpo=SIM.map((r,k)=>{
+    const val=SIM_IT.reduce((a,[c],j)=>a+EAP.find(i=>i[0]===c)[2]*r[j]/100,0)+DEMAIS*r[4]/100, acum=105390+val;
+    const dir=Math.max(0,acum-PAGO), per=dir-dirAnt; dirAnt=dir;
+    const fatv=Math.max(0,per+exc), fat=Math.min(100000,fatv); exc=fatv-fat;
+    const inp=(v,j)=>`<input type="number" min="0" max="100" step="0.1" value="${v}" style="width:62px" onchange="SIM[${k}][${j}]=Math.min(100,Math.max(0,+this.value||0));simDesenhar()">`;
+    return `<tr><td>${k+1}</td>${r.map((v,j)=>`<td class="n">${inp(v,j)}</td>`).join('')}<td class="n">${R(acum)}</td><td class="n">${R(Math.min(acum,PAGO))}</td><td class="n"><b>${R(fat)}</b></td><td class="n">${R(fat*.05)}</td><td class="n">${R(fat*.95)}</td><td class="n">${R(exc)}</td></tr>`;}).join('');
+  document.getElementById('sim').innerHTML=cab+'<tbody>'+corpo+'</tbody>';
 }
 function exportar(){
   const l=['codigo;servico;pct_acumulado;fonte;data_corte'];

@@ -193,6 +193,7 @@ body.auth-checking #app>*{visibility:hidden}
     <button data-v="andamento" onclick="go('andamento')"><span class="ic">📊</span>Andamento</button>
     <button data-v="historico" onclick="go('historico')"><span class="ic">🗂️</span>Histórico</button>
     <button data-v="ncs" onclick="go('ncs')"><span class="ic">⚠️</span>Pendências</button>
+    <button onclick="location.href='campo.html'"><span class="ic">🔎</span>Campo</button>
   </div>
   <div class="modal" id="modal" onclick="if(event.target===this)fecharModal()"><div class="sheet" id="sheet"></div></div>
   <div class="lightbox" id="lb" onclick="if(event.target===this||event.target.id==='lbImg'||event.target.classList.contains('x'))this.classList.remove('show')"><button class="x">×</button><button class="nav pv" onclick="lbNav(-1)">‹</button><button class="nav nx" onclick="lbNav(1)">›</button><span class="cnt" id="lbCnt"></span><img id="lbImg" alt=""></div>
@@ -207,7 +208,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261021-01';
+const APP_BUILD='20261028-01';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[

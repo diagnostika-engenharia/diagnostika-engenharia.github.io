@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#155B67">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Diagnóstika — Vistoria de Campo</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="../assets/icon.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--teal:#155B67;--teal-dk:#0D3C44;--turq:#00B4AC;--turq-lt:#CCF0EE;--lime:#8DB72A;--red:#C00000;--red-lt:#FFEAEA;--red-md:#E53935;
+--amber:#B7791F;--amber-lt:#FFF4D6;--green:#1B8A4A;--green-lt:#E8F5EE;--gray:#F0F4F5;--gray2:#E0EAEC;--gray3:#A8BFC2;--gray4:#5A7A7E;
+--text:#1A2E31;--text2:#4A6568;--shadow:0 2px 12px rgba(21,91,103,.12);--r:14px;--r-sm:8px;--nav-h:64px;--header-h:56px}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--gray);color:var(--text);font-size:15px}
+body{overflow:hidden}
+#app{display:flex;flex-direction:column;height:100%;max-width:720px;margin:0 auto;background:#fff;position:relative}
+#header{height:var(--header-h);min-height:var(--header-h);background:var(--teal);color:#fff;display:flex;align-items:center;padding:0 14px;gap:10px}
+#header .back{background:none;border:0;color:#fff;font-size:22px;width:34px;height:34px}
+#header .logo img{height:30px;width:30px;border-radius:8px;background:#fff;padding:2px;display:block}
+#header .ttl{flex:1;font-weight:700;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#header .sub{font-size:11px;opacity:.8;font-weight:400;display:block}
+#sync{font-size:11px;padding:4px 8px;border-radius:12px;background:rgba(255,255,255,.15);white-space:nowrap}
+#sync.pend{background:var(--amber)}#sync.off{background:var(--red-md)}
+#view{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 14px 24px}
+#view.chat{padding-bottom:150px}
+.card{background:#fff;border:1px solid var(--gray2);border-radius:var(--r);padding:14px;margin-bottom:12px;box-shadow:var(--shadow)}
+.card h3{font-size:13px;color:var(--teal);margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px}
+.hd{background:linear-gradient(135deg,var(--teal-dk),var(--teal));color:#fff;border-radius:var(--r);padding:16px;margin-bottom:12px}
+.hd b{font-size:16px;display:block;margin-bottom:4px}.hd small{opacity:.85;font-size:12px;display:block}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border:0;border-radius:var(--r-sm);font-size:15px;font-weight:700;cursor:pointer;background:var(--teal);color:#fff}
+.btn.sec{background:var(--gray);color:var(--teal)}.btn.lime{background:var(--lime)}.btn.red{background:var(--red-md)}
+.btn.sm{padding:9px 12px;font-size:13px;width:auto}.btn:disabled{opacity:.5}
+.row{display:flex;gap:8px}.row>*{flex:1}
+label.f{display:block;font-size:12px;color:var(--text2);font-weight:600;margin:10px 0 4px}
+input.f,select.f,textarea.f{width:100%;padding:11px;border:1.5px solid var(--gray2);border-radius:var(--r-sm);font-size:15px;background:#fff;color:var(--text);font-family:inherit}
+textarea.f{min-height:70px;resize:vertical}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px}
+.tabs button{border:1.5px solid var(--gray2);background:#fff;border-radius:20px;padding:7px 13px;font-size:13px;font-weight:600;color:var(--text2);white-space:nowrap;cursor:pointer}
+.tabs button.on{background:var(--teal);color:#fff;border-color:var(--teal)}
+.vis{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--gray2);cursor:pointer}
+.vis:last-child{border-bottom:0}
+.vis .d{width:48px;text-align:center;background:var(--turq-lt);border-radius:8px;padding:6px 0;color:var(--teal-dk);font-weight:700;font-size:12px;line-height:1.2}
+.vis .d b{font-size:18px;display:block}.vis .i{flex:1;min-width:0}.vis .i b{font-size:14px;display:block}.vis .i small{color:var(--text2);font-size:12px}
+.tag{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:var(--gray);color:var(--text2);margin-right:4px;text-transform:uppercase}
+.tag.ok{background:var(--green-lt);color:var(--green)}.tag.oc{background:var(--amber-lt);color:var(--amber)}.tag.nc{background:var(--red-lt);color:var(--red)}
+.msg{background:var(--gray);border-radius:12px 12px 12px 4px;padding:10px 12px;margin-bottom:10px;max-width:92%}
+.msg small{display:block;font-size:11px;color:var(--gray4);margin-top:4px}
+.msg p{white-space:pre-wrap;font-size:14px;line-height:1.4}
+.msg p.tx{font-style:italic;border-left:3px solid var(--turq);padding-left:6px;margin-top:4px}
+.msg .loc{font-size:11px;font-weight:700;color:var(--teal);text-transform:uppercase;display:block;margin-bottom:3px}
+.photos{display:flex;gap:6px;flex-wrap:wrap}
+.photos img{width:84px;height:84px;object-fit:cover;border-radius:8px;border:1px solid var(--gray2);cursor:pointer}
+audio{width:100%;height:36px;margin-top:4px}
+#composer{position:absolute;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--gray2);padding:8px 10px calc(10px + env(safe-area-inset-bottom));display:none}
+#composer.show{display:block}
+#composer .tools{display:flex;gap:6px;margin-bottom:6px}
+#composer .tools button{flex:1;border:0;border-radius:20px;padding:9px 6px;font-weight:700;font-size:13px;background:var(--gray);color:var(--teal);cursor:pointer}
+#composer .tools button.on{background:var(--red-md);color:#fff;animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.6}}
+#composer .send{display:flex;gap:6px}
+#composer textarea{flex:1;min-height:42px;max-height:120px;padding:9px;border:1.5px solid var(--gray2);border-radius:12px;font-family:inherit;font-size:15px;resize:none}
+#composer .send button{width:46px;border:0;border-radius:12px;background:var(--teal);color:#fff;font-size:20px;cursor:pointer}
+#composer input.loc{width:100%;padding:6px 9px;border:1px solid var(--gray2);border-radius:8px;font-size:13px;margin-bottom:6px}
+.prob{border-left:4px solid var(--teal);padding:4px 0 4px 10px;margin-bottom:14px}
+.prob b{display:block;font-size:15px}.prob dl{font-size:13px;margin-top:4px}
+.prob dt{font-weight:700;color:var(--teal);font-size:11px;text-transform:uppercase;margin-top:6px}.prob dd{color:var(--text)}
+.cert-alta{border-color:var(--green)}.cert-media{border-color:var(--amber)}.cert-baixa{border-color:var(--red-md)}
+.pend{display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--gray2);font-size:14px}.pend:last-child{border-bottom:0}
+.muted{color:var(--text2);font-size:12px}.empty{text-align:center;color:var(--gray4);padding:26px 10px;font-size:14px}
+.toast{position:absolute;left:50%;transform:translateX(-50%);bottom:90px;background:var(--teal-dk);color:#fff;padding:10px 16px;border-radius:20px;font-size:13px;opacity:0;transition:.25s;z-index:30;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+.lightbox{position:absolute;inset:0;background:#000;display:none;align-items:center;justify-content:center;z-index:40}
+.lightbox.show{display:flex}.lightbox img{max-width:100%;max-height:100%}
+body.auth-checking #app>*{visibility:hidden}
+#gate{position:fixed;inset:0;background:linear-gradient(135deg,#0D3C44,#155B67);color:#fff;display:flex;align-items:center;justify-content:center;z-index:99;font-size:14px;padding:20px;text-align:center}
+#gate .bx{background:#fff;color:var(--text);border-radius:16px;padding:28px;max-width:400px}
+#gate .bx h2{color:var(--teal);font-size:19px;margin:10px 0}
+#gate a{display:inline-block;background:var(--teal);color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:700;margin-top:8px}
+</style>
+</head>
+<body class="auth-checking">
+<div id="gate"><div>🔒 Verificando acesso…</div></div>
+<div id="app">
+  <div id="header">
+    <button class="back" onclick="goBack()" title="Voltar">‹</button>
+    <a class="logo" href="./" title="Vistoria de Obra"><img src="../assets/icon.png" alt="Diagnóstika"></a>
+    <div class="ttl" id="hTitle">Vistoria de Campo<span class="sub">Diagnóstika Engenharia</span></div>
+    <span id="sync">✓ sincronizado</span>
+  </div>
+  <div id="view"></div>
+  <div id="composer">
+    <input class="loc" id="cLoc" placeholder="Ambiente (ex.: banheiro social, cozinha)">
+    <div class="tools">
+      <button onclick="$('fCam').click()">📷 Foto</button>
+      <button onclick="$('fGal').click()">🖼️ Galeria</button>
+      <button id="bRec" onclick="toggleGravacao()">🎙️ Áudio</button>
+    </div>
+    <div class="send"><textarea id="cTxt" placeholder="Anotação…" rows="1"></textarea><button onclick="enviarNota()" title="Lançar">➤</button></div>
+  </div>
+  <div class="lightbox" id="lb" onclick="this.classList.remove('show')"><img id="lbImg" alt=""></div>
+  <div class="toast" id="toast"></div>
+</div>
+<input type="file" id="fCam" accept="image/*" capture="environment" multiple hidden onchange="addFotos(this.files);this.value=''">
+<input type="file" id="fGal" accept="image/*" multiple hidden onchange="addFotos(this.files);this.value=''">
+
+<script>
+// ═══════════════ CONFIG ═══════════════
+const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
+const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
+const BUCKET='obra-fotos';
+const APP_BUILD='20261028-01';
+const TIPOS_DEMANDA=['Reforma mal executada','Infiltração / umidade','Fissuras / trincas','Revestimento / fachada','Instalações','Vistoria de recebimento','Laudo / perícia','Outro'];
+const ST={em_campo:['em campo','oc'],processando:['em organização','oc'],processada:['organizada','ok'],erro:['revisar','nc'],arquivada:['arquivada','']};
+let sb=null,user=null,view='lista',tab='lev',atual=null,navStack=[];
+
+function gate(msg){$('gate').innerHTML=`<div class="bx"><img src="../assets/logo-dark.png" alt="Diagnóstika" style="height:54px"><h2>🔒 Acesso restrito</h2><p class="muted" style="font-size:13px;line-height:1.5">${msg}</p><a href="/">🔑 Ir para o login</a></div>`;}
+(async()=>{
+  const t0=Date.now(); while(!window.supabase&&Date.now()-t0<6000) await new Promise(r=>setTimeout(r,80));
+  if(!window.supabase){gate('Não foi possível carregar a biblioteca de acesso. Verifique a conexão.');return;}
+  sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+  let session=null;
+  for(let i=0;i<3;i++){const {data}=await sb.auth.getSession();if(data?.session){session=data.session;break;}await new Promise(r=>setTimeout(r,250));}
+  if(!session){gate('É necessário fazer login no portal de sistemas da Diagnóstika.');return;}
+  user=session.user;
+  try{const {data:v}=await sb.from('user_condos').select('role').eq('user_id',user.id);if(v&&v.some(x=>x.role==='sindico')){gate('Este aplicativo é exclusivo da equipe técnica da Diagnóstika.');return;}}catch(e){}
+  $('gate').remove();document.body.classList.remove('auth-checking');
+  init();
+})();
+const NOMES_COMPLETOS={'rogerio':'Rogério Conceição','claudemir':'Claudemir Scaranello'};
+function nomeUser(){const n=user?.user_metadata?.nome||(user?.email?user.email.split('@')[0].replace(/[._]/g,' '):'Equipe');const k=n.trim().split(/\s+/)[0].normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();return NOMES_COMPLETOS[k]||n;}
+
+// ═══════════════ UTIL ═══════════════
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uuid=()=>crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&3|8)).toString(16);});
+const isoBRT=(d=new Date())=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
+const fmtBR=iso=>{const m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})/);return m?`${m[3]}/${m[2]}/${m[1]}`:'—';};
+const fmtHora=ts=>ts?new Date(ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'}):'';
+const fotoUrl=p=>`${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${p.split('/').map(encodeURIComponent).join('/')}`;
+const moeda=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const deviceId=(()=>{let id=localStorage.getItem('device_id');if(!id){id='dev-'+Math.random().toString(36).slice(2,10);localStorage.setItem('device_id',id);}return id;})();
+let toastT;function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2200);}
+function lb(src){$('lbImg').src=src;$('lb').classList.add('show');}
+async function comprimir(file,max=1600,q=.82){
+  const bmp=await createImageBitmap(file).catch(()=>null);if(!bmp)return file;
+  const s=Math.min(1,max/Math.max(bmp.width,bmp.height));const c=document.createElement('canvas');c.width=Math.round(bmp.width*s);c.height=Math.round(bmp.height*s);
+  c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);return await new Promise(r=>c.toBlob(b=>r(b||file),'image/jpeg',q));
+}
+const audioExt=b=>{const mt=(b?.type||'').toLowerCase();return /wav/.test(mt)?'wav':/mp4|m4a|aac/.test(mt)?'m4a':/ogg/.test(mt)?'ogg':'webm';};
+
+// ═══════════════ Fila offline (IndexedDB, mesmo padrão do app de obra) ═══════════════
+const idb={db:null,
+  open(){return new Promise((res,rej)=>{const r=indexedDB.open('campo-dk',1);r.onupgradeneeded=e=>{e.target.result.createObjectStore('ops',{keyPath:'id',autoIncrement:true});};r.onsuccess=e=>{this.db=e.target.result;res();};r.onerror=()=>rej(r.error);});},
+  tx(m){return this.db.transaction('ops',m).objectStore('ops');},
+  add(op){return new Promise((res,rej)=>{const r=this.tx('readwrite').add(op);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});},
+  all(){return new Promise((res,rej)=>{const r=this.tx('readonly').getAll();r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});},
+  del(id){return new Promise((res,rej)=>{const r=this.tx('readwrite').delete(id);r.onsuccess=()=>res();r.onerror=()=>rej(r.error);});},
+  count(){return new Promise((res,rej)=>{const r=this.tx('readonly').count();r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+};
+async function enfileirar(op){await idb.add({...op,ts:Date.now()});atualizarSync();sincronizar();}
+async function atualizarSync(){const n=await idb.count().catch(()=>0);const el=$('sync');
+  if(!navigator.onLine){el.textContent=`⛔ offline · ${n} pend.`;el.className='off';}
+  else if(n>0){el.textContent=`⏳ ${n} pendente${n>1?'s':''}`;el.className='pend';}
+  else{el.textContent='✓ sincronizado';el.className='';}}
+let syncing=null,syncAgain=false;
+async function sincronizar(){if(!navigator.onLine||!sb)return;if(syncing){syncAgain=true;return syncing;}
+  syncing=(async()=>{do{syncAgain=false;await sincronizarFila();}while(syncAgain);})().finally(()=>{syncing=null;atualizarSync();});return syncing;}
+async function sincronizarFila(){
+  const ops=(await idb.all().catch(()=>[])).sort((a,b)=>a.id-b.id);const travadas=new Set();
+  for(const op of ops){
+    const vid=op.row?.visita_id||op.row?.id||op.vid;if(travadas.has(vid))continue;
+    try{
+      if(op.kind==='visita'){const {error}=await sb.from('campo_visitas').upsert(op.row);if(error)throw error;}
+      else if(op.kind==='visita_patch'){const {error}=await sb.from('campo_visitas').update(op.patch).eq('id',op.vid);if(error)throw error;}
+      else if(op.kind==='item'){
+        const row={...op.row};const paths=[];
+        for(const b of (op.blobs||[])){const p=`campo/${row.visita_id}/${Date.now()}_${Math.random().toString(36).slice(2,7)}.jpg`;
+          const {error}=await sb.storage.from(BUCKET).upload(p,b,{contentType:'image/jpeg',cacheControl:'31536000'});if(error)throw error;paths.push(p);}
+        if(paths.length)row.fotos=paths;
+        if(op.audio){const p=`campo/${row.visita_id}/audio_${Date.now()}.${audioExt(op.audio)}`;
+          const {error}=await sb.storage.from(BUCKET).upload(p,op.audio,{contentType:op.audio.type||'audio/webm'});if(error)throw error;row.audio_path=p;}
+        const {error}=await sb.from('campo_itens').upsert(row);if(error)throw error;
+        if(atual?.id===row.visita_id){const it=atual.itens.find(x=>x.id===row.id);if(it){Object.assign(it,{fotos:row.fotos,audio_path:row.audio_path,_local:false});delete it._blobs;delete it._audio;}saveAtual();}
+      }
+      await idb.del(op.id);
+    }catch(e){console.warn('sync',op.kind,e);travadas.add(vid);}
+  }
+  if(view==='visita')render();
+}
+window.addEventListener('online',()=>{atualizarSync();sincronizar();});window.addEventListener('offline',atualizarSync);
+
+// ═══════════════ ESTADO LOCAL ═══════════════
+function saveAtual(){if(atual){const c={...atual,itens:atual.itens.map(({_blobs,_audio,_urls,...r})=>r)};localStorage.setItem('campo_atual',JSON.stringify(c));}}
+function loadAtual(){try{atual=JSON.parse(localStorage.getItem('campo_atual')||'null');}catch(e){atual=null;}}
+
+async function init(){
+  await idb.open().catch(e=>console.warn('idb',e));loadAtual();atualizarSync();sincronizar();
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+  const q=new URLSearchParams(location.search).get('v');
+  if(q)abrirVisita(q);else go(atual&&atual.status==='em_campo'?'visita':'lista');
+  setInterval(()=>{if(view==='visita'&&atual&&atual.status==='processando')recarregarAtual();},20000);
+}
+function go(v,push){if(push)navStack.push({view,tab});view=v;render();}
+function goBack(){const p=navStack.pop();if(p){view=p.view;tab=p.tab;render();}else if(view!=='lista'){view='lista';render();}else location.href='./';}
+function setTitle(t,s){$('hTitle').innerHTML=`${esc(t)}<span class="sub">${esc(s||'Diagnóstika Engenharia')}</span>`;}
+function render(){
+  const v=$('view');const chat=view==='visita'&&atual&&atual.status==='em_campo'&&tab==='lev';
+  $('composer').classList.toggle('show',chat);v.classList.toggle('chat',chat);
+  if(view==='lista')rLista();else if(view==='nova')rNova();else if(view==='visita')rVisita();
+}
+
+// ═══════════════ LISTA ═══════════════
+async function rLista(){
+  setTitle('Vistoria de Campo');
+  let h=`<div class="hd"><b>Visitas técnicas</b><small>Registre fotos, áudios e anotações. O caso é organizado em levantamento, problemas, pendências e proposta.</small></div>
+  <button class="btn lime" onclick="go('nova',true)">＋ Nova visita</button><div style="height:12px"></div>`;
+  if(atual&&atual.status==='em_campo')h+=`<div class="card"><h3>Em andamento</h3>${visItem(atual)}</div>`;
+  h+=`<div class="card"><h3>Visitas</h3><div id="lst"><div class="empty">carregando…</div></div></div>`;
+  $('view').innerHTML=h;
+  const {data,error}=await sb.from('campo_visitas').select('id,data,cliente,endereco,tipo_demanda,status').neq('status','arquivada').order('data',{ascending:false}).order('created_at',{ascending:false}).limit(60);
+  const el=$('lst');if(!el)return;
+  if(error){el.innerHTML='<div class="empty">Sem conexão. As visitas aparecem quando voltar a internet.</div>';return;}
+  el.innerHTML=(data||[]).length?data.map(visItem).join(''):'<div class="empty">Nenhuma visita ainda.</div>';
+}
+function visItem(v){const [d,m]=fmtBR(v.data).split('/');const st=ST[v.status]||[v.status,''];
+  return `<div class="vis" onclick="abrirVisita('${esc(v.id)}')"><div class="d"><b>${esc(d)}</b>${esc(m)}</div><div class="i"><b>${esc(v.cliente)}</b><small>${esc(v.tipo_demanda||'')}${v.endereco?' · '+esc(v.endereco):''}</small></div><span class="tag ${st[1]}">${esc(st[0])}</span></div>`;}
+
+// ═══════════════ NOVA VISITA ═══════════════
+function rNova(){
+  setTitle('Nova visita');
+  $('view').innerHTML=`<div class="card">
+  <label class="f">Cliente *</label><input class="f" id="nCli" placeholder="Nome completo">
+  <label class="f">Contato</label><input class="f" id="nCon" placeholder="Telefone ou e-mail" inputmode="tel">
+  <label class="f">Endereço</label><input class="f" id="nEnd" placeholder="Rua, número, unidade, cidade">
+  <label class="f">Condomínio (se houver)</label><input class="f" id="nCond">
+  <label class="f">Tipo de demanda</label><select class="f" id="nTipo">${TIPOS_DEMANDA.map(t=>`<option>${esc(t)}</option>`).join('')}</select>
+  <label class="f">Relato do cliente</label><textarea class="f" id="nDesc" placeholder="O que o cliente contou sobre o problema"></textarea>
+  <label class="f">Data</label><input class="f" type="date" id="nData" value="${isoBRT()}">
+  </div><button class="btn" onclick="criarVisita()">Iniciar visita</button>`;
+}
+async function criarVisita(){
+  const cli=$('nCli').value.trim();if(cli.split(/\s+/).length<2){toast('Informe o nome completo do cliente');return;}
+  const row={id:uuid(),data:$('nData').value||isoBRT(),cliente:cli,contato:$('nCon').value.trim()||null,endereco:$('nEnd').value.trim()||null,
+    condominio:$('nCond').value.trim()||null,tipo_demanda:$('nTipo').value,descricao:$('nDesc').value.trim()||null,
+    engenheiro:nomeUser(),user_id:user.id,status:'em_campo',device_id:deviceId};
+  atual={...row,itens:[]};saveAtual();await enfileirar({kind:'visita',row});
+  navStack=[];tab='lev';go('visita');
+}
+
+// ═══════════════ VISITA ═══════════════
+async function abrirVisita(id){
+  if(atual&&atual.id===id){tab=tab||'lev';go('visita',true);recarregarAtual();return;}
+  const {data:v,error}=await sb.from('campo_visitas').select('*').eq('id',id).maybeSingle();
+  if(error||!v){toast('Visita não encontrada');return;}
+  const {data:it}=await sb.from('campo_itens').select('*').eq('visita_id',id).order('created_at');
+  atual={...v,itens:it||[]};saveAtual();tab=v.status==='em_campo'?'lev':(v.resultado?'prob':'lev');go('visita',true);
+}
+async function recarregarAtual(){
+  if(!atual||!navigator.onLine)return;
+  const pend=(await idb.all().catch(()=>[])).some(o=>(o.row?.visita_id||o.row?.id||o.vid)===atual.id);if(pend)return;
+  const {data:v}=await sb.from('campo_visitas').select('*').eq('id',atual.id).maybeSingle();if(!v)return;
+  const {data:it}=await sb.from('campo_itens').select('*').eq('visita_id',atual.id).order('created_at');
+  const mudou=JSON.stringify([v.status,v.resultado,v.updated_at,(it||[]).length,(it||[]).map(x=>x.transcricao)])!==JSON.stringify([atual.status,atual.resultado,atual.updated_at,atual.itens.length,atual.itens.map(x=>x.transcricao)]);
+  atual={...v,itens:it||[]};saveAtual();if(mudou&&view==='visita')render();
+}
+function rVisita(){
+  if(!atual){go('lista');return;}
+  const a=atual,st=ST[a.status]||[a.status,''];setTitle(a.cliente,`${fmtBR(a.data)} · ${a.tipo_demanda||'Visita técnica'}`);
+  const TABS=[['lev','Levantamento'],['prob','Problemas e normas'],['pend','Pendências'],['prop','Proposta']];
+  let h=`<div class="tabs">${TABS.map(([k,l])=>`<button class="${tab===k?'on':''}" onclick="tab='${k}';render()">${l}</button>`).join('')}</div>`;
+  if(tab==='lev')h+=tLevantamento();else if(tab==='prob')h+=tProblemas();else if(tab==='pend')h+=tPendencias();else h+=tProposta();
+  $('view').innerHTML=h;
+  if(tab==='lev'&&a.status==='em_campo')$('view').scrollTop=$('view').scrollHeight;
+}
+function tLevantamento(){
+  const a=atual;
+  let h=`<div class="hd"><b>${esc(a.cliente)}</b>${a.endereco?`<small>📍 ${esc(a.endereco)}</small>`:''}${a.condominio?`<small>🏢 ${esc(a.condominio)}</small>`:''}${a.contato?`<small>📞 ${esc(a.contato)}</small>`:''}<small>Responsável técnico: ${esc(a.engenheiro||'')}</small></div>`;
+  if(a.descricao)h+=`<div class="card"><h3>Relato do cliente</h3><p style="white-space:pre-wrap;font-size:14px">${esc(a.descricao)}</p></div>`;
+  const lev=a.resultado?.levantamento;
+  if(lev)h+=`<div class="card"><h3>Síntese do levantamento</h3><p style="white-space:pre-wrap;font-size:14px;line-height:1.5">${esc(lev)}</p></div>`;
+  h+=`<div class="card"><h3>Registros de campo (${a.itens.length})</h3>${a.itens.length?a.itens.map(itemHtml).join(''):'<div class="empty">Use os botões abaixo para lançar fotos, áudios e anotações.</div>'}</div>`;
+  if(a.status==='em_campo')h+=`<button class="btn" onclick="concluirVisita()" ${a.itens.length?'':'disabled'}>✓ Concluir visita e organizar o caso</button>`;
+  else if(a.status==='processando')h+=`<div class="card"><p class="muted">⏳ Caso em organização. Esta tela atualiza sozinha quando terminar.</p></div><button class="btn sec" onclick="reabrir()">Reabrir para novos lançamentos</button>`;
+  else h+=`<button class="btn sec" onclick="reabrir()">Reabrir para novos lançamentos</button>`;
+  return h;
+}
+function itemHtml(it){
+  let b=it.local?`<span class="loc">${esc(it.local)}</span>`:'';
+  const fotos=it._urls||(it.fotos||[]).map(fotoUrl);
+  if(fotos.length)b+=`<div class="photos">${fotos.map(u=>`<img src="${esc(u)}" loading="lazy" onclick="lb(this.src)" alt="">`).join('')}</div>`;
+  if(it.tipo==='audio'){b+=it.audio_path?`<audio controls preload="none" src="${esc(fotoUrl(it.audio_path))}"></audio>`:'<p>🎙️ áudio aguardando envio</p>';
+    b+=it.transcricao?`<p class="tx">${esc(it.transcricao)}</p>`:(it.erro_transcricao?'<small>transcrição pendente de revisão</small>':'<small>transcrição na organização do caso</small>');}
+  if(it.texto)b+=`<p${fotos.length?' style="margin-top:6px"':''}>${esc(it.texto)}</p>`;
+  return `<div class="msg">${b}<small>${esc(fmtHora(it.created_at))}${it._local?' · ⏳ enviando':''}</small></div>`;
+}
+async function lancar(item,blobs,audio){
+  if(!atual||atual.status!=='em_campo')return;
+  const row={id:uuid(),visita_id:atual.id,tipo:item.tipo,texto:item.texto||null,local:$('cLoc').value.trim()||null,autor:nomeUser(),device_id:deviceId,created_at:new Date().toISOString()};
+  atual.itens.push({...row,fotos:[],_local:true,_urls:blobs?.map(b=>URL.createObjectURL(b))});saveAtual();render();
+  await enfileirar({kind:'item',row,blobs,audio});
+}
+async function addFotos(files){
+  if(!files||!files.length)return;toast('Processando fotos…');
+  const blobs=[];for(const f of files)blobs.push(await comprimir(f));
+  const txt=$('cTxt').value.trim();$('cTxt').value='';
+  await lancar({tipo:'foto',texto:txt},blobs);
+}
+async function enviarNota(){const t=$('cTxt').value.trim();if(!t)return;$('cTxt').value='';await lancar({tipo:'nota',texto:t});}
+let recorder=null,recChunks=[];
+async function toggleGravacao(){
+  if(recorder){recorder.stop();return;}
+  try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});recChunks=[];recorder=new MediaRecorder(stream);
+    recorder.ondataavailable=e=>recChunks.push(e.data);
+    recorder.onstop=async()=>{stream.getTracks().forEach(t=>t.stop());const mt=recorder.mimeType||'audio/webm';recorder=null;$('bRec').classList.remove('on');$('bRec').textContent='🎙️ Áudio';
+      if(recChunks.length){const blob=new Blob(recChunks,{type:mt});const t=$('cTxt').value.trim();$('cTxt').value='';await lancar({tipo:'audio',texto:t},null,blob);}};
+    recorder.start();$('bRec').classList.add('on');$('bRec').textContent='⏹️ Parar';
+  }catch(e){toast('Microfone indisponível');}
+}
+async function patchVisita(patch){Object.assign(atual,patch);saveAtual();await enfileirar({kind:'visita_patch',vid:atual.id,patch});}
+async function concluirVisita(){
+  if(!confirm('Concluir a visita? O caso será organizado em levantamento, problemas, pendências e proposta.'))return;
+  await patchVisita({status:'processando',erro_processamento:null});tab='lev';render();toast('Visita concluída');
+}
+async function reabrir(){await patchVisita({status:'em_campo'});tab='lev';render();}
+
+// ═══════════════ PROBLEMAS / PENDÊNCIAS ═══════════════
+function aguardando(){const s=atual.status;return `<div class="empty">${s==='em_campo'?'Conclua a visita para organizar o caso.':s==='processando'?'⏳ Caso em organização…':s==='erro'?'A organização do caso precisa de revisão.':'Ainda não há conteúdo.'}</div>`;}
+const CERT={alta:'Alta',media:'Média',média:'Média',baixa:'Baixa'};
+function tProblemas(){
+  const ps=atual.resultado?.problemas;if(!ps||!ps.length)return `<div class="card">${aguardando()}</div>`;
+  const fotoDe=i=>{const it=atual.itens[i];return it?(it.fotos||[]).map(fotoUrl):[];};
+  return `<div class="card"><h3>Problemas identificados (${ps.length})</h3>${ps.map((p,i)=>{const c=String(p.grau_certeza||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+    const fs=(p.itens||[]).flatMap(fotoDe).slice(0,4);
+    return `<div class="prob cert-${esc(c)}"><b>${i+1}. ${esc(p.titulo||'Problema')}</b>${p.local?`<span class="muted">${esc(p.local)}</span>`:''}
+    <dl><dt>Manifestação</dt><dd>${esc(p.manifestacao||'—')}</dd><dt>Provável causa</dt><dd>${esc(p.causa_provavel||'—')}</dd>
+    <dt>Norma aplicável</dt><dd>${esc(p.norma||'a confirmar')}</dd><dt>Grau de certeza</dt><dd>${esc(CERT[c]||p.grau_certeza||'—')}</dd>
+    ${p.recomendacao?`<dt>Recomendação</dt><dd>${esc(p.recomendacao)}</dd>`:''}</dl>
+    ${fs.length?`<div class="photos" style="margin-top:6px">${fs.map(u=>`<img src="${esc(u)}" loading="lazy" onclick="lb(this.src)" alt="">`).join('')}</div>`:''}</div>`;}).join('')}</div>`;
+}
+function tPendencias(){
+  const ps=atual.resultado?.pendencias;if(!ps||!ps.length)return `<div class="card">${aguardando()}</div>`;
+  return `<div class="card"><h3>Pendências (${ps.length})</h3>${ps.map(p=>{const t=typeof p==='string'?{texto:p}:p;
+    return `<div class="pend"><span>☐</span><div><div>${esc(t.texto||'')}</div>${t.responsavel?`<small class="muted">${esc(t.responsavel)}</small>`:''}</div></div>`;}).join('')}</div>`;
+}
+
+// ═══════════════ PROPOSTA (rascunho de honorários) ═══════════════
+function propostaBase(){
+  const a=atual,r=a.resultado||{},p=a.proposta||{};
+  const escopo=p.escopo??(r.escopo_sugerido||(r.problemas||[]).map(x=>'Análise técnica: '+(x.titulo||'')).filter(Boolean)).join('\n');
+  return {objeto:p.objeto??`Assessoria técnica de engenharia referente a ${String(a.tipo_demanda||'visita técnica').toLowerCase()}${a.endereco?' no imóvel situado em '+a.endereco:''}.`,
+    escopo,prazo:p.prazo??'10 dias úteis após o aceite e o recebimento das informações solicitadas.',valor:p.valor??'',
+    pagamento:p.pagamento??'50% no aceite e 50% na entrega do documento técnico, via PIX ou boleto.',validade:p.validade??'15 dias',obs:p.obs??''};
+}
+function tProposta(){
+  const p=propostaBase();
+  return `<div class="card"><h3>Rascunho de proposta de honorários</h3><p class="muted" style="margin-bottom:6px">Revise antes de usar. Nada é enviado ao cliente por aqui.</p>
+  <label class="f">Objeto</label><textarea class="f" id="pObj">${esc(p.objeto)}</textarea>
+  <label class="f">Escopo (um item por linha)</label><textarea class="f" id="pEsc" style="min-height:120px">${esc(p.escopo)}</textarea>
+  <label class="f">Prazo</label><input class="f" id="pPrz" value="${esc(p.prazo)}">
+  <div class="row"><div><label class="f">Honorários (R$)</label><input class="f" id="pVal" inputmode="decimal" value="${esc(p.valor)}" placeholder="0,00"></div>
+  <div><label class="f">Validade</label><input class="f" id="pValid" value="${esc(p.validade)}"></div></div>
+  <label class="f">Forma de pagamento</label><input class="f" id="pPag" value="${esc(p.pagamento)}">
+  <label class="f">Observações</label><textarea class="f" id="pObs">${esc(p.obs)}</textarea></div>
+  <div class="row"><button class="btn sec" onclick="salvarProposta()">Salvar</button><button class="btn" onclick="gerarProposta()">📄 Gerar proposta</button></div>`;
+}
+function lerProposta(){return {objeto:$('pObj').value.trim(),escopo:$('pEsc').value.trim(),prazo:$('pPrz').value.trim(),valor:$('pVal').value.trim(),validade:$('pValid').value.trim(),pagamento:$('pPag').value.trim(),obs:$('pObs').value.trim(),editado_em:new Date().toISOString()};}
+async function salvarProposta(){await patchVisita({proposta:lerProposta()});toast('Proposta salva');}
+const valorNum=v=>Number(String(v||'').replace(/\./g,'').replace(',','.'))||0;
+async function gerarProposta(){
+  const p=lerProposta();await patchVisita({proposta:p});const a=atual;
+  const logo=new URL('../assets/logo-dark.png',location.href).href;
+  const hoje=new Date().toLocaleDateString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'long',year:'numeric'});
+  const itens=p.escopo.split('\n').map(s=>s.replace(/^[-•\d.\s]+/,'').trim()).filter(Boolean);
+  const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Proposta de Honorários — ${esc(a.cliente)}</title><style>
+  @page{size:A4;margin:18mm 16mm}*{box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;color:#1A2E31;font-size:11pt;line-height:1.5;margin:0}
+  .hd{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #155B67;padding-bottom:10px;margin-bottom:18px}.hd img{height:52px}
+  .hd div{text-align:right;font-size:9pt;color:#4A6568}h1{font-size:16pt;color:#155B67;margin:0 0 4px}h2{font-size:11pt;color:#155B67;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #E0EAEC;padding-bottom:3px;margin:18px 0 8px}
+  table{width:100%;border-collapse:collapse;font-size:10pt}td{padding:4px 6px;vertical-align:top}td:first-child{width:28%;color:#4A6568;font-weight:600}
+  ol{margin:0;padding-left:20px}.val{font-size:14pt;font-weight:700;color:#155B67}.ass{margin-top:46px;text-align:center}.ass span{display:inline-block;border-top:1px solid #1A2E31;padding-top:4px;min-width:260px}
+  .ft{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:8pt;color:#A8BFC2;border-top:1px solid #E0EAEC;padding-top:4px}</style></head><body>
+  <div class="hd"><img src="${esc(logo)}" alt="Diagnóstika"><div>Diagnóstika Engenharia<br>Campinas/SP · ${esc(hoje)}</div></div>
+  <h1>Proposta de Honorários</h1><div style="color:#4A6568;font-size:10pt">Assessoria técnica de engenharia</div>
+  <h2>Contratante</h2><table><tr><td>Cliente</td><td>${esc(a.cliente)}</td></tr>${a.endereco?`<tr><td>Imóvel</td><td>${esc(a.endereco)}</td></tr>`:''}${a.condominio?`<tr><td>Condomínio</td><td>${esc(a.condominio)}</td></tr>`:''}${a.contato?`<tr><td>Contato</td><td>${esc(a.contato)}</td></tr>`:''}<tr><td>Visita técnica</td><td>${esc(fmtBR(a.data))}</td></tr></table>
+  <h2>Objeto</h2><p>${esc(p.objeto)}</p>
+  ${itens.length?`<h2>Escopo dos serviços</h2><ol>${itens.map(i=>`<li>${esc(i)}</li>`).join('')}</ol>`:''}
+  <h2>Prazo</h2><p>${esc(p.prazo)}</p>
+  <h2>Honorários</h2><p class="val">${p.valor?esc(moeda(valorNum(p.valor))):'A definir'}</p><p>${esc(p.pagamento)}</p>
+  <h2>Condições gerais</h2><p>Esta proposta tem validade de ${esc(p.validade||'15 dias')}. Despesas com taxas de órgãos e emissão de ART são tratadas à parte, quando aplicáveis. O documento técnico será emitido sob responsabilidade do engenheiro indicado.${p.obs?' '+esc(p.obs):''}</p>
+  <div class="ass"><span>${esc(a.engenheiro||'Diagnóstika Engenharia')}<br><small>Diagnóstika Engenharia</small></span></div>
+  <div class="ft">Diagnóstika Engenharia · Proposta de honorários · ${esc(a.cliente)}</div>
+  <script>window.onload=()=>setTimeout(()=>print(),400)<\/script></body></html>`;
+  const w=window.open('','_blank');if(!w){toast('Permita pop-ups para gerar a proposta');return;}w.document.write(html);w.document.close();
+}
+</script>
+</body>
+</html>

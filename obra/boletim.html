@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Boletim de Medição — Vistoria de Obra</title>
+<meta name="theme-color" content="#155B67">
+<link rel="icon" href="../assets/icon.png">
+<style>
+:root{--bg:#f6f7f7;--card:#fff;--tx:#1d2b2f;--mut:#667;--bd:#dde2e3;--teal:#0f6e74}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.4 system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx)}
+header{background:var(--teal);color:#fff;padding:12px 16px}
+header h1{font-size:16px;margin:0}
+header p{margin:2px 0 0;font-size:12px;opacity:.85}
+header a{color:#fff}
+main{padding:12px 16px 40px;max-width:1100px;margin:0 auto;display:grid;gap:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;overflow-x:auto}
+.card h3{margin:0 0 8px;font-size:14px}
+.kpi{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
+.kpi div{background:#eef4f4;border-radius:10px;padding:10px}
+.kpi small{display:block;color:var(--mut);font-size:12px}
+.kpi b{font-size:18px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--bd);text-align:left;vertical-align:top}
+th{font-size:12px;color:var(--mut);font-weight:600}
+td.n,th.n{text-align:right;white-space:nowrap}
+tr.g td{background:#eef4f4;font-weight:600}
+.tag{display:inline-block;font-size:11px;border-radius:10px;padding:1px 8px;background:#e7ebec}
+.tag.m{background:#d9efe1;color:#1b6e3a}
+.mut{color:var(--mut);font-size:12px}
+.acoes{display:flex;gap:8px;flex-wrap:wrap}
+.acoes button{border:1px solid var(--bd);background:#fff;border-radius:8px;padding:8px 12px;font:inherit;cursor:pointer}
+#gate{position:fixed;inset:0;background:linear-gradient(135deg,#0D3C44,#155B67);color:#fff;display:flex;align-items:center;justify-content:center;z-index:99;padding:20px;text-align:center}
+#gate .bx{background:#fff;color:#1d2b2f;border-radius:16px;padding:24px;max-width:380px}
+#gate .bx h2{color:#155B67;font-size:18px;margin:0 0 8px}
+#gate a{display:inline-block;background:#155B67;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;margin-top:10px}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="medicao.js"></script>
+<script src="mapa-comum.js"></script>
+</head>
+<body>
+<div id="gate"><div>🔒 Verificando acesso…</div></div>
+<header><h1>Boletim de Medição — Menotti del Picchia × AAM</h1>
+<p><a href="./">‹ Voltar ao app</a> · <a href="croqui.html">Planta e fachadas</a> · <a href="modelo3d.html">Modelo 3D</a> · <span id="sync">carregando…</span></p>
+<p>Avanço físico dos itens de fachada (2.1 a 2.4) calculado agora pelo mapa 3D. Os demais itens são lançados pelo fiscal na planilha DK-CFF-BM-MDP-001-2026. Esta tela só lê; nada é gravado.</p></header>
+<main id="main"><div class="card">Carregando…</div></main>
+<script>
+// EAP consolidada (contrato 10-02-2025 + 1º aditivo 20-08-2026 = R$ 1.399.990,00). Premissas aprovadas pelo Rogério em 28-10-2026.
+// Itens do contrato: rateio "Planilha Anexo 03" reescalado para o saldo de R$ 494.600,00 (mesma conta da planilha). et = etapa do mapa 3D.
+const FAT=494600/375990, O=v=>Math.round(v*FAT*100)/100;
+const EAP=[
+ ['0','Serviços executados até o aditivo (parecer)',105390],
+ ['G','Mobilização, canteiro e segurança'],
+ ['1.1','Mobilização, canteiro e proteções (contrato)',O(89990)],['1.2','Ancoragem e linhas de vida',O(14000)],['1.3','Mobilização e proteção do sistema de fachada (aditivo)',40000],
+ ['G','Fachadas: remoção da pastilha + tratamento + textura acrílica'],
+ ['2.1','Remoção da pastilha (exceto sacadas e requadros)',164000,1],['2.2','Tratamento de fissuras, trincas, patologias e regularização',310000,2],
+ ['2.3','Fundo preparador',51000,3],['2.4','Textura acrílica ou grão fino',219000,4],['2.5','Sacadas abertas (lacuna: valor a definir)',0],
+ ['G','Torre em concreto aparente'],['3.1','Lavagem, trincas e proteção do concreto aparente',O(118000)],
+ ['G','Complementos de fachada'],['4.1','Platibandas e caixa d\'água',O(2000)],['4.2','Sacadas e requadros: limpeza, preparação e pintura',O(10000)],['4.3','Calafetação',O(14000)],['4.4','Ferragens da churrasqueira',O(3870)],
+ ['G','Áreas comuns'],['5.1','Muros',O(16320)],['5.2','Guarita',O(2470)],['5.3','Hall, portas e ferragens',O(24990)],['5.4','Escadarias e piso da escada',O(26850)],['5.5','Garagens',O(30000)],['5.6','Corrimãos',O(10000)],
+ ['G','Limpeza e desmobilização'],['6.1','Limpeza final (contrato)',O(7500)],['6.2','Desmobilização (contrato)',O(6000)],['6.3','Desmobilização e limpeza do sistema de fachada (aditivo)',16000]];
+{const s=EAP.filter(i=>i[0]!=='G'&&i[0]!=='0'&&!['1.3','2.1','2.2','2.3','2.4','2.5','6.3'].includes(i[0])).reduce((a,i)=>a+i[2],0); EAP.find(i=>i[0]==='3.1')[2]+=Math.round((494600-s)*100)/100;}
+const TOTAL=1399990, PAGO=267840;
+const R=v=>v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const P=v=>(Math.round(v*10)/10).toLocaleString('pt-BR',{minimumFractionDigits:1})+'%';
+const hojeBR=()=>new Date().toLocaleDateString('pt-BR',{timeZone:'America/Sao_Paulo'});
+let MED=null;
+function statusSync(){const e=document.getElementById('sync'); if(e) e.textContent=MED?('mapa lido '+hojeBR()+(MED.atualizado?' · última marcação '+String(MED.atualizado).slice(0,10).split('-').reverse().join('-'):'')):'carregando…';}
+async function recarregar(){
+  try{MED=medirAvanco(Object.values(await mapaCarregar('3d:')));}catch(e){document.getElementById('main').innerHTML=`<div class="card">Erro ao ler o mapa: ${escH(e.message||e)}</div>`;return;}
+  statusSync(); desenhar();
+}
+function desenhar(){
+  let mapaV=0; const linhas=EAP.map(i=>{
+    if(i[0]==='G') return `<tr class="g"><td colspan="5">${escH(i[1])}</td></tr>`;
+    const pct=i[3]?MED.et[i[3]]:(i[0]==='0'?100:null), v=pct==null?null:i[2]*pct/100; if(i[3]) mapaV+=v;
+    return `<tr><td>${i[0]}</td><td>${escH(i[1])}</td><td class="n">${R(i[2])}</td><td class="n">${pct==null?'<span class="tag">fiscal</span>':(i[3]?'<span class="tag m">mapa</span> ':'')+P(pct)}</td><td class="n">${v==null?'—':R(v)}</td></tr>`;}).join('');
+  const fach=Object.entries(MED.fach).map(([n,o])=>`<tr><td>${escH(n)}</td><td class="n">${Math.round(o.area)} m²</td>${[1,2,3,4].map(s=>`<td class="n">${P(o.et[s])}</td>`).join('')}</tr>`).join('');
+  const base=105390+mapaV;
+  document.getElementById('main').innerHTML=`
+  <div class="card"><h3>Resumo (só itens do mapa + BM 0; itens do fiscal entram na planilha)</h3><div class="kpi">
+   <div><small>Contrato consolidado</small><b>${R(TOTAL)}</b></div>
+   <div><small>Fachada medida no mapa (2.1 a 2.4)</small><b>${R(mapaV)}</b></div>
+   <div><small>BM 0 + fachada medida</small><b>${R(base)}</b></div>
+   <div><small>Já pago antes do aditivo</small><b>${R(PAGO)}</b></div>
+   <div><small>Crédito ainda a abater (parcial)</small><b>${R(Math.max(0,PAGO-base))}</b></div></div>
+   <p class="mut">O desembolso só começa quando o acumulado aprovado passar de ${R(PAGO)} (abatimento do crédito de R$ 162.450,00). Teto de R$ 100.000,00 por boletim e retenção de 5% até o TRD: cálculo completo na aba Boletim da planilha.</p></div>
+  <div class="card"><h3>Itens da EAP — avanço acumulado hoje</h3><table><thead><tr><th>Código</th><th>Serviço</th><th class="n">Valor</th><th class="n">% acumulado</th><th class="n">Medido</th></tr></thead><tbody>${linhas}</tbody></table></div>
+  <div class="card"><h3>Fachada por etapa (área com a etapa registrada ÷ área da fachada)</h3><table><thead><tr><th>Fachada</th><th class="n">Área</th><th class="n">Remoção</th><th class="n">Tratamento</th><th class="n">Fundo</th><th class="n">Textura</th></tr></thead><tbody>${fach}
+   <tr class="g"><td>Total</td><td class="n">${Math.round(MED.area)} m²</td>${[1,2,3,4].map(s=>`<td class="n">${P(MED.et[s])}</td>`).join('')}</tr></tbody></table>
+   <p class="mut">Sacadas e requadros não entram na remoção (aditivo, cl. 1ª). ${MED.pulados?'⚠️ '+MED.pulados+' quadro(s) com etapa pulada no mapa: conferir antes de medir.':''}</p></div>
+  <div class="card acoes"><button onclick="exportar()">⬇️ Exportar CSV para a planilha</button><button onclick="recarregar()">🔄 Ler o mapa de novo</button></div>`;
+}
+function exportar(){
+  const l=['codigo;servico;pct_acumulado;fonte;data_corte'];
+  EAP.filter(i=>i[3]).forEach(i=>l.push([i[0],i[1],(MED.et[i[3]]/100).toFixed(4).replace('.',','),'mapa 3D',hojeBR()].join(';')));
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['﻿'+l.join('\r\n')],{type:'text/csv'}));
+  a.download='avanco_mapa_menotti_'+hojeBR().replace(/\//g,'-')+'.csv'; a.click();
+}
+mapaEntrar().then(ok=>{if(ok) recarregar();});
+</script>
+</body>
+</html>

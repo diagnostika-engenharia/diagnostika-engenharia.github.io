@@ -1,5 +1,5 @@
-const CACHE = 'obra-dk-v47';
-const ASSETS = ['./', './index.html', './manifest.json', '../assets/logo-dark.png', '../assets/icon.png', './mapa-comum.js', './medicao.js', './campo.html'];
+const CACHE = 'obra-dk-v48';
+const ASSETS = ['./', './index.html', './manifest.json', '../assets/logo-dark.png', '../assets/icon.png', './mapa-comum.js', './medicao.js', './campo.html', './boletim.html'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS).catch(() => {})));

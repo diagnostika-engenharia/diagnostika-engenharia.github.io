@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Análise das Medições da AAM</title>
+<meta name="theme-color" content="#155B67">
+<link rel="icon" href="../assets/icon.png">
+<style>
+:root{--bg:#f6f7f7;--card:#fff;--tx:#1d2b2f;--mut:#667;--bd:#dde2e3;--teal:#0f6e74;--esc:#0D3C44;--ok:#1b6e3a;--alerta:#a24a00}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.4 system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx)}
+header{background:var(--teal);color:#fff;padding:12px 16px}
+header h1{font-size:16px;margin:0}
+header p{margin:2px 0 0;font-size:12px;opacity:.85}
+header a{color:#fff}
+main{padding:12px 16px 40px;max-width:1100px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+#selPedido{max-width:100%}
+@media (max-width:640px){.analise textarea{flex-basis:100%}td.n,th.n{white-space:normal}.fotos img{width:72px;height:72px}}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;overflow-x:auto}
+.card h3{margin:0 0 8px;font-size:14px}
+.kpi{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.kpi div{background:#eef4f4;border-radius:10px;padding:10px}
+.kpi small{display:block;color:var(--mut);font-size:12px}
+.kpi b{font-size:17px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--bd);text-align:left;vertical-align:top}
+th{font-size:12px;color:var(--mut);font-weight:600}
+td.n,th.n{text-align:right;white-space:nowrap}
+.mut{color:var(--mut);font-size:12px}
+.tag{display:inline-block;font-size:11px;border-radius:10px;padding:1px 8px;background:#e7ebec}
+.tag.aprovado{background:#d9efe1;color:var(--ok)}.tag.ajustado{background:#fdf0d5;color:var(--alerta)}.tag.contestado{background:#f9dcdc;color:#9b1c1c}
+button,select,input,textarea{font:inherit}
+button{border:1px solid var(--bd);background:#fff;border-radius:8px;padding:7px 11px;cursor:pointer}
+button.pri{background:#155B67;color:#fff;border-color:#155B67}
+button:disabled{opacity:.5;cursor:wait}
+input,textarea,select{border:1px solid var(--bd);border-radius:6px;padding:6px}
+.analise{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
+.analise input[type=number]{width:80px}
+.analise textarea{flex:1 1 220px;min-height:34px}
+.fotos{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.fotos img{width:96px;height:96px;object-fit:cover;border-radius:6px;border:1px solid var(--bd);cursor:zoom-in}
+#msg:not(:empty){background:#e8f3f1;border-left:4px solid var(--teal);padding:8px 10px;border-radius:6px;white-space:pre-wrap}
+#gate{position:fixed;inset:0;background:linear-gradient(135deg,#0D3C44,#155B67);color:#fff;display:flex;align-items:center;justify-content:center;z-index:99;padding:20px;text-align:center}
+#gate .bx{background:#fff;color:#1d2b2f;border-radius:16px;padding:24px;max-width:380px}
+#gate .bx h2{color:#155B67;font-size:18px;margin:0 0 8px}
+#gate a{display:inline-block;background:#155B67;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;margin-top:10px}
+#gate img.qr{width:200px;height:200px;background:#fff}
+#gate input{font-size:20px;letter-spacing:.2em;text-align:center;width:9em;margin:10px 0}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div id="gate"><div>🔒 Verificando acesso…</div></div>
+<header><h1>Análise das Medições da AAM</h1>
+<p><a href="./">‹ Voltar ao app</a> · <a href="boletim.html">Boletim (mapa)</a></p>
+<p>Os pedidos chegam do portal da AAM. Analise cada item (aprovar, ajustar ou contestar com motivo) e depois clique em Publicar. Os totais são calculados no servidor com a mesma regra da planilha.</p></header>
+<main id="main">
+ <div id="msg"></div>
+ <div class="card"><label>Pedido <select id="selPedido"></select></label> <button id="btnRecarregar">🔄 Recarregar</button></div>
+ <div id="conteudo"></div>
+</main>
+<script>
+// Acesso: login do portal + cadastro em bm_admins + segundo fator (MFA por aplicativo autenticador, nível aal2).
+const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
+const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
+let sb=null, PEDIDOS=[], fotoCache={};
+const $=id=>document.getElementById(id);
+const escH=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const R=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const P=v=>v==null?'—':Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%';
+const D=d=>d?String(d).slice(0,10).split('-').reverse().join('-'):'—';
+const DH=d=>d?new Date(d).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}):'—';
+const SIT={em_analise:'Em análise',autorizado:'Autorizado (aguardando a ponte publicar)',publicado:'Publicado no portal da AAM'};
+const msg=t=>{$('msg').textContent=t||''; if(t) scrollTo({top:0,behavior:'smooth'});};
+const portao=html=>{const g=$('gate'); if(g) g.innerHTML=`<div class="bx">${html}</div>`;};
+const bloqueia=t=>portao(`<h2>🔒 Acesso restrito</h2><p>${t}</p><a href="/">Ir para o login</a>`);
+
+async function entrar(){
+  const t0=Date.now(); while(!window.supabase&&Date.now()-t0<6000) await new Promise(r=>setTimeout(r,80));
+  if(!window.supabase){bloqueia('Não foi possível carregar a biblioteca de acesso. Verifique a conexão.');return false;}
+  sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+  const {data}=await sb.auth.getSession();
+  if(!data?.session){bloqueia('É necessário fazer login no portal de sistemas da Diagnóstika.');return false;}
+  const {data:admin}=await sb.rpc('bm_eh_admin_sem_mfa');
+  if(!admin){bloqueia('Esta tela é só do administrador das medições.');return false;}
+  const {data:nivel}=await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+  if(nivel?.currentLevel==='aal2'){$('gate').remove();return true;}
+  return segundoFator();
+}
+// Primeiro acesso: mostra o QR para o aplicativo autenticador. Depois: só pede o código de 6 dígitos.
+async function segundoFator(){
+  const {data:f}=await sb.auth.mfa.listFactors();
+  let fator=f?.totp?.find(x=>x.status==='verified'), qr='';
+  if(!fator){
+    for(const v of (f?.all||[]).filter(x=>x.factor_type==='totp'&&x.status!=='verified')) await sb.auth.mfa.unenroll({factorId:v.id});
+    const {data:n,error}=await sb.auth.mfa.enroll({factorType:'totp',friendlyName:'Medições AAM'});
+    if(error){bloqueia('Não foi possível iniciar o segundo fator: '+escH(error.message));return false;}
+    fator=n; qr=`<p>Leia este QR com o aplicativo autenticador do celular (Google Authenticator, Microsoft Authenticator ou similar):</p><img class="qr" alt="QR do autenticador" src="${n.totp.qr_code}">`;
+  }
+  portao(`<h2>🔐 Segundo fator</h2>${qr}<p>Digite o código de 6 dígitos do aplicativo.</p><input id="codigo" inputmode="numeric" maxlength="6" autocomplete="one-time-code"><br><button class="pri" id="btnCodigo">Confirmar</button><p id="erroCodigo" class="mut"></p>`);
+  return new Promise(ok=>{
+    const ir=async()=>{
+      const code=$('codigo').value.trim(); if(!/^\d{6}$/.test(code)){$('erroCodigo').textContent='O código tem 6 dígitos.';return;}
+      $('btnCodigo').disabled=true;
+      const {error}=await sb.auth.mfa.challengeAndVerify({factorId:fator.id,code});
+      $('btnCodigo').disabled=false;
+      if(error){$('erroCodigo').textContent='Código não confere. Tente de novo.';return;}
+      $('gate').remove(); ok(true);
+    };
+    $('btnCodigo').onclick=ir; $('codigo').onkeydown=e=>{if(e.key==='Enter') ir();};
+  });
+}
+
+async function carregarPedidos(){
+  const {data,error}=await sb.from('bm_pedidos').select('*, bm_obras(nome)').order('enviado_em',{ascending:false});
+  if(error){msg('Erro ao ler os pedidos: '+error.message);return;}
+  PEDIDOS=data||[];
+  const atual=$('selPedido').value;
+  $('selPedido').innerHTML=PEDIDOS.length?PEDIDOS.map(p=>`<option value="${p.ext_pedido_id}">${escH(p.bm_obras?.nome)} · BM ${p.bm_numero} · revisão ${p.revisao} · ${escH(SIT[p.status]||p.status)}</option>`).join(''):'<option value="">Nenhum pedido recebido ainda</option>';
+  if(atual&&PEDIDOS.some(p=>p.ext_pedido_id===atual)) $('selPedido').value=atual;
+  await mostrar();
+}
+
+async function mostrar(){
+  const id=$('selPedido').value, pd=PEDIDOS.find(p=>p.ext_pedido_id===id);
+  if(!pd){$('conteudo').innerHTML='<div class="card mut">Quando a AAM enviar um pedido pelo portal dela, ele aparece aqui em até uma hora.</div>';return;}
+  const [it,eap,fotos,pub,calc]=await Promise.all([
+    sb.from('bm_pedido_itens').select('*').eq('ext_pedido_id',id).order('codigo'),
+    sb.from('bm_eap').select('codigo,valor').eq('ext_obra_id',pd.ext_obra_id),
+    sb.rpc('bm_fotos_lista',{p_pedido:id}),
+    sb.from('bm_publicacoes').select('*').eq('ext_pedido_id',id).order('versao_resultado',{ascending:false}),
+    sb.rpc('bm_calcular',{p_pedido:id})]);
+  const erro=[it,eap,fotos,pub].find(r=>r.error); if(erro){msg('Erro ao ler: '+erro.error.message);return;}
+  const valor=Object.fromEntries((eap.data||[]).map(e=>[e.codigo,e.valor]));
+  const fotosPor={}; (fotos.data||[]).forEach(f=>(fotosPor[f.ext_item_id]=fotosPor[f.ext_item_id]||[]).push(f));
+  const t=calc.data, ant=t?.pcts_anteriores||{}, aberto=pd.status==='em_analise';
+  const pendentes=(it.data||[]).filter(i=>!i.situacao).length;
+  const linhas=(it.data||[]).map(i=>`<tr><td>${escH(i.codigo)}</td><td>${escH(i.descricao)}${i.justificativa?`<div class="mut">AAM: ${escH(i.justificativa)}</div>`:''}
+    <div class="fotos" data-item="${i.ext_item_id}">${(fotosPor[i.ext_item_id]||[]).map(f=>`<img data-foto="${f.ext_anexo_id}" alt="Foto do item ${escH(i.codigo)}">`).join('')}</div>
+    ${aberto?`<div class="analise" data-item="${i.ext_item_id}" data-pct="${i.pct_pedido}">
+      <select><option value="aprovado">Aprovar</option><option value="ajustado">Ajustar</option><option value="contestado">Contestar</option></select>
+      <input type="number" min="0" max="100" step="0.01" value="${i.pct_aprovado??i.pct_pedido}" title="% acumulado aprovado">
+      <textarea placeholder="Motivo (obrigatório para ajustar ou contestar)">${escH(i.motivo&&i.motivo!=='Conforme solicitado.'?i.motivo:'')}</textarea>
+      <button>Salvar</button></div>`:(i.motivo?`<div class="mut">Motivo: ${escH(i.motivo)}</div>`:'')}</td>
+    <td class="n">${valor[i.codigo]==null?'<span class="tag contestado">sem valor na EAP</span>':R(valor[i.codigo])}</td>
+    <td class="n">${P(ant[i.codigo]??0)}</td><td class="n">${P(i.pct_pedido)}</td>
+    <td class="n">${i.situacao?`<span class="tag ${i.situacao}">${i.situacao}</span><br>${P(i.pct_aprovado)}`:'<span class="tag">pendente</span>'}</td></tr>`).join('');
+  $('conteudo').innerHTML=`
+   <div class="card"><h3>${escH(pd.bm_obras?.nome)} · BM ${pd.bm_numero} (revisão ${pd.revisao})</h3>
+    <p class="mut">Período ${D(pd.periodo_inicio)} a ${D(pd.periodo_fim)} · enviado pela AAM em ${DH(pd.enviado_em)} · situação: <b>${escH(SIT[pd.status]||pd.status)}</b></p>
+    ${t?`<div class="kpi"><div><small>Acumulado medido</small><b>${R(t.acumulado)}</b></div><div><small>Direito (acumulado − já pago)</small><b>${R(t.direito)}</b></div>
+     <div><small>Valor do período</small><b>${R(t.valor_periodo)}</b></div><div><small>Faturado (teto R$ 100 mil)</small><b>${R(t.faturado)}</b></div>
+     <div><small>Retenção</small><b>${R(t.retencao)}</b></div><div><small>Líquido a pagar</small><b>${R(t.liquido)}</b></div><div><small>Excedente p/ próximo BM</small><b>${R(t.excedente)}</b></div></div>
+     <p class="mut">Itens ainda não analisados entram com o % pedido pela AAM. A conta é refeita a cada item salvo.</p>`:`<p class="mut">Totais indisponíveis: ${escH(calc.error?.message)}</p>`}</div>
+   <div class="card"><h3>Itens pedidos</h3><table><thead><tr><th>Código</th><th>Serviço e análise</th><th class="n">Valor</th><th class="n">Acum. anterior</th><th class="n">Pedido AAM</th><th class="n">Análise</th></tr></thead><tbody>${linhas||'<tr><td colspan="6">Sem itens.</td></tr>'}</tbody></table></div>
+   <div class="card">${aberto?`<button class="pri" id="btnPublicar" ${pendentes?'disabled':''}>📤 Publicar boletim para a AAM</button>
+     <span class="mut">${pendentes?`Faltam ${pendentes} item(ns) sem análise.`:'Ao publicar, os números ficam congelados e a ponte gera o PDF e coloca no portal da AAM.'}</span>`
+     :pd.status==='publicado'?`<button id="btnReabrir">✏️ Corrigir (gera nova versão)</button>`:'<span class="mut">Autorizado. A ponte publica em alguns minutos.</span>'}
+    ${(pub.data||[]).length?`<p class="mut">Versões: ${pub.data.map(v=>`v${v.versao_resultado} ${v.estado} em ${DH(v.publicado_em||v.autorizado_em)} · faturado ${R(v.totais.faturado)}${v.erro?' · erro: '+escH(v.erro):''}`).join(' | ')}</p>`:''}</div>`;
+  document.querySelectorAll('.analise').forEach(ligarAnalise);
+  document.querySelectorAll('img[data-foto]').forEach(carregarFoto);
+  $('btnPublicar')&&($('btnPublicar').onclick=()=>publicar(id));
+  $('btnReabrir')&&($('btnReabrir').onclick=()=>reabrir(id));
+}
+
+function ligarAnalise(div){
+  const [sel,pct,mot,btn]=div.querySelectorAll('select,input,textarea,button');
+  const atual=[...div.closest('tr').querySelectorAll('.tag')].at(-1)?.textContent;
+  if(['aprovado','ajustado','contestado'].includes(atual)) sel.value=atual;
+  const ajusta=()=>{pct.disabled=sel.value==='aprovado'; if(sel.value==='aprovado') pct.value=div.dataset.pct;};
+  sel.onchange=ajusta; ajusta();
+  btn.onclick=async()=>{
+    if(sel.value!=='aprovado'&&!mot.value.trim()){msg('Informe o motivo para ajustar ou contestar.');mot.focus();return;}
+    btn.disabled=true;
+    const {error}=await sb.rpc('bm_analisar_item',{p_pedido:$('selPedido').value,p_item:div.dataset.item,p_situacao:sel.value,p_pct:Number(pct.value),p_motivo:mot.value});
+    btn.disabled=false;
+    if(error){msg('Não salvou: '+error.message);return;}
+    msg(''); mostrar();
+  };
+}
+async function carregarFoto(img){
+  const id=img.dataset.foto;
+  if(!fotoCache[id]){const {data,error}=await sb.rpc('bm_foto',{p_anexo:id}); if(error) return; fotoCache[id]=`data:${data.mime};base64,${data.base64}`;}
+  img.src=fotoCache[id]; img.onclick=()=>{const w=open(); if(w){w.document.title='Foto'; w.document.body.innerHTML=`<img src="${fotoCache[id]}" style="max-width:100%">`;}};
+}
+async function publicar(id){
+  const pd=PEDIDOS.find(p=>p.ext_pedido_id===id);
+  if(!confirm(`Publicar o boletim do BM ${pd.bm_numero} para a AAM? Os números ficam congelados.`)) return;
+  $('btnPublicar').disabled=true;
+  const {error}=await sb.rpc('bm_autorizar_publicacao',{p_pedido:id});
+  if(error){msg('Não publicou: '+error.message);$('btnPublicar').disabled=false;return;}
+  msg('Autorizado. A ponte gera o PDF e coloca no portal da AAM em alguns minutos.'); carregarPedidos();
+}
+async function reabrir(id){
+  if(!confirm('Reabrir a análise? A próxima publicação gera uma nova versão do boletim.')) return;
+  const {error}=await sb.rpc('bm_reabrir_analise',{p_pedido:id});
+  if(error){msg('Não reabriu: '+error.message);return;}
+  carregarPedidos();
+}
+$('selPedido').onchange=mostrar; $('btnRecarregar').onclick=carregarPedidos;
+entrar().then(ok=>{if(ok) carregarPedidos();});
+</script>
+</body>
+</html>

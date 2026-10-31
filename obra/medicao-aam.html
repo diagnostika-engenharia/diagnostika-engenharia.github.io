@@ -61,7 +61,7 @@ input,textarea,select{border:1px solid var(--bd);border-radius:6px;padding:6px}
  <div id="conteudo"></div>
 </main>
 <script>
-// Acesso: login do portal + cadastro em bm_admins + segundo fator (MFA por aplicativo autenticador, nível aal2).
+// Acesso: login do portal + cadastro em bm_admins. Segundo fator retirado a pedido do Rogério em 30-10-2026.
 const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 let sb=null, PEDIDOS=[], fotoCache={};
@@ -84,32 +84,7 @@ async function entrar(){
   if(!data?.session){bloqueia('É necessário fazer login no portal de sistemas da Diagnóstika.');return false;}
   const {data:admin}=await sb.rpc('bm_eh_admin_sem_mfa');
   if(!admin){bloqueia('Esta tela é só do administrador das medições.');return false;}
-  const {data:nivel}=await sb.auth.mfa.getAuthenticatorAssuranceLevel();
-  if(nivel?.currentLevel==='aal2'){$('gate').remove();return true;}
-  return segundoFator();
-}
-// Primeiro acesso: mostra o QR para o aplicativo autenticador. Depois: só pede o código de 6 dígitos.
-async function segundoFator(){
-  const {data:f}=await sb.auth.mfa.listFactors();
-  let fator=f?.totp?.find(x=>x.status==='verified'), qr='';
-  if(!fator){
-    for(const v of (f?.all||[]).filter(x=>x.factor_type==='totp'&&x.status!=='verified')) await sb.auth.mfa.unenroll({factorId:v.id});
-    const {data:n,error}=await sb.auth.mfa.enroll({factorType:'totp',friendlyName:'Medições AAM'});
-    if(error){bloqueia('Não foi possível iniciar o segundo fator: '+escH(error.message));return false;}
-    fator=n; qr=`<p>Leia este QR com o aplicativo autenticador do celular (Google Authenticator, Microsoft Authenticator ou similar):</p><img class="qr" alt="QR do autenticador" src="${n.totp.qr_code}">`;
-  }
-  portao(`<h2>🔐 Segundo fator</h2>${qr}<p>Digite o código de 6 dígitos do aplicativo.</p><input id="codigo" inputmode="numeric" maxlength="6" autocomplete="one-time-code"><br><button class="pri" id="btnCodigo">Confirmar</button><p id="erroCodigo" class="mut"></p>`);
-  return new Promise(ok=>{
-    const ir=async()=>{
-      const code=$('codigo').value.trim(); if(!/^\d{6}$/.test(code)){$('erroCodigo').textContent='O código tem 6 dígitos.';return;}
-      $('btnCodigo').disabled=true;
-      const {error}=await sb.auth.mfa.challengeAndVerify({factorId:fator.id,code});
-      $('btnCodigo').disabled=false;
-      if(error){$('erroCodigo').textContent='Código não confere. Tente de novo.';return;}
-      $('gate').remove(); ok(true);
-    };
-    $('btnCodigo').onclick=ir; $('codigo').onkeydown=e=>{if(e.key==='Enter') ir();};
-  });
+  $('gate').remove(); return true;
 }
 
 async function carregarPedidos(){

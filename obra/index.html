@@ -208,7 +208,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261028-01';
+const APP_BUILD='20261103-01';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -667,6 +667,7 @@ function tInicio(){
     <label class="f" style="margin-top:12px">Efetivo por função${equipeAtiva().length?' <span class="muted" style="font-weight:400">(calculado pelos presentes marcados e pelo encarregado)</span>':''}</label>
     ${linhasEfetivo(visita.efetivo,f=>`onchange="visita.efetivo['${esc(f)}']=+this.value||0;saveVisita();render()"`,'render()')}
     <p class="muted" style="margin-top:8px">Total: <b id="totEf">${Object.values(visita.efetivo).reduce((a,b)=>a+(+b||0),0)}</b> pessoas</p>
+    <p class="muted" style="margin-top:4px;font-size:13px">Efetivo: ${textoEfetivo(visita,true)}</p>
     <button class="btn sec" style="margin-top:10px" onclick="abrirEquipe()">👷 Cadastrar / editar equipe</button>
   </div>`;
 }
@@ -797,10 +798,11 @@ function tFim(){
   <button class="btn sec" style="margin-top:8px;color:var(--red)" onclick="descartarVisita()">Descartar vistoria</button>`;
 }
 function textoResumo(){
-  const ef=Object.entries(visita.efetivo).filter(([,n])=>+n>0).map(([f,n])=>`${n} ${plural(f,n)}`).join(', ');
   const ncs=visita.registros.filter(r=>r.tipo==='nc').map(r=>`- ${r.item||''}${r.fachada?' ('+r.fachada.split(' — ')[0]+')':''}: ${r.descricao||''}`);
   const serv=Object.entries(visita.servicos).filter(([,v])=>v.status&&v.status!=='nao_iniciado').map(([k,v])=>{const [f,s]=k.split('|');return `- ${f.split(' — ')[0]}: ${s} — ${v.status==='concluido'?'concluído':'em andamento'} (${v.pct??0}%)`;});
-  return `Vistoria de obra — ${obra.nome}\nData: ${fmtBR(visita.data)} ${visita.hora_inicio}${visita.hora_fim?' às '+visita.hora_fim:''}\nResponsável pela vistoria: ${nomeCompleto(visita.engenheiro)}\nClima: ${visita.clima||'—'}${visita.temperatura?' · '+visita.temperatura+'°C':''}${visita.paralisacao?' · OBRA PARALISADA':''}\nEfetivo: ${ef||'não informado'}${visita.encarregado?' · enc. '+visita.encarregado:''}${visita.lider?' · líder '+visita.lider:''}\n\nServiços:\n${serv.join('\n')||'- sem alteração registrada'}\n\nNão conformidades:\n${ncs.join('\n')||'- nenhuma'}\n\n${visita.resumo||''}`.trim();
+  return `Vistoria de obra — ${obra.nome}\nData: ${fmtBR(visita.data)} ${visita.hora_inicio}${visita.hora_fim?' às '+visita.hora_fim:''}\nResponsável pela vistoria: ${nomeCompleto(visita.engenheiro)}\nClima: ${visita.clima||'—'}${visita.temperatura?' · '+visita.temperatura+'°C':''}${visita.paralisacao?' · OBRA PARALISADA':''}
+Efetivo: ${textoEfetivo(visita,false)}
+\nServiços:\n${serv.join('\n')||'- sem alteração registrada'}\n\nNão conformidades:\n${ncs.join('\n')||'- nenhuma'}\n\n${visita.resumo||''}`.trim();
 }
 async function copiarResumo(){try{await navigator.clipboard.writeText(textoResumo());toast('Resumo copiado');}catch(e){prompt('Copie o texto:',textoResumo());}}
 async function encerrarVisita(){
@@ -942,7 +944,7 @@ async function rDetalhe(){
   if(!v){goBack();return;}
   setTitle(`Vistoria ${fmtBR(v.data)}`,v.engenheiro||'');
   $('view').innerHTML=`<div class="card" style="cursor:pointer" onclick="editarVisita('${esc(v.id)}')"><h3>Dados <span class="edh" style="font-weight:400;float:right">✎ toque para editar</span></h3><p style="font-size:14px;line-height:1.6">${v.hora_inicio?esc(v.hora_inicio.slice(0,5)):''}${v.hora_fim?' – '+esc(v.hora_fim.slice(0,5)):''} · ${esc(v.clima||'—')}${v.temperatura?' · '+esc(v.temperatura)+'°C':''}${v.paralisacao?' · <b style="color:var(--red)">obra paralisada</b>':''}<br>
-    Efetivo: ${Object.entries(v.efetivo||{}).filter(([,n])=>+n>0).map(([f,n])=>`${n} ${esc(f)}`).join(', ')||'—'}${v.encarregado?' · enc. '+esc(v.encarregado):''}${(v.presentes||[]).length?`<br>Presentes: ${v.presentes.map(p=>esc(p.nome)).join(', ')}`:''}</p>${v.resumo?`<p style="font-size:14px;margin-top:8px;white-space:pre-wrap">${esc(v.resumo)}</p>`:''}</div>
+    Efetivo: ${textoEfetivo(v,true)}</p>${v.resumo?`<p style="font-size:14px;margin-top:8px;white-space:pre-wrap">${esc(v.resumo)}</p>`:''}</div>
     <div id="detRegs"><div class="empty">Carregando registros…</div></div>`;
   const {data}=await sb.from('obra_registros').select('*').eq('visita_id',id).order('created_at');
   if(view!=='detalhe:'+id)return;
@@ -1152,7 +1154,6 @@ async function dadosRelatorio(id){
 }
 function relatorioCorpo(v,rs){
   const src=p=>p.startsWith('blob:')?p:fotoUrl(p);
-  const ef=Object.entries(v.efetivo||{}).filter(([,n])=>+n>0);
   const ck=rs.filter(r=>r.tipo==='checklist'),sv=rs.filter(r=>r.tipo==='servico'),outros=rs.filter(r=>!['checklist','servico','mapa'].includes(r.tipo));
   const REL_MOSTRAR_MEDICAO=false; // medição fora do relatório até calibrar (21-10-2026)
   const snap=rs.find(r=>r.tipo==='mapa');let medRel=null,medOrigem='';
@@ -1166,7 +1167,7 @@ function relatorioCorpo(v,rs){
   let h=relCabecalho('Relatório de Vistoria de Obra')+`<h2>Dados da vistoria</h2><table>
     <tr><th style="width:22%">Data</th><td>${fmtBR(v.data)} <small style="color:#64748b">· vistoria ${esc(String(v.id||'').slice(0,8))}${v.updated_at?' · gravada em '+fmtBR(String(v.updated_at).slice(0,10))+' '+fmtHora(v.updated_at):''}</small></td><th style="width:22%">Horário</th><td>${esc((v.hora_inicio||'').slice(0,5))}${v.hora_fim?' às '+esc(String(v.hora_fim).slice(0,5)):''}</td></tr>
     <tr><th>Responsável pela vistoria</th><td>${esc(nomeCompleto(v.engenheiro)||'—')}</td><th>Clima</th><td>${esc(v.clima||'—')}${v.temperatura?' · '+esc(v.temperatura)+' °C':''}${v.paralisacao?' · <span class="st-nc">obra paralisada</span>':''}</td></tr>
-    <tr><th>Efetivo</th><td colspan="3">${ef.length?ef.map(([f,n])=>`${n} ${esc(plural(f,n))}`).join(', ')+` (total ${ef.reduce((a,[,n])=>a+(+n),0)})`:'não informado'}${v.encarregado?' · encarregado: '+esc(v.encarregado):''}${v.lider?' · líder: '+esc(v.lider):''}</td></tr>${(v.presentes||[]).length?`<tr><th>Presentes</th><td colspan="3">${v.presentes.slice().sort((a,b)=>ordemFuncao(a.funcao)-ordemFuncao(b.funcao)).map(p=>`${esc(p.nome)} (${esc(p.funcao)})`).join(', ')}</td></tr>`:''}</table>`;
+    <tr><th>Efetivo</th><td colspan="3">${textoEfetivo(v,true)}</td></tr></table>`;
   if(sv.length){const byF={};sv.forEach(r=>{(byF[r.fachada]=byF[r.fachada]||[]).push(r);});
     h+=`<h2>Serviços por fachada</h2><table><tr><th>Fachada / local</th><th>Serviço</th><th>Situação</th><th style="width:12%">%</th></tr>${Object.entries(byF).map(([f,a])=>a.map((r,i)=>`<tr>${i?'':`<td rowspan="${a.length}">${esc(f)}</td>`}<td>${esc(r.item)}</td><td>${stTxt[r.status]||esc(r.status)}</td><td>${r.percentual??0}%</td></tr>`).join('')).join('')}</table>`;}
   if(medRel&&REL_MOSTRAR_MEDICAO){const decl=f=>{const a=sv.filter(r=>r.fachada===f);if(!a.length)return '—';return Math.round(SERVICOS.reduce((t,s)=>t+(a.find(r=>r.item===s)?.percentual??0),0)/SERVICOS.length)+'%';};
@@ -1179,7 +1180,17 @@ function relatorioCorpo(v,rs){
   if(v.resumo) h+=`<h2>Observações gerais</h2><div style="white-space:pre-wrap">${esc(v.resumo)}</div>`;
   return h+relRodape();
 }
-const plural=(f,n)=>{f=f.toLowerCase();return +n>1?f+(f.endsWith('r')?'es':'s'):f;};
+const plural=(f,n)=>{if(+n<2)return f;const w=f.split(' ');const a=w[0],l=a.toLowerCase();w[0]=l.endsWith('r')||l.endsWith('s')?a+'es':l.endsWith('ão')?a.slice(0,-2)+'ões':a+'s';return w.join(' ');};
+// Efetivo por extenso: "Pintor (1): Fulano; Ajudantes de pintor (2): Beltrano, Ciclano; total 3 · líder: ..."
+function textoEfetivo(v,html){
+  const E=html?esc:(x=>x);const ef=Object.entries(v.efetivo||{}).filter(([,n])=>+n>0).sort((a,b)=>ordemFuncao(a[0])-ordemFuncao(b[0]));
+  if(!ef.length)return 'não informado'+(v.encarregado?' · encarregado: '+E(v.encarregado):'')+(v.lider?' · líder: '+E(v.lider):'');
+  const pres=v.presentes||[];const enc=v.encarregado||'';
+  const nomes=f=>pres.filter(p=>ehEncarregado(f)?(p.nome===enc||ehEncarregado(p.funcao)):(p.funcao===f&&p.nome!==enc)).map(p=>E(p.nome));
+  const partes=ef.map(([f,n])=>{const ns=nomes(f);return `${E(plural(f,n))} (${n})${ns.length?': '+ns.join(', '):''}`;});
+  const tot=ef.reduce((a,[,n])=>a+(+n),0);
+  return partes.join('; ')+`; total ${tot}`+(enc&&!pres.some(p=>p.nome===enc)?' · encarregado: '+E(enc):'')+(v.lider?' · líder: '+E(v.lider):'');
+}
 function nomeRelatorio(v){return `Relatorio_Vistoria_Menotti_${(v.data||'').replace(/-/g,'')}.pdf`;}
 async function imprimirRelatorio(id){
   const w=window.open('','_blank');if(!w){toast('Libere pop-ups para imprimir');return;}

@@ -706,7 +706,7 @@ body.capturing .rel-acao{display:none!important}
         <!-- Seletor de competência -->
         <div class="nfse-comp">
           <div class="func-col">
-            <label>Competência (mês de referência)</label>
+            <label title="A nota sai com a competência do mês anterior (mês do serviço)">Mês de faturamento (vencimento) · nota sai com o mês anterior</label>
             <div style="display:flex;gap:8px">
               <select id="nfse-mes" class="ano-select" style="width:120px"></select>
               <select id="nfse-ano" class="ano-select"></select>
@@ -8826,7 +8826,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20261106-164817';
+const APP_BUILD='20261106-181713';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();

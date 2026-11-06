@@ -687,7 +687,7 @@ body.capturing .rel-acao{display:none!important}
       <!-- NOTAS FISCAIS (NFS-e) -->
       <div class="page" id="page-nfse">
         <div class="page-header">
-          <div><h2>Notas Fiscais (NFS-e)</h2><p>Emissão mensal — Prefeitura de Campinas (ABRASF 2.03)</p></div>
+          <div><h2>Notas Fiscais (NFS-e)</h2><p>Emissão mensal — Emissor Nacional da NFS-e (Sefin Nacional)</p></div>
           <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" onclick="abrirEnvioLoteNfse()">✉ Enviar e-mails das notas</button><button class="btn btn-outline btn-sm" onclick="renderNfse()">↺ Recarregar</button></div>
         </div>
 
@@ -5047,6 +5047,32 @@ function _nfseUltimaHtml(c){
 const NFSE_ENVIAR_WEBHOOK='https://84.46.248.23.sslip.io/webhook/nfse-enviar';
 const NFSE_EMAIL_CC='diagnostikaengenharia@gmail.com';
 function _nfseEnvioDe(n){ return n&&n.raw&&n.raw.envio&&n.raw.envio.modo?n.raw.envio:null; }
+// Nota do Emissor Nacional: codigo_verificacao = chave de acesso (50 dígitos). A Prefeitura não manda e-mail dessas.
+function _nfseNacional(n){ return !!(n&&/^\d{50}$/.test(String(n.codigo_verificacao||''))); }
+// Acessos ao link registrado (n8n "NFS-e Link registrado"): {chave:[{tipo,em,bot}]}
+const NFSE_ABERTURAS_WEBHOOK='https://84.46.248.23.sslip.io/webhook/nfse-aberturas';
+let _nfseAberturas={};
+async function _nfseCarregarAberturas(notas){
+  const cs=[...new Set((notas||[]).filter(_nfseNacional).map(n=>n.codigo_verificacao))]; if(!cs.length) return;
+  try{ const r=await fetch(NFSE_ABERTURAS_WEBHOOK+'?c='+cs.join(',')); const j=await r.json(); if(j&&j.ok) Object.assign(_nfseAberturas,j.ab||{}); }catch(_){}
+}
+function _nfseAberturaPill(n){
+  const l=(_nfseAberturas[n&&n.codigo_verificacao]||[]).filter(x=>!x.bot); if(!l.length) return '';
+  const dl=l.filter(x=>/^download/.test(x.tipo)), ult=(dl.length?dl:l)[(dl.length?dl:l).length-1];
+  const q=new Date(ult.em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  return dl.length?`<br><span class="nfse-flag" style="background:#e8f7ee;color:#1a7f37;margin-left:0" title="${esc(l.length+' acesso(s) ao link')}">📥 baixada pelo cliente ${esc(q)}</span>`
+    :`<br><span class="nfse-flag" style="background:#f3e8ff;color:#6b21a8;margin-left:0" title="${esc(l.length+' acesso(s) ao link')}">👁 link aberto ${esc(q)}</span>`;
+}
+// Grava raw.envio (+ histórico raw.envios) em fin_nfse_emitidas com a sessão logada (o anon não acessa fin_* desde 28/10).
+async function _nfseRegistrarEnvio(n,envio){
+  try{
+    const{data,error}=await sb.from('fin_nfse_emitidas').select('raw').eq('id',n.id).single(); if(error) throw error;
+    const raw=Object.assign({},(data&&data.raw)||{}); const hist=Array.isArray(raw.envios)?raw.envios:[];
+    if(raw.envio) hist.push(raw.envio); raw.envio=envio; raw.envios=hist;
+    const{error:e2}=await sb.from('fin_nfse_emitidas').update({raw}).eq('id',n.id); if(e2) throw e2;
+    n.raw=raw; _nfseNotasById[n.id]=n; return {gravado:true};
+  }catch(err){ return {gravado:false,aviso:err.message||String(err)}; }
+}
 function _nfseEnvioPill(n){
   const e=_nfseEnvioDe(n);
   if(!e) return '<span class="nfse-flag" style="background:#fff4e5;color:#b26a00;margin-left:0">⏳ não enviada</span>';
@@ -5054,6 +5080,7 @@ function _nfseEnvioPill(n){
   if(e.modo==='enviado') return `<span class="nfse-flag" style="background:#e8f7ee;color:#1a7f37;margin-left:0" title="${esc('Para: '+(e.para||'')+(e.cc?' · Cc: '+e.cc:''))}">✅ enviada em ${esc(q)}</span>`;
   return `<span class="nfse-flag" style="background:#E3F2FD;color:#1565C0;margin-left:0" title="${esc('Rascunho no Gmail para: '+(e.para||''))}">📝 rascunho criado em ${esc(q)}</span>`;
 }
+function _nfseEnvioPillFull(n){ return _nfseEnvioPill(n)+_nfseAberturaPill(n); }
 // Mês do serviço = mês anterior ao da competência registrada (a nota de "Setembro/2026" cobra o serviço de agosto).
 function _nfseMesServico(comp){
   const [m,a]=String(comp||'').split('/'); const i=_MESES_NF.findIndex(x=>x.toLowerCase()===(m||'').trim().toLowerCase());
@@ -5075,8 +5102,8 @@ async function setNfseCanal(id,canal){
 function _nfseAguardandoEnvio(){
   const comp=_nfseCompSel(); const out=[];
   NFSE_CONDOS.forEach(c=>{
-    if(!c.entrega_email||c.faturamento_ativo===false) return;
-    const u=_nfseUltimas[c.id];
+    if(c.faturamento_ativo===false) return;
+    const u=_nfseUltimas[c.id]; if(!c.entrega_email&&!_nfseNacional(u)) return;
     if(u&&u.ambiente==='producao'&&u.competencia===comp&&!_nfseEnvioDe(u)) out.push({c,u});
   });
   return out;
@@ -5114,7 +5141,11 @@ Segue anexa a Nota Fiscal de Serviços Eletrônica (NFS-e) emitida pela Diagnós
 Nota Fiscal: nº ${n.numero_nfse}
 Competência: ${mesServ}
 ${blocoValor}${venc?'\nVencimento: '+venc:''}
-Pagamento: PIX — Chave CNPJ 54.027.948/0001-60 (Diagnóstika Engenharia — Banco Sicoob)
+Pagamento: PIX — Chave CNPJ 54.027.948/0001-60 (Diagnóstika Engenharia — Banco Sicoob)${_nfseNacional(n)?`
+
+Nota fiscal (PDF): {{LINK_NOTA}}
+Chave de acesso: ${n.codigo_verificacao}
+Consulta pública: www.nfse.gov.br/consultapublica`:''}
 
 Permanecemos à disposição para qualquer esclarecimento.
 
@@ -5128,7 +5159,7 @@ async function _nfseChamarEnvio(n,modo,m){
   const payload={ nota_id:n.id, numero:n.numero_nfse, codigo:n.codigo_verificacao, modo, to:m.para, cc:m.cc, subject:m.subject, corpo:m.corpo, filename:m.filename, competencia_servico:m.mesServ };
   const r=await fetch(NFSE_ENVIAR_WEBHOOK,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
   const txt=await r.text(); let j={}; try{j=JSON.parse(txt);}catch(_){}
-  if(r.ok&&j.ok&&j.envio){ n.raw=Object.assign({},n.raw||{},{envio:j.envio}); _nfseNotasById[n.id]=n; return j; }
+  if(r.ok&&j.ok&&j.envio){ const g=await _nfseRegistrarEnvio(n,j.envio); if(!g.gravado){ n.raw=Object.assign({},n.raw||{},{envio:j.envio}); _nfseNotasById[n.id]=n; } return Object.assign(j,g); }
   return {ok:false,erro:j.erro||txt||('HTTP '+r.status)};
 }
 // ── Envio em lote: lista de clientes, prioridade para quem não recebe pela prefeitura ──
@@ -5138,7 +5169,7 @@ function _nfseLoteItens(){
     if(c.faturamento_ativo===false) return;
     const u=_nfseUltimas[c.id]; if(!u||u.ambiente!=='producao'||!u.numero_nfse) return;
     const n=_nfseNotasById[u.id]||u; const m=_nfseMontarEmail(n);
-    itens.push({c,n,m,prio:!!c.entrega_email,daComp:n.competencia===comp,enviado:_nfseEnvioDe(n)});
+    itens.push({c,n,m,prio:!!c.entrega_email||_nfseNacional(n),daComp:n.competencia===comp,enviado:_nfseEnvioDe(n)});
   });
   // prioridade primeiro; dentro do grupo, quem ainda não foi enviado antes
   itens.sort((a,b)=>(b.prio-a.prio)||((a.enviado?1:0)-(b.enviado?1:0))||a.c.nome.localeCompare(b.c.nome,'pt-BR'));
@@ -5188,7 +5219,7 @@ async function enviarLoteNfse(modo){
     const st=document.getElementById('nl-st-'+x.i); st.innerHTML='⏳ '+(modo==='enviar'?'enviando…':'criando rascunho…');
     try{
       const j=await _nfseChamarEnvio(x.it.n,modo,x.it.m);
-      if(j.ok){ ok++; x.it.enviado=j.envio; st.innerHTML=_nfseEnvioPill(x.it.n); document.getElementById('nl-chk-'+x.i).checked=false; }
+      if(j.ok){ ok++; x.it.enviado=j.envio; st.innerHTML=_nfseEnvioPill(x.it.n)+(j.anexo==='xml'?'<br><small style="color:#b26a00">XML anexado (PDF indisponível)</small>':'')+(j.gravado?'':'<br><small style="color:#c62828">não registrado no histórico</small>'); if(!j.gravado) falhas.push(x.it.c.nome+': e-mail feito mas NÃO registrado no histórico ('+(j.aviso||'')+')'); document.getElementById('nl-chk-'+x.i).checked=false; }
       else{ falhas.push(x.it.c.nome+': '+j.erro); st.innerHTML='<span style="color:#c62828">✗ '+esc(j.erro)+'</span>'; }
     }catch(err){ falhas.push(x.it.c.nome+': '+err.message); st.innerHTML='<span style="color:#c62828">✗ '+esc(err.message)+'</span>'; }
   }
@@ -5228,7 +5259,7 @@ async function enviarNfseEmail(modo){
   const comp=document.getElementById('ne-comp').value.trim();
   const e=_nfseEnvioDe(n);
   if(modo==='enviar'){
-    if(!confirm(`ENVIAR AGORA a NFS-e nº ${n.numero_nfse} para:\n${para}\n(cc: ${document.getElementById('ne-cc').value.trim()||'—'})\n\nO e-mail sai imediatamente pela conta diagnostikaengenharia@gmail.com, com o PDF anexado.`)) return;
+    if(!confirm(`ENVIAR AGORA a NFS-e nº ${n.numero_nfse} para:\n${para}\n(cc: ${document.getElementById('ne-cc').value.trim()||'—'})\n\nO e-mail sai imediatamente pela conta diagnostikaengenharia@gmail.com, com a nota anexada (PDF; XML oficial se o sistema nacional estiver fora).`)) return;
     if(e&&e.modo==='enviado'&&!confirm(`ATENÇÃO: esta nota JÁ FOI ENVIADA em ${new Date(e.em).toLocaleString('pt-BR')}.\n\nEnviar de novo mesmo assim?`)) return;
   }
   const payload={ nota_id:n.id, numero:n.numero_nfse, codigo:n.codigo_verificacao, modo,
@@ -5237,13 +5268,14 @@ async function enviarNfseEmail(modo){
     filename:document.getElementById('ne-arquivo').value.trim(), competencia_servico:comp };
   const btns=document.querySelectorAll('#modal-nfse-envio .modal-ft button'); btns.forEach(b=>b.disabled=true);
   const res=document.getElementById('ne-result');
-  res.innerHTML=`<div class="nfse-resultado" style="margin-top:8px">⏳ ${modo==='enviar'?'Enviando':'Criando rascunho'}… baixando o PDF na Prefeitura e montando o e-mail.</div>`;
+  res.innerHTML=`<div class="nfse-resultado" style="margin-top:8px">⏳ ${modo==='enviar'?'Enviando':'Criando rascunho'}… baixando a nota e montando o e-mail (pode levar até 1 min).</div>`;
   try{
     const r=await fetch(NFSE_ENVIAR_WEBHOOK,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
     const txt=await r.text(); let j={}; try{j=JSON.parse(txt);}catch(_){}
     if(r.ok&&j.ok&&j.envio){
-      n.raw=Object.assign({},n.raw||{},{envio:j.envio}); _nfseNotasById[n.id]=n;
-      const msg=j.envio.modo==='enviado'?`✓ E-mail ENVIADO para ${esc(j.envio.para)}`:`✓ Rascunho criado no Gmail (diagnostikaengenharia@gmail.com) para ${esc(j.envio.para)} — abra o Gmail, confira e clique em Enviar.`;
+      Object.assign(j,await _nfseRegistrarEnvio(n,j.envio));
+      if(!j.gravado){ n.raw=Object.assign({},n.raw||{},{envio:j.envio}); _nfseNotasById[n.id]=n; toast('E-mail feito, mas NÃO registrado no histórico: '+(j.aviso||''),true); }
+      const msg=(j.envio.anexo==='xml'?'⚠ Sistema nacional sem PDF agora: foi anexado o XML oficial (o link no e-mail tenta o PDF de novo). ':'')+(j.envio.modo==='enviado'?`✓ E-mail ENVIADO para ${esc(j.envio.para)}`:`✓ Rascunho criado no Gmail (diagnostikaengenharia@gmail.com) para ${esc(j.envio.para)} — abra o Gmail, confira e clique em Enviar.`);
       res.innerHTML=`<div class="nfse-resultado ok" style="margin-top:8px">${msg}${j.gravado?'':' <em>(não consegui registrar no histórico: '+esc(j.aviso||'')+')</em>'}</div>`;
       toast(j.envio.modo==='enviado'?'NFS-e enviada por e-mail':'Rascunho criado no Gmail');
       renderNfse(); loadNfseHist();
@@ -5499,6 +5531,7 @@ async function loadNfseHist(){
   if(!data||!data.length){ box.innerHTML='<div class="nfse-hist-empty">Nenhuma nota registrada ainda.</div>'; return; }
   document.getElementById('nfse-hist-count').textContent=data.length;
   data.forEach(n=>{ _nfseNotasById[n.id]=n; });
+  await _nfseCarregarAberturas(data.filter(n=>n.ambiente==='producao'));
   box.innerHTML=`<table class="nfse-hist-tbl"><thead><tr>
       <th>Nº</th><th>Tomador</th><th>Competência</th><th>Valor</th><th>Serviço</th><th>Ambiente</th><th>Emitida em</th><th>E-mail ao cliente</th></tr></thead><tbody>`+
     data.map(n=>`<tr>
@@ -5509,7 +5542,7 @@ async function loadNfseHist(){
       <td>${esc(n.servico||(n.avulsa?'Avulsa':'Mensalidade'))}${n.avulsa?' <span class="nfse-flag">avulsa</span>':''}</td>
       <td><span class="nfse-amb-pill ${n.ambiente==='producao'?'prod':'teste'}">${n.ambiente==='producao'?'produção':'teste'}</span>${n.conta_receber_id?'<br><small>↳ Contas a Receber</small>':''}</td>
       <td><small>${n.created_at?new Date(n.created_at).toLocaleString('pt-BR'):'—'}</small></td>
-      <td>${n.ambiente==='producao'&&n.numero_nfse?`${_nfseEnvioPill(n)}<br><button class="btn btn-outline btn-sm" style="margin-top:4px" onclick="abrirEnvioNfse('${n.id}')">✉ ${_nfseEnvioDe(n)?'reenviar':'enviar'}</button>`:'<small>—</small>'}</td>
+      <td>${n.ambiente==='producao'&&n.numero_nfse?`${_nfseEnvioPillFull(n)}<br><button class="btn btn-outline btn-sm" style="margin-top:4px" onclick="abrirEnvioNfse('${n.id}')">✉ ${_nfseEnvioDe(n)?'reenviar':'enviar'}</button>`:'<small>—</small>'}</td>
     </tr>`).join('')+`</tbody></table>`;
 }
 function toggleNfseHist(){
@@ -8793,7 +8826,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20261106-125938';
+const APP_BUILD='20261106-164817';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();

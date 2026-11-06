@@ -5398,10 +5398,28 @@ async function _nfseCriarContaReceber(nome,valorNum,descricao,vencISO,categoria,
 // Grava o histórico da nota emitida. Falha NÃO pode ser silenciosa:
 // a nota já saiu na Prefeitura; se o registro local falhar, o usuário precisa saber.
 async function _nfseGravarHistorico(row){
-  // O histórico agora é gravado pelo MOTOR n8n (server-side), no momento da emissão,
-  // antes de responder ao painel — 100% confiável, independente do navegador.
-  // Mantido como no-op para NÃO duplicar o registro. A leitura continua via loadNfseHist().
-  return;
+  // 06/11/2026: o motor n8n gravava com a chave anônima, mas desde 28/10 o anon não tem
+  // acesso a fin_* (seguranca_28-10-2026) → falhava em silêncio. Agora o PAINEL (logado) grava.
+  // Deduplica por codigo_verificacao (chave de acesso nacional) e devolve true/false.
+  try{
+    const uuidRe=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const j=row.raw||{};
+    const r={...row,
+      condominio_id:uuidRe.test(String(row.condominio_id||''))?row.condominio_id:null,
+      tomador_doc:String(row.tomador_doc||'').replace(/\D/g,''),
+      conta_receber_id:null, // fin_contas_receber.id é inteiro; vínculo é pelo numero_nfse
+      raw:{ painel:true, emissor:j.emissor||null, chave_acesso:j.chave_acesso||null, danfse_url:j.danfse_url||null,
+            dps_id:j.dps_id||null, dps_serie:j.dps_serie||null, dps_numero:j.dps_numero||null,
+            http_status:j.http_status||null, conta_receber_id:row.conta_receber_id||null }
+    };
+    if(r.codigo_verificacao){
+      const{data:ex,error:e1}=await sb.from('fin_nfse_emitidas').select('id').eq('codigo_verificacao',r.codigo_verificacao).limit(1);
+      if(!e1 && ex && ex.length) return true;
+    }
+    const{error}=await sb.from('fin_nfse_emitidas').insert(r);
+    if(error){ console.warn('fin_nfse_emitidas',error.message); toast('Nota emitida, mas o histórico NÃO gravou: '+error.message,true); return false; }
+    return true;
+  }catch(e){ console.warn(e); toast('Nota emitida, mas o histórico NÃO gravou: '+e.message,true); return false; }
 }
 
 async function emitirNfse(){
@@ -5440,7 +5458,7 @@ async function emitirNfse(){
         let crId=null;
         if(prod){ crId=await _nfseCriarContaReceber(c.nome,st.valor,descFinal,_nfseVencISO(c),null,j.numero_nfse,j.codigo_verificacao); }
         // grava histórico (sempre)
-        await _nfseGravarHistorico({
+        const histOk=await _nfseGravarHistorico({
           condominio_id:c.id, nome:c.nome,
           tomador_doc:c.tomador.cnpj, tomador_tipo:'cnpj', tomador_razao:c.tomador.razao_social,
           competencia:comp, valor:(+st.valor), iss_retido:c.iss_retido, descricao:descFinal,
@@ -5449,7 +5467,7 @@ async function emitirNfse(){
           status:prod?'emitida':'teste', conta_receber_id:crId, avulsa:false,
           servico:'Mensalidade de engenharia', raw:j
         });
-        st.resultado={ok:true,msg:`✓ Nota emitida nº <b>${esc(j.numero_nfse)}</b>${j.codigo_verificacao?(' · cód. verificação <b>'+esc(j.codigo_verificacao)+'</b>'):''}${prod?(crId?' <em>(lançada no Contas a Receber)</em>':' <em>(emitida; falha ao lançar em Contas a Receber — confira)</em>'):' <em>(homologação/teste — sem valor fiscal)</em>'}`};
+        st.resultado={ok:true,msg:`✓ Nota emitida nº <b>${esc(j.numero_nfse)}</b>${j.codigo_verificacao?(' · cód. verificação <b>'+esc(j.codigo_verificacao)+'</b>'):''}${prod?(crId?' <em>(lançada no Contas a Receber)</em>':' <em>(emitida; falha ao lançar em Contas a Receber — confira)</em>'):' <em>(homologação/teste — sem valor fiscal)</em>'}${histOk?'':' <b style="color:#c0392b">⚠ histórico NÃO gravado — NÃO reemita</b>'}`};
         if(c.parcelamento && st.parcela!=null){
           st.parcela=+st.parcela+1;
           if(prod&&c.db_id) sb.from('fin_clientes').update({parcelas_emitidas:+st.parcela}).eq('id',c.db_id).then(()=>{});
@@ -8775,7 +8793,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260922-153847';
+const APP_BUILD='20261106-125938';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();

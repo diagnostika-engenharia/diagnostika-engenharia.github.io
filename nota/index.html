@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Nota Fiscal de Serviço — Diagnóstika Engenharia</title>
+<link rel="icon" href="../assets/icon.png">
+<style>
+  :root{--escuro:#0f4c57;--teal:#03a394;--lima:#a2b90b;--fundo:#eef4f3;--texto:#16302f;--suave:#5a7473;--linha:#d9e6e4}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--fundo);color:var(--texto);min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:6vh 16px}
+  main{width:100%;max-width:520px;background:#fff;border-radius:12px;box-shadow:0 2px 14px rgba(15,76,87,.08);overflow:hidden}
+  header{display:flex;align-items:center;gap:14px;padding:18px 24px;border-bottom:1px solid var(--linha)}
+  header img{width:54px;height:54px}
+  header b{display:block;color:var(--escuro);font-size:15px;letter-spacing:.04em}
+  header span{color:var(--teal);font-size:13px}
+  section{padding:24px}
+  h1{font-size:21px;margin:0 0 8px;color:var(--escuro);text-wrap:balance}
+  p{line-height:1.55;margin:10px 0}
+  .btn{display:block;width:100%;text-align:center;background:var(--escuro);color:#fff;border:0;border-radius:8px;padding:14px 18px;font-size:16px;font-weight:600;cursor:pointer;text-decoration:none;margin-top:14px;font-family:inherit}
+  .btn.sec{background:#fff;color:var(--escuro);border:1.5px solid var(--escuro)}
+  .btn:focus-visible{outline:3px solid var(--teal);outline-offset:2px}
+  .btn[disabled]{opacity:.6;cursor:wait}
+  .k{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;word-break:break-all;background:#f3f7f7;padding:10px;border-radius:6px;font-variant-numeric:tabular-nums}
+  small{color:var(--suave)}
+  .msg{margin-top:12px;font-size:14px;color:#8a5a00;background:#fff7e6;border-radius:6px;padding:10px 12px}
+  .msg:empty{display:none}
+  footer{padding:14px 24px;border-top:1px solid var(--linha);font-size:12.5px;color:var(--suave)}
+  footer a{color:var(--escuro)}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="../assets/logo-vertical.png" alt="">
+    <div><b>DIAGNÓSTIKA</b><span>Engenharia</span></div>
+  </header>
+  <section id="carregando"><p>Carregando a nota fiscal…</p></section>
+  <section id="invalido" hidden>
+    <h1>Link inválido</h1>
+    <p>Este link de nota fiscal não é válido ou está incompleto. Abra de novo pelo e-mail ou fale com a Diagnóstika Engenharia.</p>
+  </section>
+  <section id="nota" hidden>
+    <h1>Nota Fiscal de Serviço nº <span id="num"></span></h1>
+    <p>Emitida por <b>Diagnóstika Engenharia LTDA</b> (CNPJ 54.027.948/0001-60) pelo Emissor Nacional da NFS-e.</p>
+    <button type="button" class="btn" id="bPdf">Baixar PDF da nota (DANFSe)</button>
+    <a class="btn sec" id="bXml" hidden>Baixar o XML oficial da nota</a>
+    <div class="msg" id="msg" role="status"></div>
+    <p style="margin-top:20px"><small>Para conferir a autenticidade, acesse <a href="https://www.nfse.gov.br/consultapublica" target="_blank" rel="noopener">www.nfse.gov.br/consultapublica</a> e informe a chave de acesso:</small></p>
+    <div class="k" id="chave"></div>
+  </section>
+  <footer>Dúvidas: <a href="mailto:diagnostikaengenharia@gmail.com">diagnostikaengenharia@gmail.com</a></footer>
+</main>
+<script>
+(function(){
+  var API='https://84.46.248.23.sslip.io/webhook/nfse-nota';
+  var t=new URLSearchParams(location.search).get('t')||'';
+  var $=function(id){return document.getElementById(id)};
+  var mostrar=function(id){['carregando','invalido','nota'].forEach(function(s){$(s).hidden=(s!==id)})};
+  if(!/^\d{50}\.[0-9a-f]{16}$/.test(t)){mostrar('invalido');return;}
+  var base=API+'?t='+encodeURIComponent(t);
+  var info=null;
+  fetch(base+'&f=json',{cache:'no-store'}).then(function(r){return r.json()}).then(function(j){
+    if(!j||!j.ok){mostrar('invalido');return;}
+    info=j; $('num').textContent=j.numero; $('chave').textContent=j.chave;
+    $('bXml').href=base+'&d=2';
+    mostrar('nota');
+  }).catch(function(){
+    // servidor fora: mostra o que dá para mostrar a partir do próprio link
+    var ch=t.split('.')[0]; info={numero:String(parseInt(ch.substr(23,13),10)),chave:ch};
+    $('num').textContent=info.numero; $('chave').textContent=ch; $('bXml').href=base+'&d=2'; mostrar('nota');
+  });
+  var salvar=function(blob,nome){
+    var u=URL.createObjectURL(blob), a=document.createElement('a');
+    a.href=u; a.download=nome; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){URL.revokeObjectURL(u)},60000);
+  };
+  $('bPdf').addEventListener('click',function(){
+    var b=this; b.disabled=true; b.textContent='Buscando no sistema nacional…'; $('msg').textContent='';
+    fetch(base+'&d=1',{cache:'no-store'}).then(function(r){
+      var ct=r.headers.get('content-type')||'';
+      if(r.ok&&ct.indexOf('pdf')>=0) return r.blob().then(function(bl){
+        salvar(bl,'NFS-e '+info.numero+' - Diagnostika Engenharia.pdf');
+        $('msg').textContent='';
+      });
+      throw new Error('indisponível');
+    }).catch(function(){
+      $('msg').textContent='O sistema nacional da NFS-e não entregou o PDF agora. Tente de novo em alguns minutos ou baixe o XML oficial da nota, que tem o mesmo valor fiscal.';
+      $('bXml').hidden=false;
+    }).then(function(){ b.disabled=false; b.textContent='Baixar PDF da nota (DANFSe)'; });
+  });
+})();
+</script>
+</body>
+</html>

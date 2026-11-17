@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#155B67">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Pranchas DK">
+<meta http-equiv="Cache-Control" content="no-cache">
+<title>Diagnóstika — Revisão de Pranchas</title>
+<link rel="icon" href="../assets/icon.png">
+<link rel="apple-touch-icon" href="../assets/icon.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<style>
+:root{
+  --teal:#155B67;--teal-dk:#0D3C44;--turq:#00B4AC;--turq-lt:#CCF0EE;--lime:#8DB72A;--lime-lt:#EDF5D8;
+  --red:#C00000;--red-md:#E53935;--amber:#B7791F;--amber-lt:#FFF4D6;--green:#1B8A4A;--green-lt:#E8F5EE;
+  --gray:#F0F4F5;--gray2:#E0EAEC;--gray3:#A8BFC2;--gray4:#5A7A7E;--white:#fff;--text:#1A2E31;--text2:#4A6568;
+  --shadow:0 2px 12px rgba(21,91,103,.12);--r:14px;--r-sm:8px;--header-h:56px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--gray);color:var(--text);font-size:15px}
+body{overflow:hidden}
+#app{display:flex;flex-direction:column;height:100%;max-width:640px;margin:0 auto;background:var(--white);position:relative}
+#header{height:var(--header-h);min-height:var(--header-h);background:var(--teal);color:#fff;display:flex;align-items:center;padding:0 14px;gap:10px;padding-top:env(safe-area-inset-top)}
+#header .logo img{height:30px;width:30px;border-radius:8px;background:#fff;padding:2px;display:block}
+#header .ttl{flex:1;font-weight:700;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#header .sub{font-size:11px;opacity:.8;font-weight:400;display:block}
+#header .who{font-size:11px;padding:4px 8px;border-radius:12px;background:rgba(255,255,255,.15);white-space:nowrap}
+#view{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 14px calc(24px + env(safe-area-inset-bottom))}
+.card{background:#fff;border:1px solid var(--gray2);border-radius:var(--r);padding:14px;margin-bottom:12px;box-shadow:var(--shadow)}
+.card h3{font-size:13px;color:var(--teal);margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px}
+label.lb{display:block;font-size:12px;color:var(--text2);font-weight:600;margin:10px 0 4px}
+input[type=text],select,textarea{width:100%;padding:11px 12px;border:1px solid var(--gray2);border-radius:var(--r-sm);font-size:15px;font-family:inherit;background:#fff;color:var(--text)}
+textarea{min-height:84px;resize:vertical}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border:0;border-radius:var(--r-sm);font-size:15px;font-weight:700;cursor:pointer;background:var(--teal);color:#fff}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.sec{background:var(--gray);color:var(--teal)}
+.btn.lime{background:var(--lime);color:#fff}
+.drop{border:2px dashed var(--turq);border-radius:var(--r);padding:26px 14px;text-align:center;color:var(--text2);background:var(--turq-lt);cursor:pointer;transition:background .15s}
+.drop.over{background:#b2e8e4}
+.drop b{display:block;color:var(--teal);font-size:16px;margin-bottom:4px}
+.drop small{font-size:12px}
+.drop.ok{border-style:solid;background:var(--lime-lt);border-color:var(--lime)}
+.muted{color:var(--text2);font-size:12.5px;line-height:1.5}
+.ok{color:var(--green)}.nc{color:var(--red)}
+.pill{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.3px}
+.pill.pendente{background:var(--amber-lt);color:var(--amber)}.pill.enviado{background:var(--turq-lt);color:var(--teal)}
+.pill.processando{background:#E3EEFF;color:#2457A6}.pill.entregue{background:var(--green-lt);color:var(--green)}.pill.erro{background:#FFEAEA;color:var(--red)}
+.rev{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--gray2);font-size:13px}
+.rev:first-of-type{border-top:0}
+.rev b{display:block;font-size:14px;color:var(--teal)}
+.rev small{color:var(--text2);display:block;line-height:1.4}
+.rev a{color:var(--teal);font-weight:600;text-decoration:none;margin-right:8px}
+/* gate / login */
+#gate{position:fixed;inset:0;background:var(--gray);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
+#gate .bx{background:#fff;border-radius:var(--r);padding:26px 22px;max-width:360px;width:100%;text-align:center;box-shadow:var(--shadow)}
+#gate h2{color:var(--teal);font-size:18px;margin:12px 0 8px}
+#gate input{width:100%;padding:12px;border:1px solid var(--gray2);border-radius:var(--r-sm);font-size:15px;margin-top:10px}
+#gate .err{color:var(--red);font-size:12.5px;margin-top:8px;min-height:16px}
+/* editor */
+#ed{position:fixed;inset:0;background:#2a3436;z-index:50;display:none;flex-direction:column;touch-action:none;overscroll-behavior:none}
+#ed.show{display:flex}
+.ed-top{background:var(--teal-dk);color:#fff;display:flex;align-items:center;gap:6px;padding:6px 8px;padding-top:calc(6px + env(safe-area-inset-top));overflow-x:auto;flex:none;scrollbar-width:none}
+.ed-top::-webkit-scrollbar{display:none}
+.tl{flex:none;border:0;background:rgba(255,255,255,.1);color:#fff;border-radius:8px;padding:8px 10px;font-size:13px;font-weight:600;white-space:nowrap;display:flex;align-items:center;gap:4px}
+.tl.on{background:var(--turq);color:#0D3C44}
+.tl .ic{font-size:16px;line-height:1}
+.cl{flex:none;width:28px;height:28px;border-radius:50%;border:3px solid transparent;cursor:pointer}
+.cl.on{border-color:#fff;box-shadow:0 0 0 2px var(--turq)}
+.sp{flex:none;width:1px;height:26px;background:rgba(255,255,255,.2);margin:0 4px}
+.ed-area{flex:1;position:relative;overflow:hidden;min-height:0;touch-action:none}
+#stage{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+#pg,#ov{position:absolute;left:0;top:0;display:block}
+#ov{cursor:crosshair}
+.ed-bot{background:var(--teal-dk);color:#fff;display:flex;align-items:center;gap:8px;padding:8px;padding-bottom:calc(8px + env(safe-area-inset-bottom));flex:none}
+.ed-bot button{border:0;border-radius:8px;padding:11px 12px;font-size:13px;font-weight:700;background:rgba(255,255,255,.12);color:#fff;white-space:nowrap}
+.ed-bot .pri{background:var(--lime);color:#fff;flex:1}
+.ed-bot .nav{display:flex;align-items:center;gap:4px;font-size:13px}
+.ed-bot .nav span{min-width:60px;text-align:center}
+#txtbox{position:absolute;display:none;z-index:5;background:#fff;border:2px solid var(--turq);border-radius:8px;padding:8px;box-shadow:var(--shadow);width:min(92vw,320px)}
+#txtbox textarea{min-height:60px;font-size:15px}
+#txtbox .row{display:flex;gap:6px;margin-top:6px}
+#txtbox .row button{flex:1;padding:9px;border:0;border-radius:6px;font-weight:700;background:var(--gray);color:var(--teal)}
+#txtbox .row button.pri{background:var(--teal);color:#fff}
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--text);color:#fff;padding:10px 16px;border-radius:20px;font-size:13px;z-index:200;display:none;max-width:90vw;text-align:center}
+#busy{position:fixed;inset:0;background:rgba(13,60,68,.75);color:#fff;z-index:150;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;font-weight:600;text-align:center;padding:20px}
+#busy .spin{width:38px;height:38px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.hint{font-size:11.5px;color:rgba(255,255,255,.75);padding:4px 10px;background:rgba(0,0,0,.25);position:absolute;left:8px;top:8px;border-radius:8px;pointer-events:none;z-index:4}
+@media (min-width:700px){#app{max-width:720px;border-left:1px solid var(--gray2);border-right:1px solid var(--gray2)}}
+</style>
+</head>
+<body class="auth-checking">
+<div id="gate"><div class="bx"><img src="../assets/logo-dark.png" alt="Diagnóstika" style="height:54px"><h2>Revisão de Pranchas</h2><p class="muted">Carregando…</p></div></div>
+
+<div id="app">
+  <div id="header">
+    <div class="logo"><img src="../assets/icon.png" alt=""></div>
+    <div class="ttl">Revisão de Pranchas<span class="sub">Marque a prancha e envie ao grupo Projetos</span></div>
+    <span class="who" id="who"></span>
+  </div>
+  <div id="view">
+    <div class="card">
+      <h3>1 · Prancha ou projeto (PDF)</h3>
+      <div class="drop" id="drop">
+        <b>Arraste o PDF aqui ou toque para escolher</b>
+        <small>PDF de prancha ou projeto, até 50 MB. Várias páginas e zoom funcionam.</small>
+        <input type="file" id="fpdf" accept="application/pdf,.pdf" style="display:none">
+      </div>
+    </div>
+    <div class="card">
+      <h3>2 · Projeto e pedido</h3>
+      <label class="lb">Projeto (código do card)</label>
+      <select id="proj"><option value="">Carregando…</option></select>
+      <label class="lb">DWG de origem (opcional)</label>
+      <input type="file" id="fdwg" accept=".dwg,.dxf" style="font-size:13px">
+      <p class="muted" style="margin-top:4px">Sem DWG, o desenho é procurado na pasta do cliente; se não houver, é redesenhado a partir do PDF.</p>
+      <label class="lb">Pedido em texto (opcional)</label>
+      <textarea id="pedido" placeholder="Ex.: mover o banheiro para baixo da escada; manter a rampa à direita."></textarea>
+    </div>
+    <button class="btn" id="bMarcar" disabled>✏️ Marcar a prancha</button>
+    <div class="card" style="margin-top:14px">
+      <h3>Revisões recentes</h3>
+      <div id="lista" class="muted">Nenhuma ainda.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Editor -->
+<div id="ed">
+  <div class="ed-top" id="tools">
+    <button class="tl on" data-t="caneta"><span class="ic">✏️</span>Caneta</button>
+    <button class="tl" data-t="marca"><span class="ic">🖍️</span>Marca-texto</button>
+    <button class="tl" data-t="elipse"><span class="ic">◯</span>Círculo</button>
+    <button class="tl" data-t="seta"><span class="ic">↗</span>Seta</button>
+    <button class="tl" data-t="rect"><span class="ic">▭</span>Retângulo</button>
+    <button class="tl" data-t="texto"><span class="ic">T</span>Texto</button>
+    <button class="tl" data-t="borracha"><span class="ic">🧽</span>Borracha</button>
+    <button class="tl" data-t="mao"><span class="ic">✋</span>Mover</button>
+    <span class="sp"></span>
+    <button class="cl on" data-c="#E53935" style="background:#E53935" title="Vermelho"></button>
+    <button class="cl" data-c="#1E5BD6" style="background:#1E5BD6" title="Azul"></button>
+    <button class="cl" data-c="#00A651" style="background:#00A651" title="Verde"></button>
+    <button class="cl" data-c="#F5A300" style="background:#F5A300" title="Laranja"></button>
+    <button class="cl" data-c="#FFE600" style="background:#FFE600" title="Amarelo"></button>
+    <button class="cl" data-c="#111111" style="background:#111111" title="Preto"></button>
+    <span class="sp"></span>
+    <button class="tl" onclick="zoomBtn(-1)">−</button>
+    <button class="tl" onclick="zoomBtn(0)">Ajustar</button>
+    <button class="tl" onclick="zoomBtn(1)">+</button>
+  </div>
+  <div class="ed-area" id="area">
+    <div class="hint" id="hint"></div>
+    <div id="stage"><canvas id="pg"></canvas><canvas id="ov"></canvas></div>
+    <div id="txtbox"><textarea id="txtin" placeholder="Texto da anotação"></textarea><div class="row"><button onclick="txtCancel()">Cancelar</button><button class="pri" onclick="txtOk()">Inserir</button></div></div>
+  </div>
+  <div class="ed-bot">
+    <button onclick="desfazer()">↶ Desfazer</button>
+    <div class="nav"><button onclick="irPag(-1)">‹</button><span id="pgInfo">1 / 1</span><button onclick="irPag(1)">›</button></div>
+    <button onclick="fecharEditor()">Voltar</button>
+    <button class="pri" onclick="salvar()">💾 Salvar e enviar</button>
+  </div>
+</div>
+
+<div id="busy"><div class="spin"></div><div id="busyTxt">Salvando…</div></div>
+<div id="toast"></div>
+
+<script>
+const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
+const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
+const BUCKET='pranchas';
+const APP_BUILD='20261117-01';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const toast=(m,ms=2600)=>{const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',ms);};
+const busy=(on,txt)=>{$('busy').style.display=on?'flex':'none';if(txt)$('busyTxt').textContent=txt;};
+const fmtDT=ts=>ts?new Date(ts).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+let sb=null,user=null;
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ───────── acesso (equipe Diagnóstika, login Supabase) ─────────
+function gate(html){$('gate').innerHTML=`<div class="bx"><img src="../assets/logo-dark.png" alt="Diagnóstika" style="height:54px"><h2>Revisão de Pranchas</h2>${html}</div>`;}
+function loginForm(msg){
+  gate(`<p class="muted">${msg||'Acesso restrito à equipe. Entre com o login do portal de sistemas.'}</p>
+    <form id="lf"><input type="email" id="le" placeholder="E-mail" autocomplete="username" required><input type="password" id="ls" placeholder="Senha" autocomplete="current-password" required>
+    <div class="err" id="lerr"></div><button class="btn" type="submit" style="margin-top:6px">Entrar</button></form>`);
+  $('lf').onsubmit=async e=>{e.preventDefault();$('lerr').textContent='';const {error}=await sb.auth.signInWithPassword({email:$('le').value.trim(),password:$('ls').value});
+    if(error){$('lerr').textContent='E-mail ou senha incorretos.';return;}location.reload();};
+}
+(async()=>{
+  const t0=Date.now();while(!window.supabase&&Date.now()-t0<6000)await new Promise(r=>setTimeout(r,80));
+  if(!window.supabase){gate('<p class="muted">Não foi possível carregar a biblioteca de acesso. Verifique a conexão.</p>');return;}
+  sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+  let session=null;for(let i=0;i<3;i++){const {data}=await sb.auth.getSession();if(data?.session){session=data.session;break;}await new Promise(r=>setTimeout(r,250));}
+  if(!session){loginForm();return;}
+  user=session.user;
+  try{const {data:v}=await sb.from('user_condos').select('role').eq('user_id',user.id);if(v&&v.some(x=>x.role==='sindico')){gate('<p class="muted">Este aplicativo é exclusivo da equipe técnica da Diagnóstika.</p>');return;}}catch(e){}
+  $('gate').remove();document.body.classList.remove('auth-checking');
+  $('who').textContent=nomeUser();
+  init();
+})();
+const NOMES={'rogerio':'Rogério Conceição','claudemir':'Claudemir Scaranello'};
+function nomeUser(){const n=user?.user_metadata?.nome||(user?.email?user.email.split('@')[0].replace(/[._]/g,' '):'Equipe');const k=n.trim().split(/\s+/)[0].normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();return NOMES[k]||n;}
+
+// ───────── estado ─────────
+let pdfBytes=null,pdfName='',pdfDoc=null,dwgFile=null;
+let pageNum=1,pageCount=1,pageViewports={};  // viewport scale=1 por página (pdf.js)
+let marks={};            // {pagina: [shape]}  shape em pontos PDF (origem canto inferior esquerdo, via viewport.convertToPdfPoint)
+let undoStack=[];
+let tool='caneta',cor='#E53935';
+const RENDER_SCALE=2;    // qualidade da página no canvas
+let zoom=1,panX=0,panY=0,baseW=0,baseH=0;
+
+function init(){
+  // drop / escolha de PDF
+  const d=$('drop');
+  d.onclick=()=>$('fpdf').click();
+  ['dragenter','dragover'].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.add('over');}));
+  ['dragleave','drop'].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.remove('over');}));
+  d.addEventListener('drop',e=>{const f=[...e.dataTransfer.files].find(f=>/pdf$/i.test(f.name)||f.type==='application/pdf');if(f)carregarPdf(f);else toast('Solte um arquivo PDF.');});
+  $('fpdf').onchange=e=>{if(e.target.files[0])carregarPdf(e.target.files[0]);};
+  $('fdwg').onchange=e=>{dwgFile=e.target.files[0]||null;};
+  $('bMarcar').onclick=abrirEditor;
+  // ferramentas
+  $('tools').querySelectorAll('.tl[data-t]').forEach(b=>b.onclick=()=>{tool=b.dataset.t;$('tools').querySelectorAll('.tl[data-t]').forEach(x=>x.classList.toggle('on',x===b));hint();});
+  $('tools').querySelectorAll('.cl').forEach(b=>b.onclick=()=>{cor=b.dataset.c;$('tools').querySelectorAll('.cl').forEach(x=>x.classList.toggle('on',x===b));});
+  carregarProjetos();carregarLista();
+  window.addEventListener('resize',()=>{if($('ed').classList.contains('show'))ajustar();});
+}
+async function carregarProjetos(){
+  const sel=$('proj');
+  try{
+    const {data,error}=await sb.from('fin_projetos').select('id,codigo,status,fin_projeto_clientes(nome)').eq('arquivado',false).order('codigo');
+    if(error)throw error;
+    const ps=(data||[]).filter(p=>p.codigo);
+    sel.innerHTML='<option value="">Escolha o projeto…</option>'+ps.map(p=>`<option value="${esc(p.codigo)}" data-id="${p.id}">${esc(p.codigo)} — ${esc(p.fin_projeto_clientes?.nome||'')}</option>`).join('');
+    const last=localStorage.getItem('pranchas_proj');if(last&&ps.some(p=>p.codigo===last))sel.value=last;
+  }catch(e){sel.innerHTML='<option value="">Não foi possível carregar os projetos</option>';console.warn(e);}
+  sel.onchange=()=>{localStorage.setItem('pranchas_proj',sel.value);habilitar();};
+}
+function habilitar(){$('bMarcar').disabled=!(pdfBytes&&$('proj').value);}
+async function carregarPdf(f){
+  if(f.size>50*1024*1024){toast('PDF maior que 50 MB.');return;}
+  busy(true,'Abrindo o PDF…');
+  try{
+    pdfBytes=new Uint8Array(await f.arrayBuffer());pdfName=f.name;
+    pdfDoc=await pdfjsLib.getDocument({data:pdfBytes.slice()}).promise;
+    pageCount=pdfDoc.numPages;pageNum=1;marks={};undoStack=[];pageViewports={};
+    const d=$('drop');d.classList.add('ok');d.querySelector('b').textContent=`✅ ${f.name}`;d.querySelector('small').textContent=`${pageCount} página${pageCount>1?'s':''} · ${(f.size/1024/1024).toFixed(1)} MB · toque para trocar`;
+    habilitar();
+  }catch(e){console.error(e);pdfBytes=null;toast('Não consegui abrir esse PDF.');}
+  busy(false);
+}
+
+// ───────── editor ─────────
+async function abrirEditor(){
+  if(!pdfBytes)return;
+  $('ed').classList.add('show');document.body.classList.add('mk-on');
+  await renderPagina();hint();
+}
+function fecharEditor(){$('ed').classList.remove('show');}
+function hint(){const h={caneta:'Desenhe com o dedo ou caneta. Dois dedos: zoom e mover.',marca:'Arraste sobre o trecho a destacar.',elipse:'Arraste para desenhar o círculo.',seta:'Arraste da origem para a ponta da seta.',rect:'Arraste para desenhar o retângulo.',texto:'Toque onde o texto deve ficar.',borracha:'Toque na marcação para apagar.',mao:'Arraste para mover a página.'};$('hint').textContent=h[tool]||'';}
+async function renderPagina(){
+  busy(true,`Página ${pageNum} de ${pageCount}…`);
+  const page=await pdfDoc.getPage(pageNum);
+  const vp1=page.getViewport({scale:1});pageViewports[pageNum]=vp1;
+  const vp=page.getViewport({scale:RENDER_SCALE});
+  const pg=$('pg'),ov=$('ov');
+  pg.width=ov.width=Math.round(vp.width);pg.height=ov.height=Math.round(vp.height);
+  baseW=vp.width/RENDER_SCALE;baseH=vp.height/RENDER_SCALE;   // tamanho em px CSS no zoom 1
+  pg.style.width=ov.style.width=baseW+'px';pg.style.height=ov.style.height=baseH+'px';
+  $('stage').style.width=baseW+'px';$('stage').style.height=baseH+'px';
+  const ctx=pg.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,pg.width,pg.height);
+  await page.render({canvasContext:ctx,viewport:vp}).promise;
+  $('pgInfo').textContent=`${pageNum} / ${pageCount}`;
+  ajustar();redraw();busy(false);
+}
+function irPag(d){const n=pageNum+d;if(n<1||n>pageCount)return;pageNum=n;renderPagina();}
+function ajustar(){const a=$('area').getBoundingClientRect();zoom=Math.min(a.width/baseW,a.height/baseH)*0.98;panX=(a.width-baseW*zoom)/2;panY=(a.height-baseH*zoom)/2;applyT();}
+function applyT(){$('stage').style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`;}
+function zoomBtn(d){if(d===0){ajustar();return;}const a=$('area').getBoundingClientRect();zoomAt(a.width/2,a.height/2,d>0?1.3:1/1.3);}
+function zoomAt(cx,cy,f){const nz=Math.max(0.2,Math.min(12,zoom*f));f=nz/zoom;panX=cx-(cx-panX)*f;panY=cy-(cy-panY)*f;zoom=nz;applyT();}
+
+// coordenadas: tela → canvas base (px CSS no zoom 1) → ponto PDF
+function toBase(e){const a=$('area').getBoundingClientRect();return {x:(e.clientX-a.left-panX)/zoom,y:(e.clientY-a.top-panY)/zoom};}
+function toPdf(p){const vp=pageViewports[pageNum];const [x,y]=vp.convertToPdfPoint(p.x,p.y);return {x,y};}
+function toBaseFromPdf(q){const vp=pageViewports[pageNum];const [x,y]=vp.convertToViewportPoint(q.x,q.y);return {x,y};}
+
+// ───────── desenho ─────────
+const pts=new Map();let cur=null,pinch=null;
+const area=$('area');
+area.addEventListener('pointerdown',e=>{
+  if(e.target.closest('#txtbox'))return;
+  e.preventDefault();pts.set(e.pointerId,{x:e.clientX,y:e.clientY});try{area.setPointerCapture(e.pointerId);}catch(_){}
+  if(pts.size===2){cur=null;redraw();const [a,b]=[...pts.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y),cx:(a.x+b.x)/2,cy:(a.y+b.y)/2,z:zoom,px:panX,py:panY};return;}
+  if(pts.size>2)return;
+  const p=toBase(e);
+  if(tool==='mao'){cur={tipo:'pan',sx:e.clientX,sy:e.clientY,px:panX,py:panY};return;}
+  if(tool==='texto'){abrirTexto(p);return;}
+  if(tool==='borracha'){apagarEm(p);return;}
+  cur={tipo:tool,cor,pts:[p],x0:p.x,y0:p.y,x1:p.x,y1:p.y};
+});
+area.addEventListener('pointermove',e=>{
+  if(!pts.has(e.pointerId))return;pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pinch&&pts.size>=2){const [a,b]=[...pts.values()];const d=Math.hypot(a.x-b.x,a.y-b.y);const cx=(a.x+b.x)/2,cy=(a.y+b.y)/2;const ar=area.getBoundingClientRect();
+    const f=Math.max(0.2,Math.min(12,pinch.z*d/pinch.d))/pinch.z;zoom=pinch.z*f;panX=(cx-ar.left)-((pinch.cx-ar.left)-pinch.px)*f;panY=(cy-ar.top)-((pinch.cy-ar.top)-pinch.py)*f;applyT();return;}
+  if(!cur)return;
+  if(cur.tipo==='pan'){panX=cur.px+(e.clientX-cur.sx);panY=cur.py+(e.clientY-cur.sy);applyT();return;}
+  const p=toBase(e);
+  if(cur.tipo==='caneta'||cur.tipo==='marca')cur.pts.push(p);else{cur.x1=p.x;cur.y1=p.y;}
+  redraw();
+});
+function up(e){pts.delete(e.pointerId);if(pts.size<2)pinch=null;
+  if(!cur)return;if(cur.tipo==='pan'){cur=null;return;}
+  const s=cur;cur=null;
+  if((s.tipo==='caneta'||s.tipo==='marca')&&s.pts.length<2){s.pts.push({x:s.pts[0].x+1,y:s.pts[0].y+1});}
+  if(s.tipo!=='caneta'&&s.tipo!=='marca'&&Math.hypot(s.x1-s.x0,s.y1-s.y0)<4){redraw();return;}
+  // guardar em pontos PDF
+  const sh={tipo:s.tipo,cor:s.cor,largura:s.tipo==='marca'?14:2.5};
+  if(s.tipo==='caneta'||s.tipo==='marca')sh.pts=simplify(s.pts).map(toPdf);else{const a=toPdf({x:s.x0,y:s.y0}),b=toPdf({x:s.x1,y:s.y1});Object.assign(sh,{x0:a.x,y0:a.y,x1:b.x,y1:b.y});}
+  addShape(sh);
+}
+area.addEventListener('pointerup',up);area.addEventListener('pointercancel',up);
+area.addEventListener('wheel',e=>{e.preventDefault();const a=area.getBoundingClientRect();zoomAt(e.clientX-a.left,e.clientY-a.top,e.deltaY<0?1.15:1/1.15);},{passive:false});
+$('ed').addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+function simplify(ps){const out=[ps[0]];for(const p of ps){const l=out[out.length-1];if(Math.hypot(p.x-l.x,p.y-l.y)>=1.2)out.push(p);}return out;}
+function addShape(sh){(marks[pageNum]??=[]).push(sh);undoStack.push({pg:pageNum,op:'add'});redraw();}
+function desfazer(){const u=undoStack.pop();if(!u)return;if(u.op==='add'){(marks[u.pg]||[]).pop();}else if(u.op==='del'){(marks[u.pg]??=[]).splice(u.idx,0,u.sh);}if(u.pg!==pageNum){pageNum=u.pg;renderPagina();}else redraw();}
+function apagarEm(p){const arr=marks[pageNum]||[];const tol=12;
+  for(let i=arr.length-1;i>=0;i--){const s=arr[i];let hit=false;
+    if(s.pts){hit=s.pts.some(q=>{const b=toBaseFromPdf(q);return Math.hypot(b.x-p.x,b.y-p.y)<tol+(s.largura||2);});}
+    else{const a=toBaseFromPdf({x:s.x0,y:s.y0}),b=toBaseFromPdf({x:s.x1,y:s.y1});const minx=Math.min(a.x,b.x)-tol,maxx=Math.max(a.x,b.x)+tol,miny=Math.min(a.y,b.y)-tol,maxy=Math.max(a.y,b.y)+tol;
+      if(s.tipo==='texto')hit=p.x>=minx&&p.x<=maxx&&p.y>=miny&&p.y<=maxy;
+      else if(s.tipo==='seta')hit=distSeg(p,a,b)<tol;
+      else{const inside=p.x>=minx&&p.x<=maxx&&p.y>=miny&&p.y<=maxy;const inner=p.x>minx+2*tol&&p.x<maxx-2*tol&&p.y>miny+2*tol&&p.y<maxy-2*tol;hit=inside&&!inner;}}
+    if(hit){const [sh]=arr.splice(i,1);undoStack.push({pg:pageNum,op:'del',idx:i,sh});redraw();return;}}
+}
+function distSeg(p,a,b){const l2=(a.x-b.x)**2+(a.y-b.y)**2;if(!l2)return Math.hypot(p.x-a.x,p.y-a.y);let t=((p.x-a.x)*(b.x-a.x)+(p.y-a.y)*(b.y-a.y))/l2;t=Math.max(0,Math.min(1,t));return Math.hypot(p.x-(a.x+t*(b.x-a.x)),p.y-(a.y+t*(b.y-a.y)));}
+
+// texto
+let txtPos=null;
+function abrirTexto(p){txtPos=p;const tb=$('txtbox');const a=area.getBoundingClientRect();const sx=p.x*zoom+panX,sy=p.y*zoom+panY;tb.style.left=Math.max(4,Math.min(a.width-330,sx))+'px';tb.style.top=Math.max(4,Math.min(a.height-150,sy))+'px';tb.style.display='block';$('txtin').value='';setTimeout(()=>$('txtin').focus(),50);}
+function txtCancel(){$('txtbox').style.display='none';txtPos=null;}
+function txtOk(){const t=$('txtin').value.trim();if(!t){txtCancel();return;}
+  const fs=14;const lines=t.split('\n');const w=Math.max(...lines.map(l=>l.length))*fs*0.55+8,h=lines.length*fs*1.25+6;
+  const a=toPdf(txtPos),b=toPdf({x:txtPos.x+w,y:txtPos.y+h});
+  addShape({tipo:'texto',cor,texto:t,tam:fs,x0:a.x,y0:a.y,x1:b.x,y1:b.y});txtCancel();}
+
+// render das marcações (overlay) — desenha em px do canvas (RENDER_SCALE)
+function redraw(){
+  const ov=$('ov'),c=ov.getContext('2d');c.clearRect(0,0,ov.width,ov.height);c.save();c.scale(RENDER_SCALE,RENDER_SCALE);
+  c.lineCap='round';c.lineJoin='round';
+  for(const s of (marks[pageNum]||[]))drawShape(c,s,true);
+  if(cur&&cur.tipo!=='pan')drawShape(c,cur,false);
+  c.restore();
+}
+function drawShape(c,s,fromPdf){
+  const P=q=>fromPdf?toBaseFromPdf(q):q;
+  c.strokeStyle=s.cor;c.fillStyle=s.cor;c.lineWidth=s.largura||2.5;c.globalAlpha=1;
+  if(s.tipo==='caneta'||s.tipo==='marca'){const ps=s.pts.map(P);if(s.tipo==='marca'){c.globalAlpha=.35;c.lineWidth=14;}c.beginPath();ps.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.stroke();return;}
+  const a=fromPdf?P({x:s.x0,y:s.y0}):{x:s.x0,y:s.y0},b=fromPdf?P({x:s.x1,y:s.y1}):{x:s.x1,y:s.y1};
+  if(s.tipo==='rect'){c.strokeRect(Math.min(a.x,b.x),Math.min(a.y,b.y),Math.abs(b.x-a.x),Math.abs(b.y-a.y));}
+  else if(s.tipo==='elipse'){c.beginPath();c.ellipse((a.x+b.x)/2,(a.y+b.y)/2,Math.abs(b.x-a.x)/2,Math.abs(b.y-a.y)/2,0,0,Math.PI*2);c.stroke();}
+  else if(s.tipo==='seta'){c.beginPath();c.moveTo(a.x,a.y);c.lineTo(b.x,b.y);c.stroke();const ang=Math.atan2(b.y-a.y,b.x-a.x),L=12;c.beginPath();c.moveTo(b.x,b.y);c.lineTo(b.x-L*Math.cos(ang-0.45),b.y-L*Math.sin(ang-0.45));c.moveTo(b.x,b.y);c.lineTo(b.x-L*Math.cos(ang+0.45),b.y-L*Math.sin(ang+0.45));c.stroke();}
+  else if(s.tipo==='texto'){const fs=s.tam||14;c.font=`bold ${fs}px Helvetica, Arial, sans-serif`;c.globalAlpha=.9;const lines=s.texto.split('\n');const w=Math.max(a.x,b.x)-Math.min(a.x,b.x),h=Math.max(a.y,b.y)-Math.min(a.y,b.y);c.fillStyle='rgba(255,255,255,.85)';c.fillRect(Math.min(a.x,b.x),Math.min(a.y,b.y),w,h);c.fillStyle=s.cor;lines.forEach((l,i)=>c.fillText(l,Math.min(a.x,b.x)+4,Math.min(a.y,b.y)+fs*(i+1)+1));}
+}
+
+// ───────── salvar: grava marcações no PDF (pdf-lib), sobe ao Storage, cria a revisão ─────────
+function hex(h){const n=parseInt(h.slice(1),16);return PDFLib.rgb(((n>>16)&255)/255,((n>>8)&255)/255,(n&255)/255);}
+const winAnsi=s=>s.replace(/[^\x00-\xFF]/g,'?').replace(/[\u0000-\u0008\u000B-\u001F]/g,'');
+async function gerarPdfMarcado(){
+  const {PDFDocument,StandardFonts,BlendMode}=PDFLib;
+  const doc=await PDFDocument.load(pdfBytes,{ignoreEncryption:true});
+  const font=await doc.embedFont(StandardFonts.HelveticaBold);
+  const pages=doc.getPages();let n=0;
+  for(const [pg,arr] of Object.entries(marks)){
+    const page=pages[Number(pg)-1];if(!page||!arr.length)continue;
+    for(const s of arr){n++;const color=hex(s.cor);
+      if(s.tipo==='caneta'||s.tipo==='marca'){
+        const d=s.pts.map((p,i)=>`${i?'L':'M'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ');
+        // drawSvgPath usa y para baixo a partir de (x,y): passo o path já em coordenadas PDF invertendo y
+        const dInv=s.pts.map((p,i)=>`${i?'L':'M'} ${p.x.toFixed(2)} ${(-p.y).toFixed(2)}`).join(' ');
+        page.drawSvgPath(dInv,{x:0,y:0,borderColor:color,borderWidth:s.tipo==='marca'?14:2.5,borderLineCap:1,borderOpacity:s.tipo==='marca'?0.35:1,blendMode:s.tipo==='marca'?BlendMode.Multiply:undefined});
+      }else if(s.tipo==='rect'){page.drawRectangle({x:Math.min(s.x0,s.x1),y:Math.min(s.y0,s.y1),width:Math.abs(s.x1-s.x0),height:Math.abs(s.y1-s.y0),borderColor:color,borderWidth:2.5});}
+      else if(s.tipo==='elipse'){page.drawEllipse({x:(s.x0+s.x1)/2,y:(s.y0+s.y1)/2,xScale:Math.abs(s.x1-s.x0)/2,yScale:Math.abs(s.y1-s.y0)/2,borderColor:color,borderWidth:2.5});}
+      else if(s.tipo==='seta'){page.drawLine({start:{x:s.x0,y:s.y0},end:{x:s.x1,y:s.y1},thickness:2.5,color,lineCap:1});
+        const ang=Math.atan2(s.y1-s.y0,s.x1-s.x0),L=12;
+        for(const da of [-0.45,0.45])page.drawLine({start:{x:s.x1,y:s.y1},end:{x:s.x1-L*Math.cos(ang+da),y:s.y1-L*Math.sin(ang+da)},thickness:2.5,color,lineCap:1});}
+      else if(s.tipo==='texto'){const fs=s.tam||14;const x=Math.min(s.x0,s.x1),yTop=Math.max(s.y0,s.y1),w=Math.abs(s.x1-s.x0),h=Math.abs(s.y1-s.y0);
+        page.drawRectangle({x,y:yTop-h,width:w,height:h,color:PDFLib.rgb(1,1,1),opacity:.85});
+        s.texto.split('\n').forEach((l,i)=>page.drawText(winAnsi(l),{x:x+4,y:yTop-fs*(i+1)-1,size:fs,font,color}));}
+    }
+  }
+  return {bytes:await doc.save({useObjectStreams:false}),n};
+}
+const slug=s=>String(s).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9._-]+/g,'_').replace(/^_+|_+$/g,'');
+async function upload(path,bytes,type){const {error}=await sb.storage.from(BUCKET).upload(path,bytes,{contentType:type,upsert:true});if(error)throw new Error('upload '+path+': '+error.message);return path;}
+async function salvar(){
+  const codigo=$('proj').value;if(!codigo){toast('Escolha o projeto.');return;}
+  const total=Object.values(marks).reduce((s,a)=>s+a.length,0);
+  if(!total&&!$('pedido').value.trim()){toast('Faça pelo menos uma marcação ou escreva o pedido.');return;}
+  busy(true,'Gravando as marcações no PDF…');
+  try{
+    const {bytes,n}=await gerarPdfMarcado();
+    const stamp=new Date().toISOString().replace(/[-:]/g,'').slice(0,15);
+    const base=`revisoes/${slug(codigo)}/${stamp}`;
+    busy(true,'Enviando os arquivos…');
+    const pOrig=await upload(`${base}-original.pdf`,pdfBytes,'application/pdf');
+    const pMarc=await upload(`${base}-marcado.pdf`,bytes,'application/pdf');
+    let pDwg=null;if(dwgFile){pDwg=await upload(`${base}-origem.${dwgFile.name.split('.').pop().toLowerCase()}`,new Uint8Array(await dwgFile.arrayBuffer()),'application/octet-stream');}
+    const opt=$('proj').selectedOptions[0];
+    const row={codigo_projeto:codigo,projeto_id:opt?.dataset.id||null,autor:nomeUser(),user_id:user.id,pedido_texto:$('pedido').value.trim()||null,
+      pdf_original:pOrig,pdf_marcado:pMarc,dwg_origem:pDwg,paginas:pageCount,n_marcacoes:n,status:'pendente'};
+    const {error}=await sb.from('proj_revisoes').insert(row);if(error)throw new Error('registro: '+error.message);
+    busy(false);fecharEditor();
+    toast('Salvo. O PDF marcado vai ao grupo Projetos em instantes.',4000);
+    // limpar para a próxima
+    marks={};undoStack=[];pdfBytes=null;pdfDoc=null;dwgFile=null;$('fdwg').value='';$('pedido').value='';
+    const d=$('drop');d.classList.remove('ok');d.querySelector('b').textContent='Arraste o PDF aqui ou toque para escolher';d.querySelector('small').textContent='PDF de prancha ou projeto, até 50 MB. Várias páginas e zoom funcionam.';
+    habilitar();carregarLista();
+  }catch(e){console.error(e);busy(false);toast('Não foi possível salvar: '+e.message,6000);}
+}
+
+// ───────── lista de revisões ─────────
+const ST={pendente:'na fila',enviado:'no grupo · em revisão',processando:'em revisão',entregue:'entregue no grupo',erro:'erro'};
+async function carregarLista(){
+  try{
+    const {data,error}=await sb.from('proj_revisoes').select('id,codigo_projeto,autor,pedido_texto,status,n_marcacoes,paginas,pdf_marcado,arquivos_saida,resumo_saida,erro,created_at,processado_em').order('created_at',{ascending:false}).limit(12);
+    if(error)throw error;
+    if(!data?.length){$('lista').innerHTML='Nenhuma ainda.';return;}
+    $('lista').innerHTML=data.map(r=>`<div class="rev"><div style="flex:1"><b>${esc(r.codigo_projeto)} <span class="pill ${esc(r.status)}">${ST[r.status]||esc(r.status)}</span></b>
+      <small>${fmtDT(r.created_at)} · ${esc(r.autor||'')} · ${r.n_marcacoes||0} marcação(ões) em ${r.paginas||1} pág.${r.pedido_texto?' · “'+esc(r.pedido_texto)+'”':''}</small>
+      ${r.resumo_saida?`<small style="color:var(--green)">${esc(r.resumo_saida)}</small>`:''}${r.erro?`<small class="nc">${esc(r.erro)}</small>`:''}
+      <small><a href="#" onclick="abrirArq('${esc(r.pdf_marcado)}');return false">PDF marcado</a>${(r.arquivos_saida||[]).filter(a=>a.path_bucket).map(a=>`<a href="#" onclick="abrirArq('${esc(a.path_bucket)}');return false">${esc((a.tipo||'arquivo').toUpperCase())} revisado</a>`).join('')}</small></div></div>`).join('');
+  }catch(e){$('lista').innerHTML='<span class="nc">Não foi possível listar (tabela ainda não criada?).</span>';console.warn(e);}
+}
+async function abrirArq(path){const {data,error}=await sb.storage.from(BUCKET).createSignedUrl(path,600);if(error||!data?.signedUrl){toast('Não consegui abrir o arquivo.');return;}window.open(data.signedUrl,'_blank');}
+</script>
+</body>
+</html>

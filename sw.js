@@ -16,7 +16,7 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   // Não intercepta sub-apps nem chamadas ao server RPA local
-  if (url.pathname.startsWith('/pmp/') || url.pathname.startsWith('/admin/') || url.pathname.startsWith('/obra/')) return;
+  if (url.pathname.startsWith('/pmp/') || url.pathname.startsWith('/admin/') || url.pathname.startsWith('/obra/') || url.pathname.startsWith('/pranchas/')) return;
   if (url.hostname === '127.0.0.1' || url.hostname === 'localhost') return;
 
   const isHTML = e.request.mode === 'navigate' ||

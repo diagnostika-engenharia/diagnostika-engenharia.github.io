@@ -208,7 +208,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261117-01';
+const APP_BUILD='20261117-02';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -659,12 +659,12 @@ function visItem(v){
 // ═══════════════ VISITA ATIVA ═══════════════
 function novaVisita(){
   ultServ=null;visita={id:uuid(),obra_id:OBRA_ID,data:hoje(),hora_inicio:agora(),hora_fim:null,engenheiro:nomeUser(),user_id:user.id,clima:'',temperatura:'',paralisacao:false,efetivo:{},encarregado:'',lider:'',resumo:'',presentes:[],status:'em_andamento',device_id:deviceId,
-    checklist:{},servicos:{},registros:[],rids:{}};
+    checklist:{},servicos:{},registros:[],rids:{},acomp:{}};
   visita._sent=rowVisita();saveVisita();
   enfileirar({kind:'visita',row:rowVisita()});
   tab='inicio';go('visita');
 }
-function rowVisita(){const {checklist,servicos,registros,reaberta,_orig,_sent,_srv_updated_at,_conflito,rids,obra_visitas,...row}=visita;['hora_inicio','hora_fim','temperatura'].forEach(c=>{if(row[c]==='')row[c]=null;});return row;}
+function rowVisita(){const {checklist,servicos,registros,reaberta,_orig,_sent,_srv_updated_at,_conflito,rids,obra_visitas,acomp,...row}=visita;['hora_inicio','hora_fim','temperatura'].forEach(c=>{if(row[c]==='')row[c]=null;});return row;}
 function rVisita(){
   if(!visita){setTitle('Vistoria','nenhuma em andamento');$('view').innerHTML=`<div class="empty">Nenhuma vistoria em andamento.<br><br><button class="btn" onclick="novaVisita()">＋ Iniciar nova vistoria</button></div>`;return;}
   setTitle(`Vistoria ${fmtBR(visita.data)}`,`${visita.engenheiro} · desde ${visita.hora_inicio}`);
@@ -673,8 +673,62 @@ function rVisita(){
   ({inicio:tInicio,checklist:tChecklist,servicos:tServicos,registros:tRegistros,fim:tFim})[tab]();
 }
 function upd(k,v){visita[k]=v;saveVisita();}
+// ═══ Pendências de vistorias anteriores (NCs em aberto + registros marcados "conferir na próxima") ═══
+let pendencias=null;try{pendencias=JSON.parse(localStorage.getItem('obra_pend_'+OBRA_ID)||'null');}catch(e){pendencias=null;}
+let pendVid=null;
+async function carregarPendencias(){
+  if(navigator.onLine===false||!visita)return pendencias||[];
+  try{const {data,error}=await sb.from('obra_registros').select('*,obra_visitas(data)').eq('obra_id',OBRA_ID).neq('visita_id',visita.id)
+      .or('and(nc_resolvida.eq.false,or(tipo.eq.nc,status.eq.nc)),and(status.eq.andamento,tipo.in.(foto,ocorrencia,material,observacao))').order('created_at').limit(300);
+    if(!error&&data){const ncs=dedupNc(data.filter(r=>(r.tipo==='nc'||r.status==='nc')&&!r.nc_resolvida));const out=data.filter(r=>ehReconferir(r)&&r.tipo!=='nc');
+      pendencias=[...ncs,...out].sort((a,b)=>String(a.obra_visitas?.data||'').localeCompare(String(b.obra_visitas?.data||'')));
+      localStorage.setItem('obra_pend_'+OBRA_ID,JSON.stringify(pendencias));}}catch(e){}
+  return pendencias||[];
+}
+const ehNcReg=r=>r.tipo==='nc'||r.status==='nc';
+// Codificação sem alterar o schema (CHECK em tipo/status): acompanhamento = tipo 'observacao' com descricao JSON {"acomp":1,...};
+// status do acompanhamento: ok=resolvida, andamento=persiste, na=não verificada. "Conferir na próxima" = status 'andamento' em registro comum.
+const RECONF='andamento';
+const ehAcomp=r=>!!r&&r.tipo==='observacao'&&typeof r.descricao==='string'&&r.descricao.startsWith('{"acomp"');
+const ehReconferir=r=>!!r&&r.status===RECONF&&!['servico','checklist','nc','mapa'].includes(r.tipo)&&!ehAcomp(r);
+const ACOMP_ST={resolvida:'ok',persiste:'andamento',nao_verificada:'na'};
+const ACOMP_DE={ok:'resolvida',andamento:'persiste',na:'nao_verificada'};
+const acompSt=r=>ACOMP_DE[r?.status]||'';
+const ACOMP_TXT={resolvida:'Resolvida',persiste:'Persiste',nao_verificada:'Não verificada'};
+function acompMeta(r){try{const m=JSON.parse(r.descricao||'{}');return m&&typeof m==='object'?m:{};}catch(e){return {obs:r.descricao||''};}}
+function blocoPendencias(){
+  const ps=pendencias;if(!ps||!ps.length)return '';
+  const ac=visita.acomp||{};
+  const item=p=>{const a=ac[p.id]||{};const st=a.st||'';const th=p.fotos?.length?`<img class="th" src="${fotoUrl(p.fotos[0])}" onclick="lb('${fotoUrl(p.fotos[0])}')">`:`<div class="th">${ehNcReg(p)?'⚠️':'🔁'}</div>`;
+    const desc=(p.descricao||'').replace(/\s+/g,' ');const btn=(k,l,cls)=>`<button class="btn sm ${st===k?cls:'sec'}" style="padding:6px 10px;font-size:12px" onclick="marcarAcomp('${p.id}','${k}')">${l}</button>`;
+    return `<div class="reg">${th}<div class="bd">${ehNcReg(p)?'<span class="tag nc">NC em aberto</span>':'<span class="tag oc">reconferir</span>'}${p.fachada?`<span class="tag">${esc(p.fachada.split(' — ')[0])}</span>`:''}<b>${esc(p.item||TIPOS[p.tipo]||'')}</b><p>${esc(desc.length>140?desc.slice(0,140)+'…':desc)}</p><small>vistoria de ${fmtBR(p.obra_visitas?.data||String(p.created_at||'').slice(0,10))}</small>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${btn('resolvida','✓ Resolvida','lime')}${btn('persiste','⚠ Persiste','red')}${btn('nao_verificada','– Não verificada','')}${st==='persiste'&&a.rid?`<button class="btn sm sec" style="padding:6px 10px;font-size:12px" onclick="editarRegistro('${a.rid}')">📷 Foto / obs</button>`:''}</div></div></div>`;};
+  const semAcao=ps.filter(p=>!ac[p.id]?.st).length;
+  return `<div class="card" style="border-left:4px solid var(--amber)"><h3>Pendências da vistoria anterior (${ps.length})</h3><p class="muted" style="margin-bottom:6px">Confira cada item e marque o que encontrou hoje.${semAcao?` <b>${semAcao} sem verificação.</b>`:''}</p>${ps.map(item).join('')}</div>`;
+}
+// Registra na vistoria atual o status de uma pendência anterior (vira registro 'observacao' marcado como acompanhamento); "Resolvida" baixa a origem
+async function marcarAcomp(origId,st){
+  if(!visita)return;const p=(pendencias||[]).find(x=>x.id===origId);if(!p)return;
+  visita.acomp=visita.acomp||{};const a=visita.acomp[origId]||{rid:uuid()};const antes=a.st;a.st=st;visita.acomp[origId]=a;
+  const loc=visita.registros.find(x=>x.id===a.rid);const meta={acomp:1,...(loc?acompMeta(loc):{}),ref:p.id,data:p.obra_visitas?.data||String(p.created_at||'').slice(0,10),tipo:ehNcReg(p)?'nc':'acompanhar'};
+  const row={id:a.rid,visita_id:visita.id,obra_id:OBRA_ID,tipo:'observacao',fachada:p.fachada||null,pavimento:p.pavimento||null,item:p.item||TIPOS[p.tipo]||null,status:ACOMP_ST[st],descricao:JSON.stringify(meta),fotos:(loc?.fotos||[]).filter(f=>!String(f).startsWith('blob:')),user_id:user.id,created_at:loc?.created_at||new Date().toISOString()};
+  if(loc)Object.assign(loc,row,{fotos:loc.fotos});else visita.registros.push({...row});
+  saveVisita();
+  await idb.add({kind:'registro',row,rid:row.id,ts:Date.now()});
+  // origem: resolvida baixa (NC → nc_resolvida; reconferir → tira a marca); desfazer reverte
+  if(st==='resolvida'&&antes!=='resolvida')await baixarPendencia(p,true);
+  else if(antes==='resolvida'&&st!=='resolvida')await baixarPendencia(p,false);
+  atualizarSync();sincronizar();toast(`Pendência: ${ACOMP_TXT[st]}`);render();
+}
+async function baixarPendencia(p,baixa){
+  const patch=ehNcReg(p)?(baixa?{nc_resolvida:true,nc_resolvida_em:new Date().toISOString()}:{nc_resolvida:false,nc_resolvida_em:null}):{status:baixa?null:RECONF};
+  await enfileirar({kind:'registro_update',id:p.id,patch});
+  if(ehNcReg(p)&&p.item){try{const {data:irm}=await sb.from('obra_registros').select('id').eq('visita_id',p.visita_id).eq('item',p.item).or('tipo.eq.nc,status.eq.nc').neq('id',p.id);
+    for(const x of (irm||[]))await enfileirar({kind:'registro_update',id:x.id,patch});}catch(e){}}
+}
 function tInicio(){
-  $('tabBody').innerHTML=`<div class="card"><h3>Condições</h3>
+  if(pendVid!==visita.id){pendVid=visita.id;carregarPendencias().then(()=>{if(view==='visita'&&tab==='inicio')render();});}
+  $('tabBody').innerHTML=blocoPendencias()+`<div class="card"><h3>Condições</h3>
     <label class="f">Clima <span class="muted" style="font-weight:400">(pode marcar mais de um)</span></label>${chipsClima(visita.clima,"upd('clima',climaToggle(visita.clima,'%C'));render()")}
     <div class="row"><div><label class="f">Temperatura (°C)</label><input class="f" inputmode="numeric" value="${esc(visita.temperatura)}" onchange="upd('temperatura',this.value)"></div>
     <div><label class="f">Hora início</label><input class="f" type="time" value="${esc(visita.hora_inicio)}" onchange="upd('hora_inicio',this.value)"></div></div>
@@ -799,8 +853,9 @@ function tRegistros(){
   $('tabBody').innerHTML=`<div class="card"><h3>Registros desta vistoria</h3>${rs.length?rs.slice().reverse().map(r=>regItem(r,true)).join(''):'<div class="empty">Nenhum registro ainda.<br>Use o botão + para fotografar, apontar NC ou anotar.</div>'}</div>`;
 }
 function regItem(r,editavel){
-  const th=r.fotos?.length?`<img class="th" src="${r.fotos[0].startsWith('blob:')?r.fotos[0]:fotoUrl(r.fotos[0])}" onclick="lbSet(${LB_SETS.push(r.fotos.map(p=>p.startsWith('blob:')?p:fotoUrl(p)))-1})">`:`<div class="th">${{nc:'⚠️',ocorrencia:'📌',material:'📦',observacao:'📝',foto:'📷',checklist:'☑️',servico:'🔧'}[r.tipo]||'📄'}</div>`;
-  const tag=r.tipo==='nc'||r.status==='nc'?`<span class="tag nc">NC</span>${r.nc_resolvida?'<span class="tag res">resolvida</span>':''}`:`<span class="tag">${esc(TIPOS[r.tipo]||r.tipo)}</span>`;
+  if(ehAcomp(r)){const m=acompMeta(r);r={...r,_acomp:true,descricao:`Pendência da vistoria de ${fmtBR(m.data||'')}${m.obs?' · '+m.obs:''}`};}
+  const th=r.fotos?.length?`<img class="th" src="${r.fotos[0].startsWith('blob:')?r.fotos[0]:fotoUrl(r.fotos[0])}" onclick="lbSet(${LB_SETS.push(r.fotos.map(p=>p.startsWith('blob:')?p:fotoUrl(p)))-1})">`:`<div class="th">${{nc:'⚠️',ocorrencia:'📌',material:'📦',observacao:'📝',foto:'📷',checklist:'☑️',servico:'🔧'}[r._acomp?'acomp':r.tipo]||(r._acomp?'🔁':'📄')}</div>`;
+  const tag=r.tipo==='nc'||r.status==='nc'?`<span class="tag nc">NC</span>${r.nc_resolvida?'<span class="tag res">resolvida</span>':''}`:r._acomp?`<span class="tag ${acompSt(r)==='resolvida'?'ok':acompSt(r)==='persiste'?'nc':''}">${esc(ACOMP_TXT[acompSt(r)]||'acompanhamento')}</span>`:`<span class="tag">${esc(TIPOS[r.tipo]||r.tipo)}</span>${ehReconferir(r)?'<span class="tag oc">conferir na próxima</span>':''}`;
   return `<div class="reg">${th}<div class="bd${editavel?' ed':''}"${editavel?` onclick="editarRegistro('${r.id}')"`:''}>${tag}${r.fachada?`<span class="tag">${esc(r.fachada.split(' — ')[0])}</span>`:''}<b>${esc(r.item||'')}</b><p>${esc(r.descricao||'')}</p>${txHtml(r)}${r.fotos?.length>1?`<small>+${r.fotos.length-1} foto(s)</small> `:''}<small>${fmtHora(r.created_at)}</small>${editavel?'<span class="edh">✎ toque para editar</span>':''}</div></div>`;
 }
 const LB_SETS=[];let _lb={list:[],i:0};
@@ -880,19 +935,21 @@ async function editarRegistro(id){
   let fotos=(r.fotos||[]).slice(),audio_path=r.audio_path||null,descricao=r.descricao||'';
   if(navigator.onLine!==false){try{const {data}=await sb.from('obra_registros').select('fotos,audio_path,descricao,item,fachada,pavimento').eq('id',id).maybeSingle();
     if(data){const srv=data.fotos||[];fotos=[...srv,...fotos.filter(f=>!srv.includes(f))];if(data.audio_path)audio_path=data.audio_path;if(!descricao&&data.descricao)descricao=data.descricao;Object.assign(r,{fotos,audio_path,descricao,item:r.item||data.item,fachada:r.fachada||data.fachada,pavimento:r.pavimento||data.pavimento});saveVisita();}}catch(e){}}
-  reg={edit:id,tipo:r.tipo,fachada:r.fachada||'',pavimento:r.pavimento||'',item:r.item||'',descricao,blobs:[],previews:[],audio:null,audio_path,
+  let acomp=null;if(ehAcomp(r)){acomp=acompMeta(r);descricao=acomp.obs||'';}
+  reg={edit:id,tipo:r.tipo,fachada:r.fachada||'',pavimento:r.pavimento||'',item:r.item||'',descricao,blobs:[],previews:[],audio:null,audio_path,acomp,reconferir:ehReconferir(r),
        ckKey:(r.tipo==='nc'&&byLabel[r.item])||null,fotosExist:fotos.filter(f=>!String(f).startsWith('blob:')),pendentes:fotos.filter(f=>String(f).startsWith('blob:')),removidas:[]};
   renderModal();$('modal').classList.add('show');
 }
 function togRemover(f){if(!reg)return;const i=reg.removidas.indexOf(f);if(i>=0)reg.removidas.splice(i,1);else reg.removidas.push(f);renderModal();}
 function renderModal(){
   const r=reg;
-  $('sheet').innerHTML=`<h2>${r.edit?'Editar registro':r.ckKey?'Não conformidade no checklist':'Novo registro'}</h2>
-  ${r.ckKey?`<p class="muted" style="margin-bottom:8px"><b>${esc(r.item)}</b></p>`:`<div class="chips">${Object.entries(TIPOS).map(([k,l])=>`<button class="${r.tipo===k?'on '+(k==='nc'?'nc':''):''}" onclick="reg.tipo='${k}';renderModal()">${l}</button>`).join('')}</div>`}
+  $('sheet').innerHTML=`<h2>${r.acomp?'Pendência anterior: '+esc(ACOMP_TXT[acompSt(visita?.registros.find(x=>x.id===r.edit))]||'acompanhamento'):r.edit?'Editar registro':r.ckKey?'Não conformidade no checklist':'Novo registro'}</h2>
+  ${r.acomp?`<p class="muted" style="margin-bottom:8px"><b>${esc(r.item)}</b> · vistoria de ${fmtBR(r.acomp.data||'')}</p>`:r.ckKey?`<p class="muted" style="margin-bottom:8px"><b>${esc(r.item)}</b></p>`:`<div class="chips">${Object.entries(TIPOS).filter(([k])=>k!=='mapa').map(([k,l])=>`<button class="${r.tipo===k?'on '+(k==='nc'?'nc':''):''}" onclick="reg.tipo='${k}';renderModal()">${l}</button>`).join('')}</div>`}
   <label class="f">Local</label><div class="chips">${obra.fachadas.map(f=>`<button class="${r.fachada===f?'on':''}" onclick="reg.fachada=reg.fachada==='${esc(f)}'?'':'${esc(f)}';renderModal()">${esc(f.split(' — ')[0])}</button>`).join('')}</div>
   <div class="row"><div><label class="f">Pavimento / trecho</label><input class="f" value="${esc(r.pavimento)}" placeholder="Ex.: 7º pav., prumada 3" onchange="reg.pavimento=this.value"></div></div>
-  ${r.ckKey?'':`<label class="f">Título</label><input class="f" value="${esc(r.item)}" placeholder="${r.tipo==='nc'?'Ex.: Cordas sem proteção na quina':r.tipo==='material'?'Ex.: Argamassa ACIII, 40 sacos':'Ex.: Andamento 6º pavimento'}" onchange="reg.item=this.value">`}
-  <label class="f">Descrição</label><textarea class="f" placeholder="Descreva o que foi observado…" onchange="reg.descricao=this.value">${esc(r.descricao)}</textarea>
+  ${r.ckKey||r.acomp?'':`<label class="f">Título</label><input class="f" value="${esc(r.item)}" placeholder="${r.tipo==='nc'?'Ex.: Cordas sem proteção na quina':r.tipo==='material'?'Ex.: Argamassa ACIII, 40 sacos':'Ex.: Andamento 6º pavimento'}" onchange="reg.item=this.value">`}
+  <label class="f">${r.acomp?'Observação de hoje':'Descrição'}</label><textarea class="f" placeholder="Descreva o que foi observado…" onchange="reg.descricao=this.value">${esc(r.descricao)}</textarea>
+  ${r.tipo==='nc'||r.acomp||r.ckKey?'':`<label class="f" style="display:flex;align-items:center;gap:8px;margin-top:10px"><input type="checkbox" ${r.reconferir?'checked':''} onchange="reg.reconferir=this.checked" style="width:20px;height:20px"> 🔁 Conferir na próxima vistoria</label>`}
   <div class="rec"><button id="btnRec" class="${recorder?'on':''}" onclick="toggleGravacao()">${recorder?'⏹ Parar':'🎙️ Gravar observação'}</button><span class="muted" id="recInfo">${r.audio?'áudio gravado ✓'+(r.audio_path?' (substitui o anterior)':''):r.audio_path?'🎙️ áudio anexado':''}</span></div>
   <label class="f">Fotos</label><div class="photos">${(r.fotosExist||[]).map(f=>`<span class="ex" onclick="togRemover('${f}')"><img src="${fotoUrl(f)}" class="${r.removidas.includes(f)?'rm':''}"><small>${r.removidas.includes(f)?'remover ✕':'salva'}</small></span>`).join('')}${(r.pendentes||[]).map(p=>`<span class="ex"><img src="${p}"><small>enviando…</small></span>`).join('')}${r.previews.map((p,i)=>`<img src="${p}" onclick="reg.blobs.splice(${i},1);reg.previews.splice(${i},1);renderModal()" title="toque para remover">`).join('')}<button class="add" onclick="$('fileCam').click()">📷</button><button class="add" onclick="$('fileGal').click()">🖼️</button></div>
   <button class="btn ${r.tipo==='nc'?'red':''}" style="margin-top:16px" onclick="salvarRegistro()">${r.edit?'Salvar alterações':'Salvar registro'}</button>
@@ -911,6 +968,7 @@ async function excluirRegistroAtivo(id){
   }catch(e){toast('Erro ao excluir no servidor: '+(e.message||e));return;}}
   else{toast('Excluir exige conexão');return;}
   visita.registros=visita.registros.filter(x=>x.id!==id);
+  if(ehAcomp(r)){for(const [k,a] of Object.entries(visita.acomp||{}))if(a.rid===id){if(a.st==='resolvida'){const p=(pendencias||[]).find(x=>x.id===k);if(p)await baixarPendencia(p,false);}delete visita.acomp[k];}}
   if(r.tipo==='nc'&&r.item){const k=CHECKLIST.flatMap(g=>g.itens).find(([,l])=>l===r.item)?.[0];if(k&&visita.checklist[k]?.status==='nc'&&!visita.registros.some(x=>x.tipo==='nc'&&x.item===r.item)){delete visita.checklist[k];marcarRascunho('checklist|'+k);}}
   reg=null;saveVisita();fecharModal();toast('Registro excluído');render();
 }
@@ -939,7 +997,7 @@ async function salvarRegistro(){
     const loc=visita.registros.find(x=>x.id===r.edit);if(!loc){fecharModal();return;}
     const mantidas=r.fotosExist.filter(f=>!r.removidas.includes(f));
     if(!r.item&&!r.descricao&&!mantidas.length&&!r.blobs.length&&!r.audio&&!r.audio_path){toast('Adicione título, descrição ou foto');return;}
-    const patch={tipo:r.tipo,fachada:r.fachada||null,pavimento:r.pavimento||null,item:r.item||null,status:r.tipo==='nc'?'nc':null,descricao:r.descricao||null,fotos:mantidas};
+    const patch={tipo:r.tipo,fachada:r.fachada||null,pavimento:r.pavimento||null,item:r.item||null,status:r.tipo==='nc'?'nc':r.acomp?loc.status:(r.reconferir?RECONF:null),descricao:r.acomp?JSON.stringify({acomp:1,...r.acomp,obs:r.descricao||''}):(r.descricao||null),fotos:mantidas};
     Object.assign(loc,patch,{fotos:[...mantidas,...r.pendentes,...r.previews]});if(r.audio)loc.audio_path='local';
     if(r.ckKey){visita.checklist[r.ckKey]={...(visita.checklist[r.ckKey]||{}),status:'nc',obs:r.descricao||''};marcarRascunho('checklist|'+r.ckKey);}
     saveVisita();
@@ -947,7 +1005,7 @@ async function salvarRegistro(){
     reg=null;$('modal').classList.remove('show');toast('Registro atualizado');atualizarSync();sincronizar();render();return;
   }
   if(!r.item&&!r.descricao&&!r.blobs.length&&!r.audio){toast('Adicione título, descrição ou foto');return;}
-  const row={id:uuid(),visita_id:visita.id,obra_id:OBRA_ID,tipo:r.tipo,fachada:r.fachada||null,pavimento:r.pavimento||null,item:r.item||null,status:r.tipo==='nc'?'nc':null,descricao:r.descricao||null,fotos:[],user_id:user.id,created_at:new Date().toISOString()};
+  const row={id:uuid(),visita_id:visita.id,obra_id:OBRA_ID,tipo:r.tipo,fachada:r.fachada||null,pavimento:r.pavimento||null,item:r.item||null,status:r.tipo==='nc'?'nc':(r.reconferir?RECONF:null),descricao:r.descricao||null,fotos:[],user_id:user.id,created_at:new Date().toISOString()};
   if(r.ckKey){visita.checklist[r.ckKey]={status:'nc',obs:r.descricao||''};marcarRascunho('checklist|'+r.ckKey);}
   visita.registros.push({...row,fotos:r.previews.slice(),audio_path:r.audio?'local':null});saveVisita();
   await idb.add({kind:'registro',row,blobs:r.blobs,audio:r.audio,ts:Date.now()});
@@ -982,7 +1040,7 @@ async function rDetalhe(){
   if(sv.length){const byF={};sv.forEach(r=>{(byF[r.fachada]=byF[r.fachada]||[]).push(r);});
     h+=`<div class="card"><h3>Serviços por fachada</h3>${Object.entries(byF).map(([f,arr])=>`<b style="font-size:13px;display:block;margin:8px 0 4px">${esc(f)}</b>${arr.map(r=>`<div class="ck"><span class="lb">${esc(r.item)}</span><span class="tag ${r.status==='concluido'?'ok':'oc'}">${r.status==='concluido'?'concluído':'em andamento'} ${r.percentual??0}%</span></div>`).join('')}`).join('')}</div>`;}
   if(ck.length) h+=`<div class="card"><h3>Checklist</h3>${ck.map(r=>`<div class="ck"><span class="lb">${esc(r.item)}${r.descricao&&r.descricao!==r.item?`<small>${esc(r.descricao)}</small>`:''}${r.transcricao&&r.transcricao!==r.descricao?`<small>🎙️ ${esc(r.transcricao)}</small>`:''}</span><span class="tag ${r.status==='nc'?'nc':r.status==='ok'?'ok':''}">${r.status==='na'?'N/A':r.status}</span></div>`).join('')}</div>`;
-  h+=`<div class="card"><h3>Registros (${outros.length})</h3>${outros.length?outros.map(r=>`<div>${regItem(r)}<div style="text-align:right;margin:-6px 0 6px"><button class="btn sm sec" style="color:var(--red);padding:4px 10px;font-size:12px" onclick="excluirRegistro('${r.id}')">🗑 excluir</button></div></div>`).join(''):'<div class="empty">Sem registros.</div>'}</div>
+  h+=`<div class="card"><h3>Registros (${outros.length})</h3>${outros.length?outros.map(r=>`<div>${regItem(r)}<div style="text-align:right;margin:-6px 0 6px"><button class="btn sm sec" style="color:var(--red);padding:4px 10px;font-size:12px" onclick="excluirRegistro('${r.id}')">🗑 excluir</button>${ehNcReg(r)||ehAcomp(r)?'':`<button class="btn sm sec" style="padding:4px 10px;font-size:12px;margin-left:6px" onclick="togReconferir('${r.id}','${esc(v.id)}',${ehReconferir(r)?'false':'true'})">${ehReconferir(r)?'✕ tirar da próxima vistoria':'🔁 conferir na próxima vistoria'}</button>`}</div></div>`).join(''):'<div class="empty">Sem registros.</div>'}</div>
   <div class="card"><h3>Relatório</h3>
     <div class="row"><button class="btn" onclick="imprimirRelatorio('${esc(v.id)}')">🖨️ Imprimir / salvar PDF</button><button class="btn" onclick="compartilharRelatorio('${esc(v.id)}')">📤 Compartilhar PDF</button></div>
   </div>
@@ -993,6 +1051,11 @@ async function rDetalhe(){
   </div>`;
   $('detRegs').innerHTML=h;
   cacheRegs[id]=rs;
+}
+async function togReconferir(rid,vid,on){
+  await enfileirar({kind:'registro_update',id:rid,patch:{status:on?RECONF:null}});
+  const r=(cacheRegs[vid]||[]).find(x=>x.id===rid);if(r)r.status=on?RECONF:null;
+  toast(on?'Marcado para conferir na próxima vistoria':'Marca retirada');setTimeout(render,500);
 }
 // ── editar / reabrir / excluir ──
 let edicaoBase=null;
@@ -1185,7 +1248,7 @@ async function dadosRelatorio(id){
 }
 function relatorioCorpo(v,rs){
   const src=p=>p.startsWith('blob:')?p:fotoUrl(p);
-  const ck=rs.filter(r=>r.tipo==='checklist'),sv=rs.filter(r=>r.tipo==='servico'),outros=rs.filter(r=>!['checklist','servico','mapa'].includes(r.tipo));
+  const ck=rs.filter(r=>r.tipo==='checklist'),sv=rs.filter(r=>r.tipo==='servico'),outros=rs.filter(r=>!['checklist','servico','mapa'].includes(r.tipo)&&!ehAcomp(r)),acs=rs.filter(ehAcomp);
   const REL_MOSTRAR_MEDICAO=false; // medição fora do relatório até calibrar (21-10-2026)
   const snap=rs.find(r=>r.tipo==='mapa');let medRel=null,medOrigem='';
   if(snap){try{medRel=JSON.parse(snap.descricao||'{}');medOrigem='medição registrada ao encerrar a vistoria';}catch(e){}}
@@ -1207,6 +1270,10 @@ function relatorioCorpo(v,rs){
     <p class="st-na">Quadros com revestimento concluído sem etapa pulada, em m² de projeto. ${esc(medOrigem)}${medRel.atualizado?' · última marcação '+fmtBR(String(medRel.atualizado).slice(0,10)):''}${medRel.pulados?' · '+medRel.pulados+' quadro(s) com etapa pulada':''}.</p>`;}
   if(ck.length) h+=`<h2>Checklist</h2><table><tr><th>Item</th><th style="width:18%">Resultado</th></tr>${ck.map(r=>`<tr><td>${esc(r.item)}${r.descricao&&r.descricao!==r.item?`<br><span class="st-na">${esc(r.descricao)}</span>`:''}${r.transcricao&&r.transcricao!==r.descricao?`<br><span class="st-na"><i>Áudio: ${esc(r.transcricao)}</i></span>`:''}</td><td class="st-${r.status}">${stTxt[r.status]||esc(r.status)}</td></tr>`).join('')}</table>`;
   h+=`<h2>Não conformidades (${ncs.length})</h2>${ncs.length?ncs.map(regH).join(''):'<p>Nenhuma não conformidade registrada nesta vistoria.</p>'}`;
+  if(acs.length){const stCls={resolvida:'st-ok',persiste:'st-nc',nao_verificada:'st-na'};
+    h+=`<h2>Acompanhamento de pendências anteriores (${acs.length})</h2>${acs.map(r=>{const m=acompMeta(r);return `<div class="reg ${acompSt(r)==='persiste'?'nc':''}"><b>${esc(r.item||'')}</b> <small style="color:#64748b">${m.tipo==='nc'?'não conformidade':'item a reconferir'} da vistoria de ${fmtBR(m.data||'')}</small><br>
+      <span class="${stCls[acompSt(r)]||''}">Situação em ${fmtBR(v.data)}: <b>${esc(ACOMP_TXT[acompSt(r)]||'')}</b></span>${r.fachada||r.pavimento?` <span class="st-na">· Local: ${esc([r.fachada,r.pavimento].filter(Boolean).join(' · '))}</span>`:''}${m.obs?`<div style="white-space:pre-wrap;margin-top:3px">${esc(m.obs)}</div>`:''}
+      ${(r.fotos||[]).length?`<div class="fotos">${r.fotos.map(p=>`<img src="${src(p)}" crossorigin="anonymous">`).join('')}</div>`:''}</div>`;}).join('')}`;}
   if(demais.length) h+=`<h2>Registros</h2>${demais.map(regH).join('')}`;
   if(v.resumo) h+=`<h2>Observações gerais</h2><div style="white-space:pre-wrap">${esc(v.resumo)}</div>`;
   return h+relRodape();

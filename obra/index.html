@@ -142,8 +142,8 @@ textarea.f{min-height:76px;resize:vertical}
 .mk{position:fixed;inset:0;background:#111;z-index:50;display:none;flex-direction:column;touch-action:none;overscroll-behavior:none}.mk.show{display:flex}
 .mk-top,.mk-bot{display:flex;gap:6px;padding:8px calc(8px + env(safe-area-inset-right)) 8px calc(8px + env(safe-area-inset-left));background:#222;align-items:center;flex-wrap:wrap;flex-shrink:0}.mk-bot{padding-bottom:calc(8px + env(safe-area-inset-bottom))}.mk-top{padding-top:calc(8px + env(safe-area-inset-top))}
 .mk-top button,.mk-bot button{background:#3a3a3a;color:#fff;border:0;border-radius:8px;padding:10px 12px;font-size:14px;font-weight:600;font-family:inherit}.mk-t.on{background:var(--teal-md)}
-.mk-c{width:36px;height:36px;border-radius:50%!important;padding:0!important;border:3px solid #0000!important}.mk-c.on{border-color:#fff!important}.mk-sp{flex:1}
-.mk-area{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:0;touch-action:none}#mkCv{max-width:100%;max-height:100%;touch-action:none;display:block;cursor:crosshair}
+.mk-c{width:36px;height:36px;border-radius:50%!important;padding:0!important;border:3px solid #0000!important}.mk-c.on{border-color:#fff!important}.mk-sp{flex:1}.mk-z{min-width:40px;padding:10px 8px!important}
+.mk-area{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:0;touch-action:none}#mkCv{max-width:100%;max-height:100%;touch-action:none;display:block;cursor:crosshair;transform-origin:50% 50%;will-change:transform}
 .mk-bot .pri{background:var(--teal-md);flex:1}.mk-bot .pul{background:#555}
 body.mk-on{overflow:hidden;touch-action:none}
 .photos .ex .mkb{position:absolute;top:2px;right:2px;background:#000a;color:#fff;border:0;border-radius:6px;font-size:12px;padding:3px 6px}
@@ -207,7 +207,7 @@ body.auth-checking #app>*{visibility:hidden}
   </div>
   <div class="modal" id="modal" onclick="if(event.target===this)fecharModal()"><div class="sheet" id="sheet"></div></div>
   <div class="lightbox" id="lb" onclick="if(event.target===this||event.target.id==='lbImg'||event.target.classList.contains('x'))this.classList.remove('show')"><button class="x">×</button><button class="nav pv" onclick="lbNav(-1)">‹</button><button class="nav nx" onclick="lbNav(1)">›</button><span class="cnt" id="lbCnt"></span><button class="mkb" id="lbMk" hidden onclick="marcarNoHistorico()">✎ Marcar</button><img id="lbImg" alt=""></div>
-  <div class="mk" id="mk"><div class="mk-top"><button class="mk-t on" data-t="seta">↗ Seta</button><button class="mk-t" data-t="elipse">◯ Círculo</button><button class="mk-t" data-t="ret">▭ Retângulo</button><button class="mk-t" data-t="texto">T Texto</button><span class="mk-sp"></span><button class="mk-c on" data-c="#E53935" style="background:#E53935" title="Vermelho"></button><button class="mk-c" data-c="#FFD600" style="background:#FFD600" title="Amarelo"></button><button class="mk-c" data-c="#00C853" style="background:#00C853" title="Verde"></button></div><div class="mk-area"><canvas id="mkCv"></canvas></div><div class="mk-bot"><button onclick="mkDesfazer()">↶ Desfazer</button><button onclick="mkLimpar()">Limpar</button><button class="pul" onclick="mkFechar(false)">Pular</button><button class="pri" onclick="mkFechar(true)">Salvar</button></div></div>
+  <div class="mk" id="mk"><div class="mk-top"><button class="mk-t on" data-t="seta">↗ Seta</button><button class="mk-t" data-t="elipse">◯ Círculo</button><button class="mk-t" data-t="texto">T Texto</button><span class="mk-sp"></span><button class="mk-c on" data-c="#E53935" style="background:#E53935" title="Vermelho"></button><button class="mk-c" data-c="#FFD600" style="background:#FFD600" title="Amarelo"></button><button class="mk-c" data-c="#00C853" style="background:#00C853" title="Verde"></button><span class="mk-sp"></span><button class="mk-z" onclick="mkZoomBtn(-1)" title="Menos zoom">−</button><button class="mk-z" onclick="mkZoomBtn(0)" title="Tamanho original">1:1</button><button class="mk-z" onclick="mkZoomBtn(1)" title="Mais zoom">+</button></div><div class="mk-area"><canvas id="mkCv"></canvas></div><div class="mk-bot"><button onclick="mkDesfazer()">↶ Desfazer</button><button onclick="mkLimpar()">Limpar</button><button class="pul" onclick="mkFechar(false)">Pular</button><button class="pri" onclick="mkFechar(true)">Salvar</button></div></div>
   <div class="toast" id="toast"></div>
 </div>
 <input type="file" id="fileCam" accept="image/*" capture="environment" multiple hidden>
@@ -219,7 +219,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261117-06';
+const APP_BUILD='20261117-07';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -1032,7 +1032,10 @@ async function salvarRegistro(){
 
 // ═══════════════ MARCAÇÃO DE EVIDÊNCIAS NAS FOTOS ═══════════════
 // Desenho no próprio navegador (canvas). Original preservada em <stamp>_orig.jpg; fotos[] guarda só a marcada.
-const mk={img:null,shapes:[],tool:'seta',cor:'#E53935',cur:null,resolve:null,base:null};
+const mk={img:null,shapes:[],tool:'seta',cor:'#E53935',cur:null,resolve:null,base:null,z:1,tx:0,ty:0};
+function mkApply(){const c=$('mkCv');c.style.transform=`translate(${mk.tx}px,${mk.ty}px) scale(${mk.z})`;}
+function mkZoomAt(nz,mx,my){nz=Math.min(8,Math.max(1,nz));const c=$('mkCv');const r=c.getBoundingClientRect();const cx=r.left+r.width/2-mk.tx,cy=r.top+r.height/2-mk.ty;const dx=(mx-cx-mk.tx)/mk.z,dy=(my-cy-mk.ty)/mk.z;mk.z=nz;mk.tx=mx-cx-nz*dx;mk.ty=my-cy-nz*dy;if(nz===1){mk.tx=0;mk.ty=0;}mkApply();}
+function mkZoomBtn(d){const a=$('mkCv').parentElement.getBoundingClientRect();const mx=a.left+a.width/2,my=a.top+a.height/2;if(d===0)mkZoomAt(1,mx,my);else mkZoomAt(mk.z*(d>0?1.5:1/1.5),mx,my);}
 function mkLw(){return Math.max(3,Math.round(Math.min(mk.img.width,mk.img.height)/150));} // traço proporcional à imagem
 function mkPos(e){const c=$('mkCv'),r=c.getBoundingClientRect();return {x:(e.clientX-r.left)*c.width/r.width,y:(e.clientY-r.top)*c.height/r.height};}
 function mkDraw(ctx,s){
@@ -1054,7 +1057,7 @@ async function marcarFoto(blob){
   if(mk.resolve)mkFechar(false);
   const img=await createImageBitmap(blob,{imageOrientation:'from-image'}).catch(()=>createImageBitmap(blob)).catch(()=>null);
   if(!img)return null;
-  mk.img=img;mk.shapes=[];mk.cur=null;mk.base=blob;
+  mk.img=img;mk.shapes=[];mk.cur=null;mk.base=blob;mk.z=1;mk.tx=0;mk.ty=0;mkApply();
   const c=$('mkCv');c.width=img.width;c.height=img.height;mkRender();
   $('mk').classList.add('show');document.body.classList.add('mk-on');
   return new Promise(res=>{mk.resolve=res;});
@@ -1068,15 +1071,26 @@ async function mkFechar(salvar){
   if(res)res(out);
 }
 (function(){
-  const c=$('mkCv');let down=false,pid=null;
-  const start=e=>{if(!mk.img||down)return;e.preventDefault();pid=e.pointerId;const p=mkPos(e);
+  const c=$('mkCv'),area=c.parentElement;const pts=new Map();let draw=null,pinch=null;
+  const cancelDraw=()=>{draw=null;mk.cur=null;mkRender();};
+  const pinchStart=()=>{const [a,b]=[...pts.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y),mx:(a.x+b.x)/2,my:(a.y+b.y)/2,z:mk.z,tx:mk.tx,ty:mk.ty};};
+  area.addEventListener('pointerdown',e=>{if(!mk.img)return;e.preventDefault();pts.set(e.pointerId,{x:e.clientX,y:e.clientY});try{area.setPointerCapture(e.pointerId);}catch(_){}
+    if(pts.size===2){cancelDraw();pinchStart();return;}
+    if(pts.size>2)return;
+    if(e.target!==c)return;const p=mkPos(e);
     if(mk.tool==='texto'){const txt=(prompt('Texto curto:')||'').trim();if(txt)mk.shapes.push({t:'texto',cor:mk.cor,x1:p.x,y1:p.y,txt});mkRender();return;}
-    down=true;try{c.setPointerCapture(e.pointerId);}catch(_){}
-    mk.cur={t:mk.tool,cor:mk.cor,x1:p.x,y1:p.y,x2:p.x,y2:p.y};};
-  const move=e=>{if(!down||!mk.cur||e.pointerId!==pid)return;e.preventDefault();const p=mkPos(e);mk.cur.x2=p.x;mk.cur.y2=p.y;mkRender();};
-  const end=e=>{if(!down||e.pointerId!==pid)return;down=false;const s=mk.cur;mk.cur=null;if(s&&Math.hypot(s.x2-s.x1,s.y2-s.y1)>mkLw()*2)mk.shapes.push(s);mkRender();};
-  c.addEventListener('pointerdown',start);c.addEventListener('pointermove',move);c.addEventListener('pointerup',end);c.addEventListener('pointercancel',end);
-  // celular: nada de rolar nem dar zoom enquanto desenha
+    draw={id:e.pointerId};mk.cur={t:mk.tool,cor:mk.cor,x1:p.x,y1:p.y,x2:p.x,y2:p.y};});
+  area.addEventListener('pointermove',e=>{if(!pts.has(e.pointerId))return;e.preventDefault();pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pinch&&pts.size>=2){const [a,b]=[...pts.values()];const d=Math.hypot(a.x-b.x,a.y-b.y),mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+      mk.tx=pinch.tx+(mx-pinch.mx);mk.ty=pinch.ty+(my-pinch.my);mk.z=pinch.z;mkApply();mkZoomAt(pinch.z*(d/(pinch.d||1)),mx,my);return;}
+    if(draw&&draw.id===e.pointerId&&mk.cur){const p=mkPos(e);mk.cur.x2=p.x;mk.cur.y2=p.y;mkRender();}});
+  const up=e=>{if(!pts.has(e.pointerId))return;pts.delete(e.pointerId);
+    if(pinch){if(pts.size<2)pinch=null;return;}
+    if(draw&&draw.id===e.pointerId){draw=null;const s=mk.cur;mk.cur=null;if(s&&Math.hypot(s.x2-s.x1,s.y2-s.y1)>mkLw()*2)mk.shapes.push(s);mkRender();}};
+  area.addEventListener('pointerup',up);area.addEventListener('pointercancel',up);
+  // desktop: roda do mouse dá zoom no ponto do cursor
+  area.addEventListener('wheel',e=>{if(!mk.img)return;e.preventDefault();mkZoomAt(mk.z*(e.deltaY<0?1.15:1/1.15),e.clientX,e.clientY);},{passive:false});
+  // celular: a página não rola nem dá zoom; a pinça é tratada acima, dentro da foto
   $('mk').addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
   $('mk').addEventListener('touchstart',e=>{if(e.touches.length>1)e.preventDefault();},{passive:false});
   document.querySelectorAll('.mk-t').forEach(b=>b.onclick=()=>mkSetTool(b.dataset.t));

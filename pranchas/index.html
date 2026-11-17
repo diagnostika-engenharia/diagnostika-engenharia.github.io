@@ -115,6 +115,7 @@ textarea{min-height:84px;resize:vertical}
       <h3>2 · Projeto e pedido</h3>
       <label class="lb">Projeto (código do card)</label>
       <select id="proj"><option value="">Carregando…</option></select>
+      <p class="muted" id="projHint" style="margin-top:4px">O projeto é identificado pelo carimbo do PDF; confira ou corrija aqui.</p>
       <label class="lb">DWG de origem (opcional)</label>
       <input type="file" id="fdwg" accept=".dwg,.dxf" style="font-size:13px">
       <p class="muted" style="margin-top:4px">Sem DWG, o desenho é procurado na pasta do cliente; se não houver, é redesenhado a partir do PDF.</p>
@@ -172,7 +173,7 @@ textarea{min-height:84px;resize:vertical}
 const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='pranchas';
-const APP_BUILD='20261117-01';
+const APP_BUILD='20261117-02';
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const toast=(m,ms=2600)=>{const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',ms);};
@@ -206,7 +207,7 @@ const NOMES={'rogerio':'Rogério Conceição','claudemir':'Claudemir Scaranello'
 function nomeUser(){const n=user?.user_metadata?.nome||(user?.email?user.email.split('@')[0].replace(/[._]/g,' '):'Equipe');const k=n.trim().split(/\s+/)[0].normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();return NOMES[k]||n;}
 
 // ───────── estado ─────────
-let pdfBytes=null,pdfName='',pdfDoc=null,dwgFile=null;
+let pdfBytes=null,pdfName='',pdfDoc=null,dwgFile=null,PROJS=[];
 let pageNum=1,pageCount=1,pageViewports={};  // viewport scale=1 por página (pdf.js)
 let marks={};            // {pagina: [shape]}  shape em pontos PDF (origem canto inferior esquerdo, via viewport.convertToPdfPoint)
 let undoStack=[];
@@ -235,9 +236,10 @@ async function carregarProjetos(){
   try{
     const {data,error}=await sb.from('fin_projetos').select('id,codigo,status,fin_projeto_clientes(nome)').eq('arquivado',false).order('codigo');
     if(error)throw error;
-    const ps=(data||[]).filter(p=>p.codigo);
+    const ps=(data||[]).filter(p=>p.codigo);PROJS=ps;
     sel.innerHTML='<option value="">Escolha o projeto…</option>'+ps.map(p=>`<option value="${esc(p.codigo)}" data-id="${p.id}">${esc(p.codigo)} — ${esc(p.fin_projeto_clientes?.nome||'')}</option>`).join('');
     const last=localStorage.getItem('pranchas_proj');if(last&&ps.some(p=>p.codigo===last))sel.value=last;
+    if(pdfDoc)identificarProjeto(pdfName).catch(e=>console.warn('identificação',e));
   }catch(e){sel.innerHTML='<option value="">Não foi possível carregar os projetos</option>';console.warn(e);}
   sel.onchange=()=>{localStorage.setItem('pranchas_proj',sel.value);habilitar();};
 }
@@ -251,8 +253,37 @@ async function carregarPdf(f){
     pageCount=pdfDoc.numPages;pageNum=1;marks={};undoStack=[];pageViewports={};
     const d=$('drop');d.classList.add('ok');d.querySelector('b').textContent=`✅ ${f.name}`;d.querySelector('small').textContent=`${pageCount} página${pageCount>1?'s':''} · ${(f.size/1024/1024).toFixed(1)} MB · toque para trocar`;
     habilitar();
+    identificarProjeto(f.name).catch(e=>console.warn('identificação',e));
   }catch(e){console.error(e);pdfBytes=null;toast('Não consegui abrir esse PDF.');}
   busy(false);
+}
+// Lê o texto do PDF (carimbo) e do nome do arquivo e acha o projeto na lista de fin_projetos.
+const norm=t=>(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+async function textoDoPdf(max=4){
+  let t='';
+  for(let i=1;i<=Math.min(pdfDoc.numPages,max);i++){
+    const pg=await pdfDoc.getPage(i);const tc=await pg.getTextContent();
+    t+=' '+tc.items.map(it=>it.str).join(' ');
+  }
+  return t;
+}
+async function identificarProjeto(nome){
+  const h=$('projHint');if(!PROJS.length){h.textContent='Lista de projetos ainda carregando…';return;}
+  const texto=norm(nome)+' '+norm(await textoDoPdf());
+  // só letras e números: "ANH-545", "ANH 545", "ANH_545" e "ANH545" viram ANH545
+  const compact=texto.replace(/[^A-Z0-9]+/g,'');
+  // 1) código do projeto no carimbo ou no nome do arquivo
+  let achado=null;
+  for(const p of PROJS){const c=norm(p.codigo).replace(/[^A-Z0-9]+/g,'');if(c&&compact.includes(c)){achado=p;break;}}
+  // 2) nome do cliente (duas primeiras palavras com 3+ letras)
+  if(!achado){
+    for(const p of PROJS){const nm=norm(p.fin_projeto_clientes?.nome).split(/[^A-Z0-9]+/).filter(w=>w.length>=3).slice(0,2);
+      if(nm.length&&nm.every(w=>texto.includes(w))){achado=p;break;}}
+  }
+  const sel=$('proj');
+  if(achado){sel.value=achado.codigo;localStorage.setItem('pranchas_proj',achado.codigo);h.textContent=`✅ Identificado no arquivo: ${achado.codigo} — ${achado.fin_projeto_clientes?.nome||''}. Confira ou corrija.`;}
+  else{h.textContent='Não achei o código do projeto no PDF. Escolha na lista.';}
+  habilitar();
 }
 
 // ───────── editor ─────────

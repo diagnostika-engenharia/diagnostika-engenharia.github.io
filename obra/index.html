@@ -207,7 +207,7 @@ body.auth-checking #app>*{visibility:hidden}
   </div>
   <div class="modal" id="modal" onclick="if(event.target===this)fecharModal()"><div class="sheet" id="sheet"></div></div>
   <div class="lightbox" id="lb" onclick="if(event.target===this||event.target.id==='lbImg'||event.target.classList.contains('x'))this.classList.remove('show')"><button class="x">×</button><button class="nav pv" onclick="lbNav(-1)">‹</button><button class="nav nx" onclick="lbNav(1)">›</button><span class="cnt" id="lbCnt"></span><button class="mkb" id="lbMk" hidden onclick="marcarNoHistorico()">✎ Marcar</button><img id="lbImg" alt=""></div>
-  <div class="mk" id="mk"><div class="mk-top"><button class="mk-t on" data-t="seta">↗ Seta</button><button class="mk-t" data-t="elipse">◯ Círculo</button><button class="mk-t" data-t="ret">▭ Retângulo</button><button class="mk-t" data-t="texto">T Texto</button><span class="mk-sp"></span><button class="mk-c on" data-c="#E53935" style="background:#E53935" title="Vermelho"></button><button class="mk-c" data-c="#FFD600" style="background:#FFD600" title="Amarelo"></button></div><div class="mk-area"><canvas id="mkCv"></canvas></div><div class="mk-bot"><button onclick="mkDesfazer()">↶ Desfazer</button><button onclick="mkLimpar()">Limpar</button><button class="pul" onclick="mkFechar(false)">Pular</button><button class="pri" onclick="mkFechar(true)">Salvar</button></div></div>
+  <div class="mk" id="mk"><div class="mk-top"><button class="mk-t on" data-t="seta">↗ Seta</button><button class="mk-t" data-t="elipse">◯ Círculo</button><button class="mk-t" data-t="ret">▭ Retângulo</button><button class="mk-t" data-t="texto">T Texto</button><span class="mk-sp"></span><button class="mk-c on" data-c="#E53935" style="background:#E53935" title="Vermelho"></button><button class="mk-c" data-c="#FFD600" style="background:#FFD600" title="Amarelo"></button><button class="mk-c" data-c="#00C853" style="background:#00C853" title="Verde"></button></div><div class="mk-area"><canvas id="mkCv"></canvas></div><div class="mk-bot"><button onclick="mkDesfazer()">↶ Desfazer</button><button onclick="mkLimpar()">Limpar</button><button class="pul" onclick="mkFechar(false)">Pular</button><button class="pri" onclick="mkFechar(true)">Salvar</button></div></div>
   <div class="toast" id="toast"></div>
 </div>
 <input type="file" id="fileCam" accept="image/*" capture="environment" multiple hidden>
@@ -219,7 +219,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261117-05';
+const APP_BUILD='20261117-06';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[

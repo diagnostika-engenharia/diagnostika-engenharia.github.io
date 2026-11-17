@@ -139,6 +139,8 @@ textarea{min-height:84px;resize:vertical}
     <button class="tl" data-t="seta"><span class="ic">↗</span>Seta</button>
     <button class="tl" data-t="rect"><span class="ic">▭</span>Retângulo</button>
     <button class="tl" data-t="texto"><span class="ic">T</span>Texto</button>
+    <button class="tl" data-t="sel"><span class="ic">⬚</span>Selecionar</button>
+    <button class="tl" id="bDelSel" style="display:none;background:#b3261e" onclick="apagarSel()"><span class="ic">🗑</span>Apagar</button>
     <button class="tl" data-t="borracha"><span class="ic">🧽</span>Borracha</button>
     <button class="tl" data-t="mao"><span class="ic">✋</span>Mover</button>
     <span class="sp"></span>
@@ -173,7 +175,7 @@ textarea{min-height:84px;resize:vertical}
 const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='pranchas';
-const APP_BUILD='20261117-02';
+const APP_BUILD='20261117-03';
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const toast=(m,ms=2600)=>{const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',ms);};
@@ -226,7 +228,7 @@ function init(){
   $('fdwg').onchange=e=>{dwgFile=e.target.files[0]||null;};
   $('bMarcar').onclick=abrirEditor;
   // ferramentas
-  $('tools').querySelectorAll('.tl[data-t]').forEach(b=>b.onclick=()=>{tool=b.dataset.t;$('tools').querySelectorAll('.tl[data-t]').forEach(x=>x.classList.toggle('on',x===b));hint();});
+  $('tools').querySelectorAll('.tl[data-t]').forEach(b=>b.onclick=()=>{tool=b.dataset.t;selIdx=null;$('tools').querySelectorAll('.tl[data-t]').forEach(x=>x.classList.toggle('on',x===b));hint();});
   $('tools').querySelectorAll('.cl').forEach(b=>b.onclick=()=>{cor=b.dataset.c;$('tools').querySelectorAll('.cl').forEach(x=>x.classList.toggle('on',x===b));});
   carregarProjetos();carregarLista();
   window.addEventListener('resize',()=>{if($('ed').classList.contains('show'))ajustar();});
@@ -293,7 +295,7 @@ async function abrirEditor(){
   await renderPagina();hint();
 }
 function fecharEditor(){$('ed').classList.remove('show');}
-function hint(){const h={caneta:'Desenhe com o dedo ou caneta. Dois dedos: zoom e mover.',marca:'Arraste sobre o trecho a destacar.',elipse:'Arraste para desenhar o círculo.',seta:'Arraste da origem para a ponta da seta.',rect:'Arraste para desenhar o retângulo.',texto:'Toque onde o texto deve ficar.',borracha:'Toque na marcação para apagar.',mao:'Arraste para mover a página.'};$('hint').textContent=h[tool]||'';}
+function hint(){const h={caneta:'Desenhe com o dedo ou caneta. Dois dedos: zoom e mover.',marca:'Arraste sobre o trecho a destacar.',elipse:'Arraste para desenhar o círculo.',seta:'Arraste da origem para a ponta da seta.',rect:'Arraste para desenhar o retângulo.',texto:'Toque onde o texto deve ficar.',sel:'Toque na marcação para selecionar. Arraste para mover; puxe as alças para ajustar o tamanho.',borracha:'Toque na marcação para apagar.',mao:'Arraste para mover a página.'};$('hint').textContent=h[tool]||'';}
 async function renderPagina(){
   busy(true,`Página ${pageNum} de ${pageCount}…`);
   const page=await pdfDoc.getPage(pageNum);
@@ -309,9 +311,9 @@ async function renderPagina(){
   $('pgInfo').textContent=`${pageNum} / ${pageCount}`;
   ajustar();redraw();busy(false);
 }
-function irPag(d){const n=pageNum+d;if(n<1||n>pageCount)return;pageNum=n;renderPagina();}
+function irPag(d){const n=pageNum+d;if(n<1||n>pageCount)return;pageNum=n;selIdx=null;renderPagina();}
 function ajustar(){const a=$('area').getBoundingClientRect();zoom=Math.min(a.width/baseW,a.height/baseH)*0.98;panX=(a.width-baseW*zoom)/2;panY=(a.height-baseH*zoom)/2;applyT();}
-function applyT(){$('stage').style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`;}
+function applyT(){$('stage').style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`;if(selIdx!=null)redraw();}
 function zoomBtn(d){if(d===0){ajustar();return;}const a=$('area').getBoundingClientRect();zoomAt(a.width/2,a.height/2,d>0?1.3:1/1.3);}
 function zoomAt(cx,cy,f){const nz=Math.max(0.2,Math.min(12,zoom*f));f=nz/zoom;panX=cx-(cx-panX)*f;panY=cy-(cy-panY)*f;zoom=nz;applyT();}
 
@@ -321,7 +323,7 @@ function toPdf(p){const vp=pageViewports[pageNum];const [x,y]=vp.convertToPdfPoi
 function toBaseFromPdf(q){const vp=pageViewports[pageNum];const [x,y]=vp.convertToViewportPoint(q.x,q.y);return {x,y};}
 
 // ───────── desenho ─────────
-const pts=new Map();let cur=null,pinch=null;
+const pts=new Map();let cur=null,pinch=null,selIdx=null;
 const area=$('area');
 area.addEventListener('pointerdown',e=>{
   if(e.target.closest('#txtbox'))return;
@@ -332,6 +334,7 @@ area.addEventListener('pointerdown',e=>{
   if(tool==='mao'){cur={tipo:'pan',sx:e.clientX,sy:e.clientY,px:panX,py:panY};return;}
   if(tool==='texto'){abrirTexto(p);return;}
   if(tool==='borracha'){apagarEm(p);return;}
+  if(tool==='sel'){iniciarSel(p);return;}
   cur={tipo:tool,cor,pts:[p],x0:p.x,y0:p.y,x1:p.x,y1:p.y};
 });
 area.addEventListener('pointermove',e=>{
@@ -341,11 +344,13 @@ area.addEventListener('pointermove',e=>{
   if(!cur)return;
   if(cur.tipo==='pan'){panX=cur.px+(e.clientX-cur.sx);panY=cur.py+(e.clientY-cur.sy);applyT();return;}
   const p=toBase(e);
+  if(cur.tipo==='move'||cur.tipo==='resize'){arrastarSel(p);return;}
   if(cur.tipo==='caneta'||cur.tipo==='marca')cur.pts.push(p);else{cur.x1=p.x;cur.y1=p.y;}
   redraw();
 });
 function up(e){pts.delete(e.pointerId);if(pts.size<2)pinch=null;
   if(!cur)return;if(cur.tipo==='pan'){cur=null;return;}
+  if(cur.tipo==='move'||cur.tipo==='resize'){fimSel();cur=null;return;}
   const s=cur;cur=null;
   if((s.tipo==='caneta'||s.tipo==='marca')&&s.pts.length<2){s.pts.push({x:s.pts[0].x+1,y:s.pts[0].y+1});}
   if(s.tipo!=='caneta'&&s.tipo!=='marca'&&Math.hypot(s.x1-s.x0,s.y1-s.y0)<4){redraw();return;}
@@ -359,15 +364,56 @@ area.addEventListener('wheel',e=>{e.preventDefault();const a=area.getBoundingCli
 $('ed').addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
 function simplify(ps){const out=[ps[0]];for(const p of ps){const l=out[out.length-1];if(Math.hypot(p.x-l.x,p.y-l.y)>=1.2)out.push(p);}return out;}
 function addShape(sh){(marks[pageNum]??=[]).push(sh);undoStack.push({pg:pageNum,op:'add'});redraw();}
-function desfazer(){const u=undoStack.pop();if(!u)return;if(u.op==='add'){(marks[u.pg]||[]).pop();}else if(u.op==='del'){(marks[u.pg]??=[]).splice(u.idx,0,u.sh);}if(u.pg!==pageNum){pageNum=u.pg;renderPagina();}else redraw();}
-function apagarEm(p){const arr=marks[pageNum]||[];const tol=12;
+function desfazer(){const u=undoStack.pop();if(!u)return;if(u.op==='add'){(marks[u.pg]||[]).pop();}else if(u.op==='del'){(marks[u.pg]??=[]).splice(u.idx,0,u.sh);}else if(u.op==='edit'){(marks[u.pg]??=[])[u.idx]=u.antes;}selIdx=null;if(u.pg!==pageNum){pageNum=u.pg;renderPagina();}else redraw();}
+function hitIdx(p,tol,dentro){const arr=marks[pageNum]||[];
   for(let i=arr.length-1;i>=0;i--){const s=arr[i];let hit=false;
     if(s.pts){hit=s.pts.some(q=>{const b=toBaseFromPdf(q);return Math.hypot(b.x-p.x,b.y-p.y)<tol+(s.largura||2);});}
     else{const a=toBaseFromPdf({x:s.x0,y:s.y0}),b=toBaseFromPdf({x:s.x1,y:s.y1});const minx=Math.min(a.x,b.x)-tol,maxx=Math.max(a.x,b.x)+tol,miny=Math.min(a.y,b.y)-tol,maxy=Math.max(a.y,b.y)+tol;
-      if(s.tipo==='texto')hit=p.x>=minx&&p.x<=maxx&&p.y>=miny&&p.y<=maxy;
+      const inside=p.x>=minx&&p.x<=maxx&&p.y>=miny&&p.y<=maxy;
+      if(s.tipo==='texto')hit=inside;
       else if(s.tipo==='seta')hit=distSeg(p,a,b)<tol;
-      else{const inside=p.x>=minx&&p.x<=maxx&&p.y>=miny&&p.y<=maxy;const inner=p.x>minx+2*tol&&p.x<maxx-2*tol&&p.y>miny+2*tol&&p.y<maxy-2*tol;hit=inside&&!inner;}}
-    if(hit){const [sh]=arr.splice(i,1);undoStack.push({pg:pageNum,op:'del',idx:i,sh});redraw();return;}}
+      else if(dentro)hit=inside;
+      else{const inner=p.x>minx+2*tol&&p.x<maxx-2*tol&&p.y>miny+2*tol&&p.y<maxy-2*tol;hit=inside&&!inner;}}
+    if(hit)return i;}
+  return null;
+}
+function apagarEm(p){const i=hitIdx(p,Math.max(6,12/zoom),false);if(i==null)return;const arr=marks[pageNum];const [sh]=arr.splice(i,1);undoStack.push({pg:pageNum,op:'del',idx:i,sh});selIdx=null;redraw();}
+
+// ───────── seleção: mover e redimensionar ─────────
+const shBase=s=>s.pts?{...s,pts:s.pts.map(toBaseFromPdf)}:(()=>{const a=toBaseFromPdf({x:s.x0,y:s.y0}),b=toBaseFromPdf({x:s.x1,y:s.y1});return {...s,x0:a.x,y0:a.y,x1:b.x,y1:b.y};})();
+const shPdf=s=>s.pts?{...s,pts:s.pts.map(toPdf)}:(()=>{const a=toPdf({x:s.x0,y:s.y0}),b=toPdf({x:s.x1,y:s.y1});return {...s,x0:a.x,y0:a.y,x1:b.x,y1:b.y};})();
+function bbox(sb){if(sb.pts){const xs=sb.pts.map(q=>q.x),ys=sb.pts.map(q=>q.y);return {x0:Math.min(...xs),y0:Math.min(...ys),x1:Math.max(...xs),y1:Math.max(...ys)};}return {x0:Math.min(sb.x0,sb.x1),y0:Math.min(sb.y0,sb.y1),x1:Math.max(sb.x0,sb.x1),y1:Math.max(sb.y0,sb.y1)};}
+function alcas(sb){if(sb.tipo==='seta')return [{id:'a',x:sb.x0,y:sb.y0},{id:'b',x:sb.x1,y:sb.y1}];const b=bbox(sb);return [{id:'nw',x:b.x0,y:b.y0},{id:'ne',x:b.x1,y:b.y0},{id:'sw',x:b.x0,y:b.y1},{id:'se',x:b.x1,y:b.y1}];}
+function iniciarSel(p){
+  const tol=Math.max(6,12/zoom);const arr=marks[pageNum]||[];
+  if(selIdx!=null&&arr[selIdx]){const sb=shBase(arr[selIdx]);const h=alcas(sb).find(a=>Math.hypot(a.x-p.x,a.y-p.y)<tol*1.4);
+    if(h){cur={tipo:'resize',h:h.id,orig:sb,start:p,moved:false};return;}}
+  const i=hitIdx(p,tol,true);selIdx=i;redraw();if(i==null)return;
+  cur={tipo:'move',orig:shBase(arr[i]),start:p,moved:false};
+}
+function arrastarSel(p){
+  const o=cur.orig,dx=p.x-cur.start.x,dy=p.y-cur.start.y;if(!dx&&!dy)return;cur.moved=true;
+  let nb;
+  if(cur.tipo==='move'){nb=o.pts?{...o,pts:o.pts.map(q=>({x:q.x+dx,y:q.y+dy}))}:{...o,x0:o.x0+dx,y0:o.y0+dy,x1:o.x1+dx,y1:o.y1+dy};}
+  else if(o.tipo==='seta'){nb=cur.h==='a'?{...o,x0:o.x0+dx,y0:o.y0+dy}:{...o,x1:o.x1+dx,y1:o.y1+dy};}
+  else{const b=bbox(o);let x0=b.x0,y0=b.y0,x1=b.x1,y1=b.y1;const h=cur.h;
+    if(h.includes('w'))x0+=dx;else x1+=dx;if(h.includes('n'))y0+=dy;else y1+=dy;
+    const fx=h.includes('w')?b.x1:b.x0,fy=h.includes('n')?b.y1:b.y0;
+    const sx=(x1-x0)/((b.x1-b.x0)||1),sy=(y1-y0)/((b.y1-b.y0)||1);
+    const M=q=>({x:fx+(q.x-fx)*sx,y:fy+(q.y-fy)*sy});
+    if(o.pts)nb={...o,pts:o.pts.map(M)};else{const a=M({x:o.x0,y:o.y0}),c=M({x:o.x1,y:o.y1});nb={...o,x0:a.x,y0:a.y,x1:c.x,y1:c.y};}
+    if(o.tipo==='texto')nb.tam=Math.max(6,Math.min(72,(o.tam||14)*Math.abs(sy)));}
+  marks[pageNum][selIdx]=shPdf(nb);redraw();
+}
+function fimSel(){if(cur.moved&&selIdx!=null)undoStack.push({pg:pageNum,op:'edit',idx:selIdx,antes:shPdf(cur.orig)});}
+function apagarSel(){const arr=marks[pageNum]||[];if(selIdx==null||!arr[selIdx])return;const [sh]=arr.splice(selIdx,1);undoStack.push({pg:pageNum,op:'del',idx:selIdx,sh});selIdx=null;redraw();}
+document.addEventListener('keydown',e=>{if(!$('ed').classList.contains('show')||selIdx==null)return;if(/TEXTAREA|INPUT/.test(e.target.tagName))return;if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();apagarSel();}});
+function desenharAlcas(c){
+  const arr=marks[pageNum]||[];const s=arr[selIdx];$('bDelSel').style.display=(tool==='sel'&&s)?'':'none';if(tool!=='sel'||!s)return;
+  const sb=shBase(s),b=bbox(sb),k=1/zoom;c.save();c.globalAlpha=1;
+  c.strokeStyle='#0D3C44';c.lineWidth=1.2*k;c.setLineDash([5*k,4*k]);c.strokeRect(b.x0-5*k,b.y0-5*k,(b.x1-b.x0)+10*k,(b.y1-b.y0)+10*k);c.setLineDash([]);
+  for(const h of alcas(sb)){c.beginPath();c.arc(h.x,h.y,8*k,0,Math.PI*2);c.fillStyle='#fff';c.fill();c.strokeStyle='#0D3C44';c.lineWidth=2*k;c.stroke();}
+  c.restore();
 }
 function distSeg(p,a,b){const l2=(a.x-b.x)**2+(a.y-b.y)**2;if(!l2)return Math.hypot(p.x-a.x,p.y-a.y);let t=((p.x-a.x)*(b.x-a.x)+(p.y-a.y)*(b.y-a.y))/l2;t=Math.max(0,Math.min(1,t));return Math.hypot(p.x-(a.x+t*(b.x-a.x)),p.y-(a.y+t*(b.y-a.y)));}
 
@@ -385,7 +431,8 @@ function redraw(){
   const ov=$('ov'),c=ov.getContext('2d');c.clearRect(0,0,ov.width,ov.height);c.save();c.scale(RENDER_SCALE,RENDER_SCALE);
   c.lineCap='round';c.lineJoin='round';
   for(const s of (marks[pageNum]||[]))drawShape(c,s,true);
-  if(cur&&cur.tipo!=='pan')drawShape(c,cur,false);
+  if(cur&&cur.tipo!=='pan'&&cur.tipo!=='move'&&cur.tipo!=='resize')drawShape(c,cur,false);
+  desenharAlcas(c);
   c.restore();
 }
 function drawShape(c,s,fromPdf){

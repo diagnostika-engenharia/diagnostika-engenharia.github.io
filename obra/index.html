@@ -208,7 +208,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261117-03';
+const APP_BUILD='20261117-04';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -363,6 +363,8 @@ const conflitos=[];              // avisos de gravação recusada (mostrados na 
 const CAMPOS_FIXOS=new Set(['id','obra_id','created_at','updated_at']);
 const normCampo=(k,v)=>(k==='hora_inicio'||k==='hora_fim')?(v?String(v).slice(0,5):null):(v??null);
 // só os campos que mudaram em relação ao que o servidor conhece (base)
+// cópia profunda: _sent nunca pode compartilhar o mesmo array/objeto da vistoria viva (senão togglar presente altera o 'enviado' junto e o diff sai vazio)
+const cloneRow=o=>JSON.parse(JSON.stringify(o));
 function diffRow(novo,base){const p={};for(const k of Object.keys(novo||{})){if(CAMPOS_FIXOS.has(k))continue;if(JSON.stringify(normCampo(k,novo[k]))!==JSON.stringify(normCampo(k,base?.[k])))p[k]=novo[k];}return p;}
 const vidDe=op=>op.vid||op.visita_id||op.row?.visita_id||(op.kind==='visita'?op.row?.id:null);
 function registrarUpd(vid,u,patch){srvUpd[vid]=u;if(visita&&visita.id===vid){visita._srv_updated_at=u;saveVisita();}const cv=cacheVisitas.find(x=>x.id===vid);if(cv)Object.assign(cv,patch||{},{updated_at:u});}
@@ -559,7 +561,7 @@ async function flushRascunho(){
   if(Object.keys(novo).length){
     const {patch,expect}=await patchPendente(ops,v.id);
     await idb.add({kind:'visita_patch',vid:v.id,data:row.data,patch:{...patch,...novo},expect:expect||v._srv_updated_at||null,rascunho:true,ts:Date.now()});
-    v._sent={...(v._sent||{}),...row};n++;
+    v._sent=cloneRow({...(v._sent||{}),...row});n++;
   }
   for(const key of [...rascKeys]){
     rascKeys.delete(key);const r=registroDe(key);const rid=v.rids[key];
@@ -660,7 +662,7 @@ function visItem(v){
 function novaVisita(){
   ultServ=null;visita={id:uuid(),obra_id:OBRA_ID,data:hoje(),hora_inicio:agora(),hora_fim:null,engenheiro:nomeUser(),user_id:user.id,clima:'',temperatura:'',paralisacao:false,efetivo:{},encarregado:'',lider:'',resumo:'',presentes:[],status:'em_andamento',device_id:deviceId,
     checklist:{},servicos:{},registros:[],rids:{},acomp:{}};
-  visita._sent=rowVisita();saveVisita();
+  visita._sent=cloneRow(rowVisita());saveVisita();
   enfileirar({kind:'visita',row:rowVisita()});
   tab='inicio';go('visita');
 }
@@ -759,7 +761,7 @@ function togPresente(id){
   if(!visita)return;visita.presentes=visita.presentes||[];
   const i=visita.presentes.findIndex(p=>p.id===id);
   const f=equipe.find(x=>x.id===id)||(i>=0?visita.presentes[i]:null);if(!f)return;
-  if(i>=0)visita.presentes.splice(i,1);else visita.presentes.push({id:f.id,nome:f.nome,funcao:f.funcao});
+  visita.presentes=i>=0?visita.presentes.filter((_,k)=>k!==i):visita.presentes.concat([{id:f.id,nome:f.nome,funcao:f.funcao}]);
   if(!visita.encarregado&&ehEncarregado(f.funcao)&&i<0)visita.encarregado=f.nome;
   visita.efetivo=efetivoDosPresentes(visita.presentes,visita.efetivo,visita.encarregado);
   saveVisita();render();
@@ -904,7 +906,7 @@ async function encerrarVisita(){
     await idb.add({kind:'registro',row:{id:uuid(),visita_id:visita.id,obra_id:OBRA_ID,tipo:'mapa',item:'Avanço medido (mapa 3D)',percentual:Math.round(m.geral),descricao:JSON.stringify({geral:Math.round(m.geral*10)/10,et:m.et.map(v=>Math.round(v*10)/10),fach:porF,pulados:m.pulados,atualizado:m.atualizado}),user_id:user.id,created_at:new Date().toISOString()},ts:Date.now()});}}catch(e){}
   // linha da vistoria: só o que mudou, condicionado ao updated_at conhecido (se outro aparelho gravou, avisa e não sobrescreve)
   {const row=rowVisita();const {patch,expect}=await patchPendente(ops,visita.id);
-  await idb.add({kind:'visita_patch',vid:visita.id,data:row.data,patch:{...patch,...diffRow(row,visita._sent)},expect:expect||visita._srv_updated_at||null,ts:Date.now()});}
+  await idb.add({kind:'visita_patch',vid:visita.id,data:row.data,patch:{...patch,...diffRow(row,visita._sent),presentes:row.presentes||[],efetivo:row.efetivo||{}},expect:expect||visita._srv_updated_at||null,ts:Date.now()});}
   visita=null;saveVisita();
   toast('Vistoria encerrada');atualizarSync();await sincronizar();go('home');
 }
@@ -1133,11 +1135,11 @@ async function reabrirVisita(id){
   rs.filter(r=>r.tipo==='servico').forEach(r=>{const k=r.fachada+'|'+r.item;servicos[k]={status:r.status,pct:r.percentual??undefined};rids['servico|'+k]=rids['servico|'+k]||r.id;});
   const registros=rs.filter(r=>!['checklist','servico'].includes(r.tipo));
   const {obra_visitas,...row}=srv;
-  visita={_orig:row,_sent:row,_srv_updated_at:row.updated_at||null,...row,hora_inicio:(row.hora_inicio||'').slice(0,5),hora_fim:null,status:'em_andamento',device_id:deviceId,efetivo:row.efetivo||{},temperatura:row.temperatura||'',clima:row.clima||'',encarregado:row.encarregado||'',lider:row.lider||'',resumo:row.resumo||'',presentes:row.presentes||[],checklist,servicos,registros,rids,reaberta:true};
+  visita={_orig:row,_sent:cloneRow(row),_srv_updated_at:row.updated_at||null,...row,hora_inicio:(row.hora_inicio||'').slice(0,5),hora_fim:null,status:'em_andamento',device_id:deviceId,efetivo:row.efetivo||{},temperatura:row.temperatura||'',clima:row.clima||'',encarregado:row.encarregado||'',lider:row.lider||'',resumo:row.resumo||'',presentes:row.presentes||[],checklist,servicos,registros,rids,reaberta:true};
   saveVisita();
   const rr=rowVisita();
   await enfileirar({kind:'visita_patch',vid:visita.id,data:rr.data,patch:diffRow(rr,row),expect:row.updated_at||null});
-  visita._sent={...row,...rr};saveVisita();
+  visita._sent=cloneRow({...row,...rr});saveVisita();
   tab='inicio';go('visita');toast('Vistoria reaberta');
 }
 async function excluirVisita(id){

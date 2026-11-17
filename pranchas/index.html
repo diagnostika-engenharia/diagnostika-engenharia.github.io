@@ -175,7 +175,7 @@ textarea{min-height:84px;resize:vertical}
 const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='pranchas';
-const APP_BUILD='20261117-03';
+const APP_BUILD='20261117-04';
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const toast=(m,ms=2600)=>{const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',ms);};
@@ -367,7 +367,7 @@ function addShape(sh){(marks[pageNum]??=[]).push(sh);undoStack.push({pg:pageNum,
 function desfazer(){const u=undoStack.pop();if(!u)return;if(u.op==='add'){(marks[u.pg]||[]).pop();}else if(u.op==='del'){(marks[u.pg]??=[]).splice(u.idx,0,u.sh);}else if(u.op==='edit'){(marks[u.pg]??=[])[u.idx]=u.antes;}selIdx=null;if(u.pg!==pageNum){pageNum=u.pg;renderPagina();}else redraw();}
 function hitIdx(p,tol,dentro){const arr=marks[pageNum]||[];
   for(let i=arr.length-1;i>=0;i--){const s=arr[i];let hit=false;
-    if(s.pts){hit=s.pts.some(q=>{const b=toBaseFromPdf(q);return Math.hypot(b.x-p.x,b.y-p.y)<tol+(s.largura||2);});}
+    if(s.pts){const bp=s.pts.map(toBaseFromPdf);const t=tol+(s.largura||2);hit=bp.length===1?Math.hypot(bp[0].x-p.x,bp[0].y-p.y)<t:bp.some((q,i)=>i>0&&distSeg(p,bp[i-1],q)<t);}
     else{const a=toBaseFromPdf({x:s.x0,y:s.y0}),b=toBaseFromPdf({x:s.x1,y:s.y1});const minx=Math.min(a.x,b.x)-tol,maxx=Math.max(a.x,b.x)+tol,miny=Math.min(a.y,b.y)-tol,maxy=Math.max(a.y,b.y)+tol;
       const inside=p.x>=minx&&p.x<=maxx&&p.y>=miny&&p.y<=maxy;
       if(s.tipo==='texto')hit=inside;

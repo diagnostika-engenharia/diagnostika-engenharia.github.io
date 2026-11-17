@@ -208,7 +208,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261103-01';
+const APP_BUILD='20261117-01';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -255,7 +255,7 @@ const ordemFuncao=f=>{if(ehEncarregado(f))return 0;const i=FUNCOES.indexOf(f);re
 // Funções com cadastro (e "Encarregado") são sempre derivadas dos presentes; as demais ficam manuais (gente sem cadastro)
 function efetivoDosPresentes(pres,efAtual,enc){
   const ef={...(efAtual||{})};pres=pres||[];
-  ['Encarregado',...equipe.map(f=>f.funcao)].forEach(f=>ef[f]=0);
+  ['Encarregado',...equipe.map(f=>f.funcao),...pres.map(p=>p.funcao)].forEach(f=>ef[f]=0);
   let encContado=false;
   pres.forEach(p=>{const f=(enc&&p.nome===enc)?(encContado=true,'Encarregado'):p.funcao;ef[f]=(ef[f]||0)+1;});
   if(enc&&!encContado&&!equipe.some(f=>f.nome===enc))ef['Encarregado']=1; // só o encarregado digitado (sem cadastro) conta automaticamente; cadastrado precisa estar marcado presente
@@ -270,10 +270,30 @@ function linhasEfetivo(ef,attr,rerender){
   return funcs.map(f=>`<div class="ck" style="${vis(f)?'':'display:none'}"><span class="lb">${esc(f)}</span><input class="pct" inputmode="numeric" value="${ef[f]??''}" placeholder="0" ${attr(f)}></div>`).join('')
     +(temEq?`<button type="button" style="background:none;border:0;color:var(--teal,#0f766e);font-size:13px;padding:6px 0;text-decoration:underline" onclick="efExpand=!efExpand;${rerender}">${efExpand?'Ocultar funções zeradas':'+ Ajustar / incluir gente sem cadastro'}</button>`:'');
 }
+const ehAvulso=p=>!!(p&&(p.sem_cadastro||String(p.id||'').startsWith('avulso-')));
+let avulsoAberto=false;
 function chipsPresentes(pres,onToggle){
-  const at=equipeAtiva();if(!at.length)return `<p class="muted">Nenhum funcionário cadastrado. Cadastre a equipe na tela Obra para marcar presença pelo nome.</p>`;
-  const sel=new Set(pres.map(p=>p.id));
-  return `<div class="chips">${at.map(f=>`<button class="${sel.has(f.id)?'on':''}" onclick="${onToggle}('${f.id}')">${esc(f.nome)}<small>${esc(f.funcao)}</small></button>`).join('')}</div>`;
+  const at=equipeAtiva();const sel=new Set(pres.map(p=>p.id));
+  const avulsos=pres.filter(ehAvulso);
+  const funcs=[...new Set([...FUNCOES,...equipe.map(x=>x.funcao),'Ajudante de Pintor'])].sort((a,b)=>ordemFuncao(a)-ordemFuncao(b));
+  const onAdd=onToggle==='togPresente'?'addAvulso()':'addAvulsoEdicao()';
+  const form=avulsoAberto?`<div class="card" style="margin:8px 0;padding:10px;border:1px dashed #d97706;background:#fffbeb">
+      <label class="f" style="margin-top:0">Nome ou apelido</label><input class="f" id="av_nome" placeholder="Ex.: Antônio Pereira da Silva">
+      <label class="f">Função</label><input class="f" id="av_func" list="av_funcs" placeholder="Ex.: Ajudante de Pintor"><datalist id="av_funcs">${funcs.map(f=>`<option value="${esc(f)}">`).join('')}</datalist>
+      <p class="muted" style="font-size:12px;margin-top:6px">Entra na vistoria marcado como <b>sem documentação identificada</b>. Não vai para o cadastro da equipe.</p>
+      <div class="row"><button type="button" class="btn" onclick="${onAdd}">Incluir na vistoria</button><button type="button" class="btn sec" onclick="avulsoAberto=false;${onToggle==='togPresente'?'render()':'togPresenteEdicao()'}">Cancelar</button></div>
+    </div>`:'';
+  const btn=`<button type="button" style="background:none;border:0;color:#b45309;font-size:13px;padding:6px 0;text-decoration:underline" onclick="avulsoAberto=true;${onToggle==='togPresente'?'render()':'togPresenteEdicao()'}">+ Adicionar profissional não cadastrado</button>`;
+  const chips=at.map(f=>`<button class="${sel.has(f.id)?'on':''}" onclick="${onToggle}('${f.id}')">${esc(f.nome)}<small>${esc(f.funcao)}</small></button>`)
+    .concat(avulsos.map(p=>`<button class="on" style="background:#b45309;border-color:#b45309" title="Toque para remover" onclick="${onToggle}('${esc(p.id)}')">⚠ ${esc(p.nome)}<small>${esc(p.funcao)} · sem documentação</small></button>`)).join('');
+  const aviso=!at.length?`<p class="muted">Nenhum funcionário cadastrado. Cadastre a equipe na tela Obra para marcar presença pelo nome.</p>`:'';
+  return `${aviso}${chips?`<div class="chips">${chips}</div>`:''}${avulsoAberto?form:btn}`;
+}
+function novoAvulso(){
+  const nome=($('av_nome')?.value||'').trim(),funcao=($('av_func')?.value||'').trim();
+  if(!nome){toast('Informe o nome ou apelido');return null;}
+  if(!funcao){toast('Informe a função');return null;}
+  return {id:'avulso-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),nome,funcao,sem_cadastro:true,documentacao:'nao_identificada'};
 }
 
 // ═══════════════ SUPABASE + GATE ═══════════════
@@ -660,7 +680,7 @@ function tInicio(){
     <div><label class="f">Hora início</label><input class="f" type="time" value="${esc(visita.hora_inicio)}" onchange="upd('hora_inicio',this.value)"></div></div>
     <label class="f" style="display:flex;align-items:center;gap:8px;margin-top:12px"><input type="checkbox" ${visita.paralisacao?'checked':''} onchange="upd('paralisacao',this.checked)" style="width:20px;height:20px"> Obra paralisada hoje (chuva / outro)</label>
   </div>
-  ${equipeAtiva().length?(visita.efetivo=efetivoDosPresentes(visita.presentes,visita.efetivo,visita.encarregado),''):''}<div class="card"><h3>Efetivo presente (AAM)</h3>
+  ${(equipeAtiva().length||(visita.presentes||[]).length)?(visita.efetivo=efetivoDosPresentes(visita.presentes,visita.efetivo,visita.encarregado),''):''}<div class="card"><h3>Efetivo presente (AAM)</h3>
     <label class="f">Encarregado</label>${selectEncarregado(visita.encarregado,"setEncarregado(this.value)")}
     <label class="f">Líder</label>${selectEncarregado(visita.lider||'',"visita.lider=this.value;saveVisita();render()",'',"Nome do líder")}
     <label class="f">Presentes hoje <span class="muted" style="font-weight:400">(toque no nome)</span></label>${chipsPresentes(visita.presentes||[],'togPresente')}
@@ -682,13 +702,19 @@ function selectEncarregado(val,onchange,id='',ph='Nome do encarregado'){
     <input class="f"${idAttr} style="${outro?'':'display:none'};margin-top:6px" value="${esc(outro?val:'')}" placeholder="${ph}" onchange="${onchange}">`;
 }
 function togPresente(id){
-  const f=equipe.find(x=>x.id===id);if(!f||!visita)return;
-  visita.presentes=visita.presentes||[];
+  if(!visita)return;visita.presentes=visita.presentes||[];
   const i=visita.presentes.findIndex(p=>p.id===id);
+  const f=equipe.find(x=>x.id===id)||(i>=0?visita.presentes[i]:null);if(!f)return;
   if(i>=0)visita.presentes.splice(i,1);else visita.presentes.push({id:f.id,nome:f.nome,funcao:f.funcao});
   if(!visita.encarregado&&ehEncarregado(f.funcao)&&i<0)visita.encarregado=f.nome;
   visita.efetivo=efetivoDosPresentes(visita.presentes,visita.efetivo,visita.encarregado);
   saveVisita();render();
+}
+function addAvulso(){
+  const p=novoAvulso();if(!p||!visita)return;
+  visita.presentes=(visita.presentes||[]).concat([p]);avulsoAberto=false;
+  visita.efetivo=efetivoDosPresentes(visita.presentes,visita.efetivo,visita.encarregado);
+  saveVisita();render();toast(`${p.nome} incluído como sem documentação identificada`);
 }
 function setEncarregado(v){visita.encarregado=v;visita.efetivo=efetivoDosPresentes(visita.presentes,visita.efetivo,v);saveVisita();render();}
 // ── cadastro da equipe (obra_funcionarios) ──
@@ -997,8 +1023,9 @@ function formEditarVisita(id){
 }
 // fid opcional: sem fid só relê o formulário e recalcula o efetivo (troca de encarregado / expandir lista)
 function togPresenteEdicao(fid){
-  const f=fid?equipe.find(x=>x.id===fid):null;const id=edicaoVisitaId;const v=cacheVisitas.find(x=>x.id===id);if(!v||(fid&&!f))return;
+  const id=edicaoVisitaId;const v=cacheVisitas.find(x=>x.id===id);if(!v)return;
   v.presentes=v.presentes||[];let i=-1;
+  const f=fid?(equipe.find(x=>x.id===fid)||v.presentes.find(p=>p.id===fid)):null;if(fid&&!f)return;
   if(f){i=v.presentes.findIndex(p=>p.id===fid);if(i>=0)v.presentes.splice(i,1);else v.presentes.push({id:f.id,nome:f.nome,funcao:f.funcao});}
   const g=k=>$(k)?$(k).value:undefined;
   Object.assign(v,{data:g('ev_data')||v.data,engenheiro:g('ev_eng')??v.engenheiro,hora_inicio:g('ev_hi')||null,hora_fim:g('ev_hf')||null,clima:g('ev_clima')??v.clima,temperatura:g('ev_temp')??v.temperatura,paralisacao:$('ev_par')?$('ev_par').checked:v.paralisacao,resumo:g('ev_res')??v.resumo});
@@ -1009,11 +1036,15 @@ function togPresenteEdicao(fid){
   v.efetivo=efetivoDosPresentes(v.presentes,efMan,v.encarregado);
   formEditarVisita(id);
 }
+function addAvulsoEdicao(){
+  const p=novoAvulso();if(!p)return;const v=cacheVisitas.find(x=>x.id===edicaoVisitaId);if(!v)return;
+  v.presentes=(v.presentes||[]).concat([p]);avulsoAberto=false;togPresenteEdicao();
+}
 let edicaoVisitaId=null;
 async function salvarEdicaoVisita(id){
   const v=cacheVisitas.find(x=>x.id===id);if(!v)return;
   const efetivo={};document.querySelectorAll('#sheet [data-ef]').forEach(i=>{if(+i.value>0)efetivo[i.dataset.ef]=+i.value;});
-  Object.assign(v,{data:$('ev_data').value||v.data,engenheiro:$('ev_eng').value,hora_inicio:$('ev_hi').value||null,hora_fim:$('ev_hf').value||null,clima:$('ev_clima').value,temperatura:$('ev_temp').value,paralisacao:$('ev_par').checked,encarregado:($('ev_enc_sel')&&$('ev_enc_sel').value!=='__outro'&&$('ev_enc_sel').value)||$('ev_enc').value,lider:($('ev_lid_sel')&&$('ev_lid_sel').value!=='__outro'&&$('ev_lid_sel').value)||$('ev_lid').value,efetivo,resumo:$('ev_res').value});
+  Object.assign(v,{presentes:v.presentes||[],data:$('ev_data').value||v.data,engenheiro:$('ev_eng').value,hora_inicio:$('ev_hi').value||null,hora_fim:$('ev_hf').value||null,clima:$('ev_clima').value,temperatura:$('ev_temp').value,paralisacao:$('ev_par').checked,encarregado:($('ev_enc_sel')&&$('ev_enc_sel').value!=='__outro'&&$('ev_enc_sel').value)||$('ev_enc').value,lider:($('ev_lid_sel')&&$('ev_lid_sel').value!=='__outro'&&$('ev_lid_sel').value)||$('ev_lid').value,efetivo,resumo:$('ev_res').value});
   const {obra_visitas,...row}=v;
   $('modal').classList.remove('show');
   const patch=diffRow(row,edicaoBase);
@@ -1186,7 +1217,7 @@ function textoEfetivo(v,html){
   const E=html?esc:(x=>x);const ef=Object.entries(v.efetivo||{}).filter(([,n])=>+n>0).sort((a,b)=>ordemFuncao(a[0])-ordemFuncao(b[0]));
   if(!ef.length)return 'não informado'+(v.encarregado?' · encarregado: '+E(v.encarregado):'')+(v.lider?' · líder: '+E(v.lider):'');
   const pres=v.presentes||[];const enc=v.encarregado||'';
-  const nomes=f=>pres.filter(p=>ehEncarregado(f)?(p.nome===enc||ehEncarregado(p.funcao)):(p.funcao===f&&p.nome!==enc)).map(p=>E(p.nome));
+  const nomes=f=>pres.filter(p=>ehEncarregado(f)?(p.nome===enc||ehEncarregado(p.funcao)):(p.funcao===f&&p.nome!==enc)).map(p=>E(p.nome)+(ehAvulso(p)?(html?' <i>(sem documentação identificada)</i>':' (sem documentação identificada)'):''));
   const partes=ef.map(([f,n])=>{const ns=nomes(f);return `${E(plural(f,n))} (${n})${ns.length?': '+ns.join(', '):''}`;});
   const tot=ef.reduce((a,[,n])=>a+(+n),0);
   return partes.join('; ')+`; total ${tot}`+(enc&&!pres.some(p=>p.nome===enc)?' · encarregado: '+E(enc):'')+(v.lider?' · líder: '+E(v.lider):'');

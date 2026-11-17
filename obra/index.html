@@ -219,7 +219,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261117-08';
+const APP_BUILD='20261117-09';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -1060,14 +1060,14 @@ function mkDraw(ctx,s){
 function mkRender(){if(!mk.img)return;const c=$('mkCv'),ctx=c.getContext('2d');ctx.drawImage(mk.img,0,0);for(const s of mk.shapes)mkDraw(ctx,s);if(mk.cur)mkDraw(ctx,mk.cur);}
 function mkDesfazer(){mk.shapes.pop();mkRender();}
 function mkLimpar(){mk.shapes=[];mkRender();}
-function mkSetTool(t){mk.tool=t;document.querySelectorAll('.mk-t').forEach(b=>b.classList.toggle('on',b.dataset.t===t));}
+function mkSetTool(t){mk.tool=(mk.tool===t)?null:t;document.querySelectorAll('.mk-t').forEach(b=>b.classList.toggle('on',b.dataset.t===mk.tool));$('mkCv').style.cursor=mk.tool?'crosshair':'grab';}
 function mkSetCor(c){mk.cor=c;document.querySelectorAll('.mk-c').forEach(b=>b.classList.toggle('on',b.dataset.c===c));}
 // Abre a tela de marcação para um Blob de imagem. Devolve {m:marcada,o:original} ou null (Pular / sem marcação).
 async function marcarFoto(blob){
   if(mk.resolve)mkFechar(false);
   const img=await createImageBitmap(blob,{imageOrientation:'from-image'}).catch(()=>createImageBitmap(blob)).catch(()=>null);
   if(!img)return null;
-  mk.img=img;mk.shapes=[];mk.cur=null;mk.base=blob;mk.z=1;mk.tx=0;mk.ty=0;mkApply();
+  mk.img=img;mk.shapes=[];mk.cur=null;mk.base=blob;mk.z=1;mk.tx=0;mk.ty=0;mkApply();if(!mk.tool){mk.tool='elipse';mkSetTool('seta');}
   const c=$('mkCv');c.width=img.width;c.height=img.height;mkRender();
   $('mk').classList.add('show');document.body.classList.add('mk-on');
   return new Promise(res=>{mk.resolve=res;});
@@ -1087,15 +1087,18 @@ async function mkFechar(salvar){
   area.addEventListener('pointerdown',e=>{if(!mk.img)return;e.preventDefault();pts.set(e.pointerId,{x:e.clientX,y:e.clientY});try{area.setPointerCapture(e.pointerId);}catch(_){}
     if(pts.size===2){cancelDraw();pinchStart();return;}
     if(pts.size>2)return;
+    if(!mk.tool){draw={id:e.pointerId,pan:true,x:e.clientX,y:e.clientY,tx:mk.tx,ty:mk.ty};return;} // sem ferramenta: um dedo arrasta a foto
     if(e.target!==c)return;const p=mkPos(e);
     if(mk.tool==='texto'){const txt=(prompt('Texto curto:')||'').trim();if(txt)mk.shapes.push({t:'texto',cor:mk.cor,x1:p.x,y1:p.y,txt});mkRender();return;}
     draw={id:e.pointerId};mk.cur={t:mk.tool,cor:mk.cor,x1:p.x,y1:p.y,x2:p.x,y2:p.y};});
   area.addEventListener('pointermove',e=>{if(!pts.has(e.pointerId))return;e.preventDefault();pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
     if(pinch&&pts.size>=2){const [a,b]=[...pts.values()];const d=Math.hypot(a.x-b.x,a.y-b.y),mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
       mk.tx=pinch.tx+(mx-pinch.mx);mk.ty=pinch.ty+(my-pinch.my);mk.z=pinch.z;mkApply();mkZoomAt(pinch.z*(d/(pinch.d||1)),mx,my);return;}
+    if(draw&&draw.pan&&draw.id===e.pointerId){mk.tx=draw.tx+(e.clientX-draw.x);mk.ty=draw.ty+(e.clientY-draw.y);mkApply();return;}
     if(draw&&draw.id===e.pointerId&&mk.cur){const p=mkPos(e);mk.cur.x2=p.x;mk.cur.y2=p.y;mkRender();}});
   const up=e=>{if(!pts.has(e.pointerId))return;pts.delete(e.pointerId);
     if(pinch){if(pts.size<2)pinch=null;return;}
+    if(draw&&draw.pan&&draw.id===e.pointerId){draw=null;return;}
     if(draw&&draw.id===e.pointerId){draw=null;const s=mk.cur;mk.cur=null;if(s&&Math.hypot(s.x2-s.x1,s.y2-s.y1)>mkLw()*2)mk.shapes.push(s);mkRender();}};
   area.addEventListener('pointerup',up);area.addEventListener('pointercancel',up);
   // desktop: roda do mouse dá zoom no ponto do cursor

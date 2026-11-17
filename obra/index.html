@@ -219,7 +219,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261117-09';
+const APP_BUILD='20261117-10';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -754,7 +754,7 @@ async function baixarPendencia(p,baixa){
 }
 function tInicio(){
   if(pendVid!==visita.id){pendVid=visita.id;carregarPendencias().then(()=>{if(view==='visita'&&tab==='inicio')render();});}
-  $('tabBody').innerHTML=blocoPendencias()+`<div class="card"><h3>Condições</h3>
+  $('tabBody').innerHTML=`<div class="card"><h3>Condições</h3>
     <label class="f">Clima <span class="muted" style="font-weight:400">(pode marcar mais de um)</span></label>${chipsClima(visita.clima,"upd('clima',climaToggle(visita.clima,'%C'));render()")}
     <div class="row"><div><label class="f">Temperatura (°C)</label><input class="f" inputmode="numeric" value="${esc(visita.temperatura)}" onchange="upd('temperatura',this.value)"></div>
     <div><label class="f">Hora início</label><input class="f" type="time" value="${esc(visita.hora_inicio)}" onchange="upd('hora_inicio',this.value)"></div></div>
@@ -769,7 +769,7 @@ function tInicio(){
     <p class="muted" style="margin-top:8px">Total: <b id="totEf">${Object.values(visita.efetivo).reduce((a,b)=>a+(+b||0),0)}</b> pessoas</p>
     <p class="muted" style="margin-top:4px;font-size:13px">${textoEfetivo(visita,true)}</p>
     <button class="btn sec" style="margin-top:10px" onclick="abrirEquipe()">👷 Cadastrar / editar equipe</button>
-  </div>`;
+  </div>`+blocoPendencias();
 }
 // Encarregado: lista da equipe (função Encarregado primeiro) + "outro" digitado
 function selectEncarregado(val,onchange,id='',ph='Nome do encarregado'){

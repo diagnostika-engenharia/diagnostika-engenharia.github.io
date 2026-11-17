@@ -219,7 +219,7 @@ const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
 const SUPABASE_ANON='sb_publishable_h2ZDZ4oBUEXN9W5Mzp4uJA_O3AR0VcA';
 const BUCKET='obra-fotos';
 const OBRA_ID='menotti';
-const APP_BUILD='20261117-07';
+const APP_BUILD='20261117-08';
 
 const CHECKLIST=[
   {g:'Segurança (NR-35 / NR-18)',itens:[
@@ -337,6 +337,9 @@ const fmtBR=iso=>{const m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})/);retu
 const fmtHora=ts=>ts?new Date(ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'}):'';
 const fotoUrl=p=>`${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${p.split('/').map(encodeURIComponent).join('/')}`;
 const deviceId=(()=>{let id=localStorage.getItem('device_id');if(!id){id='dev-'+Math.random().toString(36).slice(2,10);localStorage.setItem('device_id',id);}return id;})();
+// compara o build publicado com o que está rodando; se mudou e não há registro aberto, recarrega
+async function checarBuild(){try{const t=await (await fetch('index.html?v='+Date.now(),{cache:'no-store'})).text();const m=t.match(/APP_BUILD='([0-9-]+)'/);
+  if(m&&m[1]!==APP_BUILD&&!reg&&!window.__reloading){window.__reloading=true;toast('Nova versão '+m[1]+', atualizando…');setTimeout(()=>location.reload(),900);}}catch(e){}}
 let toastT;function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2200);}
 
 async function comprimir(file,max=1600,q=.82){
@@ -595,7 +598,14 @@ async function init(){
   const {data}=await sb.from('obra_obras').select('*').eq('id',OBRA_ID).maybeSingle();
   obra=data||{id:OBRA_ID,nome:'Restauração de Fachadas — Ed. Menotti del Picchia',executora:'AAM Engenharia',fachadas:['Fachada 1 — Frontal','Fachada 2 — Lateral Esquerda','Fachada 3 — Posterior','Fachada 4 — Lateral Direita','Cobertura / Barrilete','Térreo / Canteiro']};
   atualizarSync();sincronizar();
-  if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+  if('serviceWorker' in navigator){
+    // atualização automática: sw sem cache HTTP, checagem ao voltar ao app e a cada 5 min; recarrega quando entra sw novo
+    const tinhaCtrl=!!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{r.update().catch(()=>{});setInterval(()=>r.update().catch(()=>{}),5*60e3);
+      document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){r.update().catch(()=>{});checarBuild();}});}).catch(()=>{});
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{if(tinhaCtrl&&!reg&&!window.__reloading){window.__reloading=true;toast('Atualizando o app…');setTimeout(()=>location.reload(),600);}});
+    setTimeout(checarBuild,4000);
+  }
   go(visita?'visita':'home');
 }
 

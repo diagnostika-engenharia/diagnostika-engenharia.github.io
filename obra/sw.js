@@ -1,4 +1,4 @@
-const CACHE = 'obra-dk-v59';
+const CACHE = 'obra-dk-v60';
 const ASSETS = ['./', './index.html', './manifest.json', '../assets/logo-dark.png', '../assets/icon.png', './mapa-comum.js', './medicao.js', './campo.html', './boletim.html'];
 
 self.addEventListener('install', e => {
@@ -22,7 +22,7 @@ self.addEventListener('fetch', e => {
   const isHTML = req.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('.html');
   if (isHTML) {
     e.respondWith(
-      fetch(req).then(resp => {
+      fetch(req, {cache: 'no-cache'}).then(resp => {
         const copy = resp.clone();
         caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
         return resp;

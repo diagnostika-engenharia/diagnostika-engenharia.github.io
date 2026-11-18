@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>ANH-545 - Passeio 3D</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#bcd3e6;font-family:Arial,Helvetica,sans-serif;-webkit-user-select:none;user-select:none}
+  canvas#c{display:block;width:100%;height:100%;touch-action:none}
+  #topo{position:fixed;left:8px;top:8px;right:170px;color:#063f4a;font-size:13px;line-height:1.35;pointer-events:none}
+  #topo b{font-size:15px}
+  #onde{display:inline-block;margin-top:4px;background:#063f4a;color:#fff;padding:3px 8px;border-radius:4px;font-size:13px}
+  #mapa{position:fixed;right:8px;top:8px;background:rgba(255,255,255,.88);border:1px solid #063f4a;border-radius:4px}
+  .pad{position:fixed;bottom:14px;display:grid;gap:6px}
+  #andar{left:14px;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(2,58px)}
+  #olhar{right:14px;grid-template-columns:58px;grid-template-rows:repeat(2,58px)}
+  button{font-size:24px;border:1px solid #063f4a;border-radius:8px;background:rgba(255,255,255,.9);color:#063f4a;touch-action:none;cursor:pointer;padding:0}
+  button:active,button.on{background:#14b8a6;color:#fff}
+  #pav{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:6px}
+  #pav button{font-size:13px;padding:10px 10px;white-space:nowrap}
+  @media (max-width:640px){#pav{bottom:150px}}
+  #erro{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:24px;text-align:center;color:#063f4a;background:#fff;font-size:16px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="topo"><b>ANH-545 · Galpão Av. Anhanguera</b><br>Passeio 3D esquemático · croqui de 18/11/2026<br>Arraste a tela para olhar em volta · setas para andar<br><span id="onde"></span></div>
+<canvas id="mapa" width="150" height="190"></canvas>
+<div class="pad" id="andar">
+  <button data-k="tl" title="girar à esquerda">↺</button><button data-k="fw" title="andar para a frente">▲</button><button data-k="tr" title="girar à direita">↻</button>
+  <button data-k="sl" title="passo à esquerda">◀</button><button data-k="bk" title="andar para trás">▼</button><button data-k="sr" title="passo à direita">▶</button>
+</div>
+<div class="pad" id="olhar">
+  <button data-k="lu" title="olhar para cima">⤒</button><button data-k="ld" title="olhar para baixo">⤓</button>
+</div>
+<div id="pav">
+  <button data-p="0">Térreo</button><button data-p="1">Pav. 1</button><button data-p="2">Pav. 2</button>
+</div>
+<div id="erro">Não foi possível carregar o 3D. Abra este arquivo com internet ligada (a biblioteca three.js vem da rede).</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+if(!window.THREE){document.getElementById('erro').style.display='flex';throw new Error('three');}
+// ---------------------------------------------------------------------------
+// Medidas tiradas do DWG "ANH-545 - Layout revisado escada e sanitários (18-11-2026)".
+// u = largura a partir da face interna da parede lateral esquerda (m)
+// v = profundidade a partir da linha interna da fachada da Av. Anhanguera (m)
+// ---------------------------------------------------------------------------
+const NIV=[0,3.15,6.30], TETO=9.30, LAJE=0.15, PD=3.00, OLHO=1.60;
+const POLY=[[0,0],[14.805,0],[14.805,6.32],[10.735,17.434],[0,13.98]];
+const ESC={v0:12.753, v1:7.993, vVao:11.633, larg:1.20, n:17, piso:0.28, esp:0.175};
+const R1=[9.24,12.81], R2=[12.06,13.83], RC=[14.805,6.32], RJ=[11.80,5.79], RT1=[11.80,4.0], RT2=[14.805,4.0];
+const hJ=3.15*7.47/9.26, hC=3.15*8.0/10.32;
+
+const cv=document.getElementById('c');
+const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0xbcd3e6);
+const cam=new THREE.PerspectiveCamera(72,1,0.05,300); cam.rotation.order='YXZ';
+scene.add(new THREE.AmbientLight(0xffffff,0.72));
+const sol=new THREE.DirectionalLight(0xffffff,0.45); sol.position.set(-20,40,30); scene.add(sol);
+const lanterna=new THREE.PointLight(0xffffff,0.35,14); scene.add(lanterna);
+
+const M={
+  parede:new THREE.MeshLambertMaterial({color:0xece8df}),
+  wc:new THREE.MeshLambertMaterial({color:0xd9e6e3}),
+  piso:new THREE.MeshLambertMaterial({color:0x9a9a96}),
+  laje:new THREE.MeshLambertMaterial({color:0xb9b9b4}),
+  escada:new THREE.MeshLambertMaterial({color:0x7d8794}),
+  rampa:new THREE.MeshLambertMaterial({color:0x8b8f7a,side:THREE.DoubleSide}),
+  pilar:new THREE.MeshLambertMaterial({color:0x55595e}),
+  vidro:new THREE.MeshLambertMaterial({color:0x7fb4d6,transparent:true,opacity:0.28,side:THREE.DoubleSide,depthWrite:false}),
+  guarda:new THREE.MeshLambertMaterial({color:0x2f6f7a,transparent:true,opacity:0.38,side:THREE.DoubleSide,depthWrite:false}),
+  asfalto:new THREE.MeshLambertMaterial({color:0x6d6f72}),
+  terra:new THREE.MeshLambertMaterial({color:0x8c9a7b}),
+  linha:new THREE.LineBasicMaterial({color:0x333333,transparent:true,opacity:0.35})
+};
+const segs=[];   // barreiras: {u1,v1,u2,v2,y0,y1,r}
+const tris=[];   // pisos onde se anda: [[u,v,h],[u,v,h],[u,v,h]]
+
+function contorno(m){scene.add(new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry),M.linha).copy(m,false));}
+function caixa(u0,u1,v0,v1,y0,y1,mat,edge){
+  const g=new THREE.BoxGeometry(Math.abs(u1-u0),y1-y0,Math.abs(v1-v0));
+  const m=new THREE.Mesh(g,mat); m.position.set((u0+u1)/2,(y0+y1)/2,-(v0+v1)/2); scene.add(m);
+  if(edge!==false){const e=new THREE.LineSegments(new THREE.EdgesGeometry(g),M.linha); e.position.copy(m.position); scene.add(e);}
+  return m;
+}
+function parede(u1,v1,u2,v2,y0,y1,opt){
+  opt=opt||{}; const t=opt.t||0.15, mat=opt.mat||M.parede;
+  const du=u2-u1, dv=v2-v1, len=Math.hypot(du,dv)+(opt.ext?t:0);
+  const g=new THREE.BoxGeometry(len,y1-y0,t), m=new THREE.Mesh(g,mat);
+  m.position.set((u1+u2)/2,(y0+y1)/2,-(v1+v2)/2); m.rotation.y=Math.atan2(dv,du); scene.add(m);
+  const e=new THREE.LineSegments(new THREE.EdgesGeometry(g),M.linha); e.position.copy(m.position); e.rotation.copy(m.rotation); scene.add(e);
+  if(opt.col!==false) segs.push({u1,v1,u2,v2,y0,y1,r:t/2});
+}
+function barreira(u1,v1,u2,v2,y0,y1){segs.push({u1,v1,u2,v2,y0,y1,r:0.03});}
+function painel(u1,v1,h1,u2,v2,h2,alt,mat){   // guarda-corpo (plano vertical, pode ser inclinado)
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute([u1,h1,-v1, u2,h2,-v2, u2,h2+alt,-v2, u1,h1,-v1, u2,h2+alt,-v2, u1,h1+alt,-v1],3));
+  g.computeVertexNormals(); scene.add(new THREE.Mesh(g,mat||M.guarda));
+  const l=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(u1,h1+alt,-v1),new THREE.Vector3(u2,h2+alt,-v2)]);
+  scene.add(new THREE.Line(l,new THREE.LineBasicMaterial({color:0x063f4a})));
+}
+function plano(cont,furos,h){   // piso onde se anda
+  const c=cont.map(p=>new THREE.Vector2(p[0],p[1])), f=(furos||[]).map(a=>a.map(p=>new THREE.Vector2(p[0],p[1])));
+  const all=c.concat(...f), faces=THREE.ShapeUtils.triangulateShape(c,f);
+  faces.forEach(t=>tris.push(t.map(i=>[all[i].x,all[i].y,h])));
+}
+function lajeMesh(cont,furos,h,mat){
+  const s=new THREE.Shape(cont.map(p=>new THREE.Vector2(p[0],p[1])));
+  (furos||[]).forEach(a=>s.holes.push(new THREE.Path(a.map(p=>new THREE.Vector2(p[0],p[1])))));
+  const g=new THREE.ExtrudeGeometry(s,{depth:LAJE,bevelEnabled:false}); g.rotateX(-Math.PI/2);
+  const m=new THREE.Mesh(g,mat||M.laje); m.position.y=h-LAJE; scene.add(m);
+  const e=new THREE.LineSegments(new THREE.EdgesGeometry(g),M.linha); e.position.copy(m.position); scene.add(e);
+}
+function rotulo(txt,u,v,y,esc){
+  const c=document.createElement('canvas'); c.width=512; c.height=96; const x=c.getContext('2d');
+  x.font='bold 54px Arial'; x.textAlign='center'; x.textBaseline='middle';
+  x.lineWidth=8; x.strokeStyle='rgba(255,255,255,.9)'; x.strokeText(txt,256,48); x.fillStyle='#063f4a'; x.fillText(txt,256,48);
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true}));
+  esc=esc||1; s.scale.set(2.6*esc,0.49*esc,1); s.position.set(u,y,-v); scene.add(s);
+}
+
+// ---------------- terreno ----------------
+(function(){
+  const g=new THREE.Mesh(new THREE.PlaneGeometry(160,160),M.terra); g.rotation.x=-Math.PI/2; g.position.set(7,-0.02,-40); scene.add(g);
+  caixa(-12,27,-40,-0.15,-0.02,NIV[1],M.asfalto,false);                 // platô da Av. Anhanguera (nível do pav. 1)
+  parede(-0.075,-5.15,-0.075,-0.15,NIV[1],NIV[1]+2.30,{});               // muros laterais do estacionamento
+  parede(14.88,-5.15,14.88,-0.15,NIV[1],NIV[1]+2.30,{});
+  plano([[-0.15,-12],[14.955,-12],[14.955,0],[-0.15,0]],null,NIV[1]);
+})();
+
+// ---------------- paredes externas (0,15 m) ----------------
+const PE=[[-0.075,-0.075],[-0.075,14.039],[10.78,17.524],[14.88,6.339],[14.88,-0.075]];
+for(let i=0;i<4;i++) parede(PE[i][0],PE[i][1],PE[i+1][0],PE[i+1][1],0,TETO+LAJE,{ext:true});
+parede(-0.075,-0.075,14.88,-0.075,0,NIV[1],{ext:true});                 // frente do térreo (arrimo, sob o estacionamento)
+// fachada: pilares e vidro (pav. 1: vãos de 3,45 m; pav. 2: panos de 1,15 m)
+const PIL=[[0,0.27],[3.72,3.87],[7.32,7.47],[10.93,11.08],[14.535,14.805]];
+PIL.forEach(p=>{caixa(p[0],p[1],-0.15,0,NIV[1],TETO+LAJE,M.pilar); barreira(p[0],-0.075,p[1],-0.075,NIV[1],TETO);});
+caixa(0,14.805,-0.15,0,NIV[2]-LAJE,NIV[2],M.pilar);
+for(let i=0;i<4;i++){
+  const a=PIL[i][1], b=PIL[i+1][0];
+  caixa(a,b,-0.085,-0.065,NIV[1],NIV[2]-LAJE,M.vidro,false);
+  caixa(a,b,-0.085,-0.065,NIV[2],TETO,M.vidro,false);
+  for(let k=1;k<3;k++){const u=a+(b-a)*k/3; caixa(u-0.02,u+0.02,-0.10,-0.05,NIV[2],TETO,M.pilar,false);}
+}
+barreira(0,-0.075,14.805,-0.075,NIV[2],TETO);
+
+// ---------------- lajes ----------------
+const VAO1=[[0.002,ESC.v1],[ESC.larg,ESC.v1],[ESC.larg,ESC.vVao],[0.002,ESC.vVao]];
+const VAO2=[[ESC.larg,ESC.v1],[2*ESC.larg,ESC.v1],[2*ESC.larg,ESC.vVao],[ESC.larg,ESC.vVao]];
+const P1C=[[0,0],[14.805,0],RT2,RT1,RJ,R1,R2,[10.735,17.434],[0,13.98]];   // pav. 1 sem o vão da rampa
+plano(POLY,null,NIV[0]); lajeMesh(POLY,null,NIV[0],M.piso);
+plano(P1C,[VAO1],NIV[1]); lajeMesh(P1C,[VAO1],NIV[1]);
+plano(POLY,[VAO2],NIV[2]); lajeMesh(POLY,[VAO2],NIV[2]);
+lajeMesh(POLY,null,TETO+LAJE);
+
+// ---------------- escada: 2 lances lado a lado (18 espelhos de 0,175; 17 pisos de 0,28; largura 1,20) ----------------
+function lance(u0,u1,h0){
+  for(let i=0;i<ESC.n;i++){const top=h0+(i+1)*ESC.esp, va=ESC.v0-i*ESC.piso; caixa(u0,u1,va-ESC.piso,va,top-0.32,top,M.escada);}
+  tris.push([[u0,ESC.v0,h0],[u1,ESC.v0,h0],[u1,ESC.v1,h0+3.15]],[[u0,ESC.v0,h0],[u1,ESC.v1,h0+3.15],[u0,ESC.v1,h0+3.15]]);
+}
+lance(0,ESC.larg,NIV[0]);            // lance 1, junto à parede: térreo -> pav. 1
+lance(ESC.larg,2*ESC.larg,NIV[1]);   // lance 2, faixa ao lado: pav. 1 -> pav. 2
+painel(ESC.larg,ESC.v0,NIV[0],ESC.larg,ESC.v1,NIV[1],1.05);
+painel(ESC.larg,ESC.v0,NIV[1],ESC.larg,ESC.v1,NIV[2],1.05);
+painel(2*ESC.larg,ESC.v0,NIV[1],2*ESC.larg,ESC.v1,NIV[2],1.05);
+painel(0,ESC.vVao,NIV[1],ESC.larg,ESC.vVao,NIV[1],1.05);
+painel(ESC.larg,ESC.v1,NIV[1],ESC.larg,ESC.vVao,NIV[1],1.05);
+painel(ESC.larg,ESC.vVao,NIV[2],2*ESC.larg,ESC.vVao,NIV[2],1.05);
+painel(ESC.larg,ESC.v1,NIV[2],ESC.larg,ESC.vVao,NIV[2],1.05);
+painel(2*ESC.larg,ESC.v1,NIV[2],2*ESC.larg,ESC.vVao,NIV[2],1.05);
+for(let i=0;i<ESC.n;i++){   // entre os lances: barra só da altura do lance 1 para cima (embaixo dele se passa onde há altura)
+  const va=ESC.v0-i*ESC.piso; barreira(ESC.larg,va-ESC.piso,ESC.larg,va,(i+1)*ESC.esp-0.30,NIV[2]+1.05);
+}
+barreira(2*ESC.larg,9.104,2*ESC.larg,ESC.v0,NIV[1],NIV[2]);
+barreira(2*ESC.larg,ESC.v1,2*ESC.larg,ESC.vVao,NIV[2],NIV[2]+1.05);
+barreira(0,ESC.vVao,ESC.larg,ESC.vVao,NIV[1],NIV[1]+1.05);
+barreira(ESC.larg,ESC.vVao,2*ESC.larg,ESC.vVao,NIV[2],NIV[2]+1.05);
+
+// ---------------- sanitários ----------------
+const W={mat:M.wc};
+// W.C. 1 (térreo, sob o lance 1): interno 1,70 x 1,30
+parede(0,9.029,1.20,9.029,0,2.14,W); parede(1.20,9.029,1.85,9.029,0,PD,W);
+parede(0,7.579,1.85,7.579,0,PD,W);
+parede(1.775,9.104,1.775,8.584,0,PD,W); parede(1.775,7.664,1.775,7.504,0,PD,W);
+caixa(1.70,1.85,7.664,8.584,2.10,PD,M.wc);
+// W.C. 2 (1,50 x 1,60, em parte sob o lance 2) e W.C. PNE 1 (1,50 x 2,50) no pav. 1
+const b=NIV[1];
+parede(1.275,4.554,1.275,7.99,b,b+PD,W); parede(1.275,7.99,1.275,9.104,b,b+2.14,W);
+parede(1.20,9.029,2.40,9.029,b,b+2.14,W); parede(2.40,9.029,3.00,9.029,b,b+PD,W);
+parede(1.20,4.629,3.00,4.629,b,b+PD,W); parede(1.35,7.279,2.85,7.279,b,b+PD,W);
+parede(2.925,9.104,2.925,8.654,b,b+PD,W); parede(2.925,7.854,2.925,6.404,b,b+PD,W); parede(2.925,5.504,2.925,4.554,b,b+PD,W);
+caixa(2.85,3.00,7.854,8.654,b+2.10,b+PD,M.wc); caixa(2.85,3.00,5.504,6.404,b+2.10,b+PD,M.wc);
+// W.C. 3 (pav. 2, canto dos fundos à direita)
+const c2=NIV[2];
+parede(9.055,16.894,9.155,16.604,c2,c2+PD,W); parede(9.465,15.759,9.505,15.614,c2,c2+PD,W); parede(9.505,15.614,11.21,16.134,c2,c2+PD,W);
+
+// ---------------- rampa (térreo -> pav. 1, largura 3,00 m) ----------------
+(function(){
+  const q=[[R1,0],[R2,0],[RC,hC],[RJ,hJ],[RT1,3.15],[RT2,3.15]];
+  const T=[[0,1,2],[0,2,3],[3,2,5],[3,5,4]], pos=[];
+  T.forEach(t=>{const tri=t.map(i=>[q[i][0][0],q[i][0][1],q[i][1]]); tris.push(tri); tri.forEach(p=>pos.push(p[0],p[2],-p[1]));});
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.computeVertexNormals();
+  scene.add(new THREE.Mesh(g,M.rampa));
+  parede(9.17,12.784,11.725,5.779,0,NIV[1]+1.05,{}); parede(11.725,5.779,11.725,4.0,0,NIV[1]+1.05,{});
+  parede(11.80,4.0,14.805,4.0,0,PD,{});
+  painel(R1[0],R1[1],NIV[1],R2[0],R2[1],NIV[1],1.05); barreira(R1[0],R1[1],R2[0],R2[1],NIV[1],NIV[1]+1.05);
+})();
+
+// ---------------- rótulos ----------------
+rotulo('GALPÃO',6.5,6,1.9,1.4); rotulo('W.C. 1',2.6,8.1,1.9,0.6); rotulo('RAMPA',12.2,9.5,2.6,0.9);
+rotulo('PAVIMENTO 1',7,7,b+1.9,1.4); rotulo('W.C. 2',3.6,8.25,b+1.9,0.6); rotulo('W.C. PNE 1',3.8,5.95,b+1.9,0.6);
+rotulo('ESCADA',1.8,13.4,b+2.2,0.6); rotulo('ESTACIONAMENTO',7.4,-3,b+1.6,1.2); rotulo('AV. ANHANGUERA',7.4,-9,b+2.2,1.4);
+rotulo('PAVIMENTO 2',7,7,c2+1.9,1.4); rotulo('W.C. 3',9.4,15.2,c2+1.9,0.6);
+
+// ---------------- andar ----------------
+const eu={u:7,v:3,pes:NIV[1],alvo:NIV[1],yaw:0,pitch:0};
+function alturaEm(u,v,pes){
+  let best=null;
+  for(const t of tris){
+    const [a,b,c]=t, d=(b[1]-c[1])*(a[0]-c[0])+(c[0]-b[0])*(a[1]-c[1]); if(Math.abs(d)<1e-9) continue;
+    const l1=((b[1]-c[1])*(u-c[0])+(c[0]-b[0])*(v-c[1]))/d, l2=((c[1]-a[1])*(u-c[0])+(a[0]-c[0])*(v-c[1]))/d, l3=1-l1-l2;
+    if(l1<-1e-6||l2<-1e-6||l3<-1e-6) continue;
+    const h=l1*a[2]+l2*b[2]+l3*c[2];
+    if(h<=pes+0.55 && h>=pes-0.60 && (best===null||h>best)) best=h;
+  }
+  return best;
+}
+function colide(u,v,pes){
+  const R=0.22;
+  for(let it=0;it<3;it++) for(const s of segs){
+    if(!(pes<s.y1-0.2 && pes+1.6>s.y0)) continue;
+    const du=s.u2-s.u1, dv=s.v2-s.v1, L=du*du+dv*dv;
+    let t=L?((u-s.u1)*du+(v-s.v1)*dv)/L:0; t=Math.max(0,Math.min(1,t));
+    const cu=s.u1+t*du, cvv=s.v1+t*dv, d=Math.hypot(u-cu,v-cvv), m=R+s.r;
+    if(d<m){ if(d<1e-6){u+=m;} else {u=cu+(u-cu)/d*m; v=cvv+(v-cvv)/d*m;} }
+  }
+  return [u,v];
+}
+function mover(du,dv){
+  const ten=[[du,dv],[du,0],[0,dv]];
+  for(const [a,b2] of ten){
+    if(!a&&!b2) continue;
+    const p=colide(eu.u+a,eu.v+b2,eu.pes), h=alturaEm(p[0],p[1],eu.pes);
+    if(h!==null){eu.u=p[0];eu.v=p[1];eu.alvo=h;return;}
+  }
+}
+const K={};
+document.querySelectorAll('button[data-k]').forEach(bt=>{
+  const k=bt.dataset.k, on=e=>{e.preventDefault();K[k]=true;bt.classList.add('on');}, off=()=>{K[k]=false;bt.classList.remove('on');};
+  bt.addEventListener('pointerdown',on); ['pointerup','pointerleave','pointercancel'].forEach(n=>bt.addEventListener(n,off));
+});
+const TEC={ArrowUp:'fw',KeyW:'fw',ArrowDown:'bk',KeyS:'bk',ArrowLeft:'tl',ArrowRight:'tr',KeyA:'sl',KeyD:'sr',KeyQ:'tl',KeyE:'tr',PageUp:'lu',PageDown:'ld'};
+addEventListener('keydown',e=>{if(TEC[e.code]){K[TEC[e.code]]=true;e.preventDefault();}});
+addEventListener('keyup',e=>{if(TEC[e.code])K[TEC[e.code]]=false;});
+const INI=[[6,6],[7,3],[7,3]];
+document.querySelectorAll('button[data-p]').forEach(bt=>bt.addEventListener('click',()=>{
+  const p=+bt.dataset.p; eu.u=INI[p][0]; eu.v=INI[p][1]; eu.pes=eu.alvo=NIV[p]; eu.yaw=0; eu.pitch=0;
+}));
+let arr=null;
+cv.addEventListener('pointerdown',e=>{arr={x:e.clientX,y:e.clientY};cv.setPointerCapture(e.pointerId);});
+cv.addEventListener('pointermove',e=>{ if(!arr)return; eu.yaw+=(e.clientX-arr.x)*0.005; eu.pitch+=(e.clientY-arr.y)*0.004;
+  eu.pitch=Math.max(-1.45,Math.min(1.45,eu.pitch)); arr={x:e.clientX,y:e.clientY}; });
+['pointerup','pointercancel'].forEach(n=>cv.addEventListener(n,()=>arr=null));
+
+// ---------------- mapa e legenda ----------------
+const mp=document.getElementById('mapa'), mx=mp.getContext('2d'), onde=document.getElementById('onde');
+function mapa(){
+  const E=8.6, X=u=>12+u*E, Y=v=>178-v*E, pav=eu.pes<1.6?0:(eu.pes<4.7?1:2);
+  mx.clearRect(0,0,150,190); mx.lineWidth=1.5; mx.strokeStyle='#063f4a'; mx.fillStyle='#fff';
+  mx.beginPath(); POLY.forEach((p,i)=>i?mx.lineTo(X(p[0]),Y(p[1])):mx.moveTo(X(p[0]),Y(p[1]))); mx.closePath(); mx.fill(); mx.stroke();
+  mx.lineWidth=1; mx.strokeStyle='#7d8794';
+  const ret=(u0,v0,u1,v1)=>mx.strokeRect(X(u0),Y(v1),(u1-u0)*E,(v1-v0)*E);
+  if(pav<2) ret(0,ESC.v1,1.2,ESC.v0); if(pav>0) ret(1.2,ESC.v1,2.4,ESC.v0);
+  if(pav===0) ret(0,7.504,1.85,9.104); if(pav===1) ret(1.2,4.554,3.0,9.104);
+  if(pav<2){mx.beginPath();[R1,R2,RC,RT2,RT1,RJ].forEach((p,i)=>i?mx.lineTo(X(p[0]),Y(p[1])):mx.moveTo(X(p[0]),Y(p[1])));mx.closePath();mx.stroke();}
+  mx.fillStyle='#e11d48'; mx.beginPath(); mx.arc(X(eu.u),Y(eu.v),4,0,7); mx.fill();
+  mx.strokeStyle='#e11d48'; mx.lineWidth=2; mx.beginPath(); mx.moveTo(X(eu.u),Y(eu.v)); mx.lineTo(X(eu.u)-Math.sin(eu.yaw)*12,Y(eu.v)-Math.cos(eu.yaw)*12); mx.stroke();
+  mx.fillStyle='#063f4a'; mx.font='10px Arial'; mx.fillText('fundos',60,10); mx.fillText('Av. Anhanguera',38,188);
+  let t=['Térreo (galpão)','Pavimento 1','Pavimento 2'][pav];
+  const naRampa=eu.u>9&&eu.pes>0.05&&eu.pes<3.1, naEsc=eu.u<2.5&&[0,3.15,6.3].every(n=>Math.abs(eu.pes-n)>0.05);
+  if(eu.v<0) t='Estacionamento (frente)'; else if(naRampa) t='Rampa'; else if(naEsc) t='Escada';
+  onde.textContent=t+' · piso a '+eu.pes.toFixed(2).replace('.',',')+' m';
+}
+
+// ---------------- laço ----------------
+let ant=performance.now();
+function quadro(agora){
+  const dt=Math.min(0.05,(agora-ant)/1000); ant=agora;
+  const w=cv.clientWidth,h=cv.clientHeight; if(cv.width!==Math.floor(w*renderer.getPixelRatio())||cam.aspect!==w/h){renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();}
+  if(K.tl) eu.yaw+=1.5*dt; if(K.tr) eu.yaw-=1.5*dt;
+  if(K.lu) eu.pitch=Math.min(1.45,eu.pitch+1.0*dt); if(K.ld) eu.pitch=Math.max(-1.45,eu.pitch-1.0*dt);
+  const f=(K.fw?1:0)-(K.bk?1:0), l=(K.sr?1:0)-(K.sl?1:0), vel=2.4*dt;
+  if(f||l){const s=Math.sin(eu.yaw), c=Math.cos(eu.yaw); mover((-s*f+c*l)*vel,(c*f+s*l)*vel);}
+  eu.pes+=(eu.alvo-eu.pes)*Math.min(1,dt*12);
+  cam.position.set(eu.u,eu.pes+OLHO,-eu.v); cam.rotation.y=eu.yaw; cam.rotation.x=eu.pitch; lanterna.position.copy(cam.position);
+  renderer.render(scene,cam); mapa(); requestAnimationFrame(quadro);
+}
+window.__eu=eu; window.__K=K;
+requestAnimationFrame(quadro);
+</script>
+</body>
+</html>

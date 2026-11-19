@@ -348,7 +348,7 @@ function pintarAviso(){
   const s=SESS.find(x=>x.sessao===atual);const a=$('aviso');
   if(!s){a.className='';return;}
   if(!pcOn(s)){a.className='on off';$('avisoTx').textContent='O PC do escritório está desligado. A mensagem fica guardada e roda quando ele ligar.';}
-  else if(s.ocupada&&!PEDS.some(p=>p.status==='rodando')){a.className='on';$('avisoTx').textContent='O Rogério está usando esta sessão agora. Sua mensagem entra assim que ele terminar.';}
+  else if(s.ocupada&&!PEDS.some(p=>p.status==='rodando')){a.className='on';$('avisoTx').textContent='O Rogério também está nesta sessão agora. Pode mandar: sua pergunta roda em paralelo.';}
   else a.className='';
   $('dica').textContent=s?(s.codigo+(innerWidth>820?' · Enter envia, Shift+Enter quebra linha':'')):'';
 }
